@@ -351,6 +351,7 @@ a:hover {
 .post-body h4 {
     margin: 30px 0 15px;
     font-weight: 600;
+    scroll-margin-top: 80px;
 }
 
 .post-body h2 {
@@ -383,18 +384,43 @@ a:hover {
 }
 
 .post-body pre {
-    background: #282c34;
-    color: #abb2bf;
-    padding: 20px;
-    border-radius: var(--radius-sm);
+    background: transparent;
+    color: #333;
+    padding: 0;
+    border-radius: 0;
     overflow-x: auto;
-    margin: 20px 0;
+    margin: 0;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    letter-spacing: 0;
+    border-left: none;
+    box-shadow: none;
+    position: relative;
+}
+
+.post-body pre::before {
+    content: '';
+    display: none;
 }
 
 .post-body pre code {
     background: none;
     color: inherit;
     padding: 0;
+    font-family: inherit;
+    font-size: inherit;
+    white-space: pre;
+    display: block;
+}
+
+.post-body code {
+    background: rgba(102, 126, 234, 0.08);
+    color: #667eea;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+    font-size: 14px;
 }
 
 .post-body blockquote {
@@ -852,4 +878,54 @@ a:hover {
         white-space: nowrap;
         -webkit-overflow-scrolling: touch;
     }
+}
+
+/* 目录样式 */
+.post-toc {
+    background: #f8f9fa;
+    border-left: 3px solid var(--primary-color);
+    border-radius: var(--radius-sm);
+    padding: 15px 18px;
+    margin-bottom: 25px;
+    font-size: 13px;
+}
+
+.post-toc .toc-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+
+.post-toc ol {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.post-toc ol ol {
+    padding-left: 15px;
+    margin-top: 4px;
+}
+
+.post-toc li {
+    margin: 4px 0;
+}
+
+.post-toc a {
+    color: var(--text-light);
+    font-size: 13px;
+    line-height: 1.5;
+    display: block;
+    padding: 2px 0;
+    transition: all 0.2s ease;
+}
+
+.post-toc a:hover {
+    color: var(--primary-color);
+    padding-left: 5px;
+}
+
+.post-toc .toc-child {
+    font-size: 12px;
 }
