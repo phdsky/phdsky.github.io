@@ -35,7 +35,18 @@ body {
     margin: 0 auto;
     padding: 0 20px;
 }
+@media (max-width: 768px) {
+    .container {
+        padding: 0 20px;
+        max-width: 100%;
+    }
+}
 
+@media (max-width: 480px) {
+    .container {
+        padding: 0 16px;
+    }
+}
 a {
     color: var(--primary-color);
     text-decoration: none;
@@ -423,6 +434,25 @@ a:hover {
     font-size: 14px;
 }
 
+/* MathJax公式移动端适配 */
+.post-body mjx-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    display: block !important;
+}
+
+@media (max-width: 768px) {
+    .post-body mjx-container {
+        font-size: 90%;
+    }
+    
+    .post-body mjx-container[display="true"] {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
 .post-body blockquote {
     border-left: 4px solid var(--primary-color);
     padding-left: 20px;
@@ -796,7 +826,12 @@ a:hover {
 
     .post-body,
     .page-article {
-        padding: 30px 20px;
+        padding: 20px 16px;
+        overflow-x: hidden;
+    }
+    
+    .post-body pre {
+        font-size: 12px;
     }
 
     .comments-section {
