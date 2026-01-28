@@ -116,12 +116,6 @@
 </ul>
 <h2 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h2><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">                          输入图像</span><br><span class="line">                             ↓</span><br><span class="line">                         [H, W, 3]</span><br><span class="line">                             ↓</span><br><span class="line">                 ┌───────────────────────┐</span><br><span class="line">                 │  Backbone(stride=4)   │</span><br><span class="line">                 │  ResNet-18/DLA-34/    │</span><br><span class="line">                 │  Hourglass-104        │</span><br><span class="line">                 └───────────────────────┘</span><br><span class="line">                             ↓</span><br><span class="line">                       [H/4, W/4, C]</span><br><span class="line">                             ↓</span><br><span class="line">       ┌─────────────────────┼─────────────────────┐</span><br><span class="line">       │                     │                     │</span><br><span class="line">       ↓                     ↓                     ↓</span><br><span class="line">┌─────────────┐       ┌─────────────┐       ┌─────────────┐</span><br><span class="line">│ Heatmap     │       │ Size Head   │       │ Offset Head │</span><br><span class="line">│ Head        │       │             │       │             │</span><br><span class="line">│ Conv 1×1    │       │ Conv 1×1    │       │ Conv 1×1    │</span><br><span class="line">└─────────────┘       └─────────────┘       └─────────────┘</span><br><span class="line">       ↓                     ↓                     ↓</span><br><span class="line">  [H/4,W/4,C]           [H/4,W/4,2]           [H/4,W/4,2]</span><br><span class="line">       ↓                     ↓                     ↓</span><br><span class="line">       └─────────────────────┼─────────────────────┘</span><br><span class="line">                             ↓</span><br><span class="line">               ┌────────────────────────────┐</span><br><span class="line">               │  Peak Detection + Decoding │</span><br><span class="line">               │  - Local max pooling       │</span><br><span class="line">               │  - Top-K keep 100          │</span><br><span class="line">               │  - offset correction       │</span><br><span class="line">               │  - size regression         │</span><br><span class="line">               └────────────────────────────┘</span><br><span class="line">                             ↓</span><br><span class="line">                         输出检测框</span><br><span class="line">                    [N×(cx,cy,w,h,conf)]</span><br></pre></td></tr></table></figure>
 
-<p><strong>Backbone 选择</strong>：</p>
-<ul>
-<li><strong>ResNet-18</strong>：28.1% AP，142 FPS</li>
-<li><strong>DLA-34</strong>：37.4% AP，52 FPS</li>
-<li><strong>Hourglass-104</strong>：45.1% AP，7.8 FPS</li>
-</ul>
 <p><strong>损失函数</strong>：</p>
 <p>$$L &#x3D; L_{heatmap} + 0.1 L_{size} + L_{offset}$$</p>
 <p>其中 heatmap 使用 focal loss，size 和 offset 使用 L1 loss。</p>
@@ -143,49 +137,15 @@
 <ul>
 <li><strong>Offset head</strong> 对精度有明显提升（+1.2 AP）</li>
 <li><strong>Heatmap Gaussian kernel</strong> 的 sigma 对性能影响较大</li>
-<li><strong>不同 backbone 的性能&#x2F;速度权衡</strong>：<ul>
-<li>ResNet-18：快速但精度较低（28.1% AP）</li>
-<li>DLA-34：平衡选择（37.4% AP）</li>
-<li>Hourglass-104：最高精度但较慢（45.1% AP）</li>
 </ul>
-</li>
-</ul>
-<p><strong>性能瓶颈分析</strong>（通过替换预测头的 GT 分析）：</p>
-<p><strong>关键发现</strong>：CenterNet 的性能瓶颈<strong>几乎 100% 来自中心点检测部分</strong>。一旦中心点、尺寸、offset 都替换为 GT，检测任务几乎是”零难度”的。</p>
-<p>这说明：</p>
+<p><strong>性能瓶颈分析</strong>：</p>
+<p>CenterNet 的性能瓶颈<strong>几乎 100% 来自中心点检测部分</strong>。一旦中心点、尺寸、offset 都替换为 GT，检测任务几乎是”零难度”的，这说明 Size 和 offset 预测已经足够准确，提升空间在于改进 heatmap 预测。</p>
+<h2 id="局限性与失效场景"><a href="#局限性与失效场景" class="headerlink" title="局限性与失效场景"></a>局限性与失效场景</h2><p><strong>中心点碰撞问题</strong>：当两个不同的物体中心点完全重合时，CenterNet 无法同时检测两者。在 COCO 数据集上这种失效场景仅占 ~0.1%，远低于 Faster R-CNN (~2%) 和 Anchor-based 方法 (~20%) 的失效率。</p>
+<p><strong>其他限制</strong>：</p>
 <ul>
-<li>Size 和 offset 预测已经足够准确</li>
-<li>整个系统的核心难点就是”定位中心点”</li>
-<li>提升空间在于改进 heatmap 预测的精度和鲁棒性</li>
-</ul>
-<p><strong>与其他方法的对比</strong>（错误来源）：</p>
-<ul>
-<li>CenterNet：中心点碰撞失效 ~0.1%</li>
-<li>Faster R-CNN：proposal 质量问题导致 ~2% 失效</li>
-<li>15-anchor Faster R-CNN：anchor 覆盖问题导致 ~20% 失效</li>
-</ul>
-<h2 id="局限性与失效场景"><a href="#局限性与失效场景" class="headerlink" title="局限性与失效场景"></a>局限性与失效场景</h2><p><strong>中心点碰撞问题</strong>（最关键的限制）：</p>
-<p>当两个不同的物体<strong>中心点完全重合</strong>时，CenterNet 无法同时检测两者，只能输出一个。不过在 COCO 数据集上这种失效场景仅占 ~0.1%。</p>
-<p>相比之下：</p>
-<ul>
-<li>Slower&#x2F;Faster R-CNN 因不完美的 region proposal 失效率：~2%</li>
-<li>Anchor-based 方法（如 15 个 anchor 的 Faster R-CNN）在 0.5 IOU 阈值下失效率：~20%</li>
-</ul>
-<p><strong>CenterNet 的碰撞失效远低于其他方法的失效率</strong>。</p>
-<p><strong>密集&#x2F;遮挡目标</strong>：</p>
-<ul>
-<li>多个紧密相邻的物体（不重合但接近）容易混淆</li>
-<li>高度遮挡时性能下降明显</li>
-</ul>
-<p><strong>极端尺度目标</strong>：</p>
-<ul>
-<li>极小目标（&lt;50px）：需要高分辨率输入才能准确定位</li>
-<li>极端长宽比：边界框预测不准确</li>
-</ul>
-<p><strong>3D 检测中的限制</strong>：</p>
-<ul>
-<li>深度估计困难（不能直接回归，需要变换：$d &#x3D; 1&#x2F;\sigma(\hat{d}) - 1$）</li>
-<li>方向估计也存在回归困难，需要特殊处理</li>
+<li><strong>密集&#x2F;遮挡目标</strong>：多个紧密相邻的物体容易混淆，高度遮挡时性能下降明显</li>
+<li><strong>极端尺度目标</strong>：极小目标（&lt;50px）需要高分辨率输入，极端长宽比的边界框预测不准确</li>
+<li><strong>3D 检测困难</strong>：深度和方向估计难以直接回归，需要特殊的数学变换处理</li>
 </ul>
 <h2 id="复杂度分析"><a href="#复杂度分析" class="headerlink" title="复杂度分析"></a>复杂度分析</h2><p><strong>参数量</strong>（以 COCO 80 类为例）：</p>
 <ul>
@@ -198,7 +158,7 @@
 <li>训练（batch&#x3D;16）：6GB（ResNet-18），12GB（Hourglass）</li>
 <li>推理：&lt;1GB（单张图片）</li>
 </ul>
-<h2 id="工程应用与多任务扩展"><a href="#工程应用与多任务扩展" class="headerlink" title="工程应用与多任务扩展"></a>工程应用与多任务扩展</h2><p><strong>2D 目标检测效率对比</strong>：</p>
+<h2 id="工程应用与多任务扩展"><a href="#工程应用与多任务扩展" class="headerlink" title="工程应用与多任务扩展"></a>工程应用与多任务扩展</h2><p><strong>效率对比</strong>（COCO 数据集）：</p>
 <table>
 <thead>
 <tr>
@@ -245,48 +205,12 @@
 <td>无需NMS</td>
 </tr>
 </tbody></table>
-<p><strong>训练成本</strong>（论文给出的参考数据）：</p>
-<ul>
-<li>ResNet-18&#x2F;34: 单卡 1080Ti 训练约 1-2 天</li>
-<li>DLA-34: 单卡 V100 训练约 2-3 天</li>
-<li>Hourglass-104: 多卡训练约 3-5 天</li>
-</ul>
-<p><strong>推理速度</strong>：</p>
-<ul>
-<li>ResNet-18: ~142 FPS（512×512输入）</li>
-<li>DLA-34: ~52 FPS </li>
-<li>Hourglass-104: ~7.8 FPS</li>
-<li><strong>无需 NMS，后处理极快</strong>（&lt;1ms）</li>
-</ul>
 <p><strong>3D 目标检测扩展</strong>：</p>
-<p>CenterNet 可直接扩展到 3D 检测（在 Mono3D、Deep3DBox 基础上替换主干）。新增预测头：</p>
-<ul>
-<li><p><strong>深度估计</strong>：单标量，但难以直接回归。使用变换 $d &#x3D; \frac{1}{\sigma(\hat{d})} - 1$（其中 $\sigma$ 为 sigmoid）强制输出始终为正，更符合深度的物理性质</p>
-</li>
-<li><p><strong>3D 尺寸</strong>：预测 $(h, w, l)$ 三维度量</p>
-</li>
-<li><p><strong>方向&#x2F;旋转</strong>：单标量，同样需要特殊处理。回归困难的原因是角度的周期性（0° &#x3D; 360°），需要使用特殊的角度表示（如 sin&#x2F;cos 对）</p>
-</li>
-</ul>
-<p><strong>特殊处理</strong>：</p>
-<ul>
-<li><strong>3D 检测分支不应用数据增强</strong>（裁剪、缩放会改变 3D 度量的真实性）</li>
-<li>其他分支（2D 检测）仍正常使用数据增强</li>
-</ul>
+<p>CenterNet 可直接扩展到 3D 检测。新增预测头：深度估计（使用变换 $d &#x3D; \frac{1}{\sigma(\hat{d})} - 1$ 强制正值）、3D 尺寸 $(h, w, l)$、方向&#x2F;旋转（使用 sin&#x2F;cos 对处理周期性）。注意 3D 检测分支不应用数据增强以保持度量真实性。</p>
 <p><strong>多人姿态估计扩展</strong>：</p>
-<p>在 2D 检测基础上增加关节点预测：</p>
-<ul>
-<li>为每个检测的人体边界框内回归 17 个关键点（关节）</li>
-<li>将输出投影到最近的 GT 关节检测可提升性能</li>
-<li>在标准姿态估计数据集上的性能与主流方法相当</li>
-</ul>
-<p><strong>工业部署特点</strong>：</p>
-<ul>
-<li><strong>部署支持</strong>：可转换为 TensorRT&#x2F;ONNX 格式，支持边缘设备部署</li>
-<li><strong>架构扩展性</strong>：添加新任务只需增加预测头，主干网络不变</li>
-<li><strong>实时性能</strong>：ResNet-18 版本达到 142 FPS（512×512 输入）</li>
-<li><strong>应用场景</strong>：监控系统、机器人感知、自动驾驶感知模块、移动端检测</li>
-</ul>
+<p>在 2D 检测基础上为每个人体边界框回归 17 个关键点（关节），性能与主流方法相当。</p>
+<p><strong>工业部署</strong>：</p>
+<p>支持 TensorRT&#x2F;ONNX 格式转换，添加新任务只需增加预测头。应用场景包括监控系统、机器人感知、自动驾驶感知模块、移动端检测。</p>
 <h2 id="相关工作与对比"><a href="#相关工作与对比" class="headerlink" title="相关工作与对比"></a>相关工作与对比</h2><p><strong>Keypoint-based 检测方法对比</strong>：</p>
 <table>
 <thead>
@@ -352,38 +276,15 @@
 <li><strong>优势</strong>：设计简洁，端到端可训练，性能反而更优</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><ol>
-<li><p><strong>问题重新定义的力量</strong>：</p>
-<ul>
-<li>传统方法通过 bbox 将检测转化为分类（anchor → class），引入大量复杂度</li>
-<li>CenterNet 通过中心点重新定义，反而消除了复杂度，提升了性能</li>
-<li>启示：有时”简化问题定义”比”增加网络复杂度”更有效</li>
-</ul>
+<li><p><strong>问题重新定义的力量</strong>：CenterNet 通过中心点重新定义检测任务，消除了复杂度反而提升了性能。启示：有时”简化问题定义”比”增加网络复杂度”更有效</p>
 </li>
-<li><p><strong>软监督信号的优势</strong>：</p>
-<ul>
-<li>Heatmap 中高斯核软标签相比硬标签，对标注噪声更鲁棒</li>
-<li>隐含地编码物体尺寸信息，帮助网络学习不确定性建模</li>
-</ul>
+<li><p><strong>软监督信号的优势</strong>：Heatmap 中高斯核软标签对标注噪声更鲁棒，隐含编码物体尺寸信息</p>
 </li>
-<li><p><strong>精细的参数共享策略</strong>：</p>
-<ul>
-<li>Size&#x2F;Offset 跨所有类别共享，不增加参数但保持精度</li>
-<li>设计合理的架构往往比简单地堆砌参数更有效</li>
-</ul>
+<li><p><strong>精细的参数共享策略</strong>：Size&#x2F;Offset 跨类别共享，不增加参数但保持精度</p>
 </li>
-<li><p><strong>深入的性能分析</strong>：</p>
-<ul>
-<li>错误分析表明系统 100% 的失误来自中心点检测</li>
-<li>Size&#x2F;Offset 预测已足够准确，改进空间在于中心点定位</li>
-<li>启示：找到”木桶短板”，精准突破比盲目改进更重要</li>
-</ul>
+<li><p><strong>深入的性能分析</strong>：错误分析表明系统 100% 的失误来自中心点检测。启示：找到”木桶短板”，精准突破比盲目改进更重要</p>
 </li>
-<li><p><strong>范式转变的历史意义</strong>：</p>
-<ul>
-<li>Anchor-based 方法主导了 2014-2018 年的检测领域</li>
-<li>CenterNet 证明了完全无先验的方法可以超越 anchor-based</li>
-<li>之后 FCOS、YOLOX 等相继出现，anchor-free 成为新主流</li>
-</ul>
+<li><p><strong>范式转变的历史意义</strong>：CenterNet 证明了完全无先验的方法可以超越 anchor-based，之后 FCOS、YOLOX 等相继出现，anchor-free 成为新主流</p>
 </li>
 </ol>
 <h2 id="复现注意事项"><a href="#复现注意事项" class="headerlink" title="复现注意事项"></a>复现注意事项</h2><p><strong>Backbone 初始化</strong>：下采样层用 ImageNet 预训练，上采样层随机初始化。原因是下采样层学到”语义”特征（ImageNet 教过），上采样层需要学”几何&#x2F;定位”（ImageNet 没教过）。</p>
@@ -419,47 +320,13 @@
 <li>消除了 anchor、proposal、NMS 等复杂模块，反而提升性能</li>
 <li>支持多任务扩展（2D 检测、3D 检测、姿态估计）共用同一 backbone</li>
 </ul>
-<p><strong>性能指标</strong>（在 COCO 数据集上）：</p>
-<table>
-<thead>
-<tr>
-<th>Backbone</th>
-<th>精度</th>
-<th>速度</th>
-<th>参数量</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>ResNet-18</td>
-<td>28.1% AP</td>
-<td>142 FPS</td>
-<td>13.6M</td>
-</tr>
-<tr>
-<td>DLA-34</td>
-<td>37.4% AP</td>
-<td>52 FPS</td>
-<td>15.3M</td>
-</tr>
-<tr>
-<td>Hourglass-104</td>
-<td>45.1% AP</td>
-<td>7.8 FPS</td>
-<td>50M</td>
-</tr>
-</tbody></table>
-<p>精度范围覆盖轻量化（28% AP）到最优（45% AP），适用不同应用需求。</p>
-<p><strong>工程实现价值</strong>：</p>
+<p><strong>性能指标</strong>（COCO 数据集）：ResNet-18（28.1% AP, 142 FPS）、DLA-34（37.4% AP, 52 FPS）、Hourglass-104（45.1% AP, 7.8 FPS），精度范围覆盖轻量化到最优，适用不同应用需求。</p>
+<p><strong>影响力</strong>：</p>
 <ul>
-<li>官方代码开源，实现清晰</li>
-<li>已被 MMDetection 等主流框架集成</li>
+<li>官方代码开源，已被 MMDetection 等主流框架集成</li>
 <li>工业应用广泛：监控、自动驾驶、机器人等领域</li>
-</ul>
-<p><strong>学术影响</strong>：</p>
-<ul>
-<li>开启 anchor-free 检测的新方向（2019 年同期 FCOS 并行发布）</li>
-<li>之后 YOLOX（2021）等多项工作基于 CenterNet 理念进行改进</li>
-<li>在 2014-2018 年 anchor-based 主导到 2019 年后 anchor-free 并行的范式转变中扮演关键角色</li>
+<li>开启 anchor-free 检测新方向（2019 年同期 FCOS 并行发布）</li>
+<li>在 anchor-based 到 anchor-free 的范式转变中扮演关键角色</li>
 </ul>
 
     </div>
