@@ -201,10 +201,10 @@
 <li><strong>夜间反光</strong>：湿滑路面反光容易产生虚假车道线像素</li>
 <li><strong>破损路标</strong>：断续的车道线标记导致垂直亲和场预测不连续</li>
 </ul>
-<h2 id="复杂度分析"><a href="#复杂度分析" class="headerlink" title="复杂度分析"></a>复杂度分析</h2><p><strong>参数量</strong>（COCO 输入 640×360）：</p>
+<h2 id="复杂度分析"><a href="#复杂度分析" class="headerlink" title="复杂度分析"></a>复杂度分析</h2><p><strong>参数量</strong>（CULane 输入 640×360）：</p>
 <ul>
-<li>ResNet-34: ~21.8M 参数，~4 GFLOPs</li>
-<li>EfficientNet-B0: ~5.3M 参数，~0.8 GFLOPs</li>
+<li>ResNet-34: <del>21.8M 参数，</del>4 GFLOPs</li>
+<li>EfficientNet-B0: <del>5.3M 参数，</del>0.8 GFLOPs</li>
 <li>完整模型（ResNet-34）: ~25M 参数</li>
 </ul>
 <p><strong>内存占用</strong>：</p>
@@ -309,9 +309,9 @@
 </ol>
 <p><strong>Anchor-free 车道线检测的发展</strong>：</p>
 <p>2019-2021 年间，车道线检测从传统方法转向深度学习 anchor-free 范式：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">车道线检测方法演进</span><br><span class="line">│</span><br><span class="line">├─ 传统方法（2010–2016）</span><br><span class="line">│  └─ 基于几何与边缘的检测（Hough、Canny）</span><br><span class="line">│</span><br><span class="line">├─ 深度学习分割方法（2017–2019）</span><br><span class="line">│  ├─ SCNN（CVPR 2018）：空间信息传播的语义分割</span><br><span class="line">│  └─ LaneNet（CVPR 2018）：分割 + embedding 聚类</span><br><span class="line">│</span><br><span class="line">└─ Anchor-free 结构化方法（2019–2021）</span><br><span class="line">   ├─ 参数化曲线回归方法</span><br><span class="line">   │  └─ PolyLaneNet（CVPR 2020）</span><br><span class="line">   │</span><br><span class="line">   ├─ 关键点/点集建模方法</span><br><span class="line">   │  └─ PINet（CVPR 2020）</span><br><span class="line">   │</span><br><span class="line">   └─ 像素关联/Embedding 方法</span><br><span class="line">      └─ LaneAF（ICCV 2021）</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">车道线检测方法演进</span><br><span class="line">│</span><br><span class="line">├─ 传统方法（2010–2016）</span><br><span class="line">│  └─ 基于几何与边缘的检测（Hough、Canny）</span><br><span class="line">│</span><br><span class="line">├─ 深度学习分割方法（2017–2019）</span><br><span class="line">│  ├─ SCNN（CVPR 2018）：空间信息传播的语义分割</span><br><span class="line">│  └─ LaneNet（CVPR 2018）：分割 + embedding 聚类</span><br><span class="line">│</span><br><span class="line">└─ Anchor-free 结构化方法（2019–2021）</span><br><span class="line">   ├─ 参数化曲线回归方法</span><br><span class="line">   │  └─ PolyLaneNet（CVPR 2020）</span><br><span class="line">   │</span><br><span class="line">   ├─ 关键点/点集建模方法</span><br><span class="line">   │  └─ PINet（CVPR 2020）</span><br><span class="line">   │</span><br><span class="line">   └─ 像素关联/Embedding 方法</span><br><span class="line">      └─ LaneAF（arXiv 2021）</span><br></pre></td></tr></table></figure>
 
-<p>LaneAF 采用亲和场方案，在 CULane 数据集上达到最高的 77.0% F1-Score，证明了这一方向的有效性。</p>
+<p>LaneAF 采用亲和场方案，在 CULane 数据集上达到 77.0% F1-Score（2021年同期最高水平）。</p>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><ol>
 <li><p><strong>任务先验的价值</strong>：LaneAF 利用车道线垂直连续性设计行级解码，将计算复杂度从 $O(N^2)$ 降至 $O(N)$。启示：深入理解任务特性比盲目增加模型复杂度更有效</p>
 </li>
@@ -354,9 +354,9 @@
 </ul>
 <p><strong>影响力</strong>：</p>
 <ul>
-<li>代码开源，便于学术研究和工业应用</li>
-<li>亲和场思想被后续方法（如 CondLaneNet）借鉴和改进</li>
-<li>在自动驾驶感知模块中广泛应用，可解释性强便于故障排查</li>
+<li>代码开源，在 GitHub 获得广泛关注</li>
+<li>亲和场思想为像素级关联方法提供了新的研究方向</li>
+<li>在自动驾驶感知模块中应用，可解释性强便于故障排查</li>
 </ul>
 
     </div>
