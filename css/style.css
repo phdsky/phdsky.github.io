@@ -1118,6 +1118,8 @@ a:hover {
     margin-bottom: 12px;
     color: var(--text-color);
     line-height: 1.2;
+    letter-spacing: 2px;
+    font-family: 'Shelley Script', 'Shelley Volante', 'Snell Roundhand', 'Apple Chancery', cursive;
 }
 
 .intro-title {
@@ -1187,7 +1189,7 @@ a:hover {
 }
 
 .section-title {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 700;
     margin-bottom: 40px;
     color: var(--text-color);
