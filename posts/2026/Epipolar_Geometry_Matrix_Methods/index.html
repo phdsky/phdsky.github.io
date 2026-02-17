@@ -60,7 +60,7 @@
             <p>Topic: Multi-View Geometry<br>Keywords: Homography, Essential Matrix, Fundamental Matrix, PnP<br>Reference: Multiple View Geometry in Computer Vision (Hartley &amp; Zisserman, 2003)</p>
 <span id="more"></span>
 
-<div class="post-toc"><div class="toc-title">目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%8D%95%E5%BA%94%E7%9F%A9%E9%98%B5-H"><span class="toc-text">1. 单应矩阵 H</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">1.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-DLT%EF%BC%88Direct-Linear-Transform%EF%BC%89%E7%AE%97%E6%B3%95"><span class="toc-text">1.2 DLT（Direct Linear Transform）算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5"><span class="toc-text">1.3 退化情况</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9C%AC%E8%B4%A8%E7%9F%A9%E9%98%B5-E"><span class="toc-text">2. 本质矩阵 E</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">2.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%BA%94%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">2.2 五点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%88%86%E8%A7%A3%E6%81%A2%E5%A4%8D%E4%BD%8D%E5%A7%BF"><span class="toc-text">2.3 分解恢复位姿</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%86%85%E5%8F%82%E4%BE%9D%E8%B5%96%E9%97%AE%E9%A2%98"><span class="toc-text">2.4 内参依赖问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%9F%BA%E7%A1%80%E7%9F%A9%E9%98%B5-F"><span class="toc-text">3. 基础矩阵 F</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">3.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%8E-E-%E7%9F%A9%E9%98%B5%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">3.2 与 E 矩阵的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%85%AB%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.3 八点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%83%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.4 七点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E4%B8%BA%E4%BB%80%E4%B9%88-F-%E6%97%A0%E6%B3%95%E5%88%86%E8%A7%A3%E5%87%BA%E4%BD%8D%E5%A7%BF"><span class="toc-text">3.5 为什么 F 无法分解出位姿</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-PnP-%E9%97%AE%E9%A2%98"><span class="toc-text">4. PnP 问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="toc-text">4.1 问题定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-P3P%E7%AE%97%E6%B3%95"><span class="toc-text">4.2 P3P算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-EPnP%E7%AE%97%E6%B3%95"><span class="toc-text">4.3 EPnP算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-DLT%E4%BC%98%E5%8C%96%E7%AE%97%E6%B3%95"><span class="toc-text">4.4 DLT优化算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">4.5 应用场景</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%AE%97%E6%B3%95%E6%A8%AA%E5%90%91%E5%AF%B9%E6%AF%94"><span class="toc-text">5. 算法横向对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%82%B9%E6%B3%95%E7%B3%BB%E5%88%97%E6%80%BB%E7%BB%93"><span class="toc-text">5.1 点法系列总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%9D%90%E6%A0%87%E7%B3%BB%E5%B1%82%E7%BA%A7"><span class="toc-text">5.2 坐标系层级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%9C%BA%E6%99%AF%E9%80%82%E7%94%A8%E6%80%A7"><span class="toc-text">5.3 场景适用性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%B7%A5%E7%A8%8B%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.4 工程决策树</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98%E6%B7%B1%E5%85%A5"><span class="toc-text">6. 关键问题深入</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A2%9E%E5%8A%A0%E7%82%B9%E6%95%B0%E6%97%A0%E6%B3%95%E8%A7%A3%E5%86%B3%E6%A8%A1%E5%9E%8B%E9%97%AE%E9%A2%98"><span class="toc-text">6.1 为什么增加点数无法解决模型问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5%E5%A4%84%E7%90%86"><span class="toc-text">6.2 退化情况处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E5%A4%9A%E8%A7%A3%E6%B6%88%E6%AD%A7"><span class="toc-text">6.3 多解消歧</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">7. 工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-OpenCV%E5%AE%9E%E7%8E%B0"><span class="toc-text">7.1 OpenCV实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E5%85%B3%E9%94%AE%E5%B7%A5%E7%A8%8B%E7%BB%86%E8%8A%82"><span class="toc-text">7.2 关键工程细节</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%80%BB%E7%BB%93"><span class="toc-text">8. 总结</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E6%A0%B8%E5%BF%83%E8%A6%81%E7%82%B9"><span class="toc-text">8.1 核心要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E5%AE%9E%E8%B7%B5%E5%BB%BA%E8%AE%AE"><span class="toc-text">8.2 实践建议</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="toc-text">8.3 参考文献</span></a></li></ol></li></ol></div>
+<div class="post-toc"><div class="toc-title">目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%8D%95%E5%BA%94%E7%9F%A9%E9%98%B5-H"><span class="toc-text">1. 单应矩阵 H</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">1.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-DLT%EF%BC%88Direct-Linear-Transform%EF%BC%89%E7%AE%97%E6%B3%95"><span class="toc-text">1.2 DLT（Direct Linear Transform）算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5"><span class="toc-text">1.3 退化情况</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9C%AC%E8%B4%A8%E7%9F%A9%E9%98%B5-E"><span class="toc-text">2. 本质矩阵 E</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">2.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%BA%94%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">2.2 五点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%88%86%E8%A7%A3%E6%81%A2%E5%A4%8D%E4%BD%8D%E5%A7%BF"><span class="toc-text">2.3 分解恢复位姿</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%86%85%E5%8F%82%E4%BE%9D%E8%B5%96%E9%97%AE%E9%A2%98"><span class="toc-text">2.4 内参依赖问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%9F%BA%E7%A1%80%E7%9F%A9%E9%98%B5-F"><span class="toc-text">3. 基础矩阵 F</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">3.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%8E-E-%E7%9F%A9%E9%98%B5%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">3.2 与 E 矩阵的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%85%AB%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.3 八点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%83%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.4 七点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E4%B8%BA%E4%BB%80%E4%B9%88-F-%E6%97%A0%E6%B3%95%E5%88%86%E8%A7%A3%E5%87%BA%E4%BD%8D%E5%A7%BF"><span class="toc-text">3.5 为什么 F 无法分解出位姿</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-PnP-%E9%97%AE%E9%A2%98"><span class="toc-text">4. PnP 问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="toc-text">4.1 问题定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-P3P-%E7%AE%97%E6%B3%95"><span class="toc-text">4.2 P3P 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-EPnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.3 EPnP 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-DLT%E4%BC%98%E5%8C%96%E7%AE%97%E6%B3%95"><span class="toc-text">4.4 DLT优化算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">4.5 应用场景</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%AE%97%E6%B3%95%E6%A8%AA%E5%90%91%E5%AF%B9%E6%AF%94"><span class="toc-text">5. 算法横向对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%82%B9%E6%B3%95%E7%B3%BB%E5%88%97%E6%80%BB%E7%BB%93"><span class="toc-text">5.1 点法系列总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%9D%90%E6%A0%87%E7%B3%BB%E5%B1%82%E7%BA%A7"><span class="toc-text">5.2 坐标系层级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%9C%BA%E6%99%AF%E9%80%82%E7%94%A8%E6%80%A7"><span class="toc-text">5.3 场景适用性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%B7%A5%E7%A8%8B%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.4 工程决策树</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98%E6%B7%B1%E5%85%A5"><span class="toc-text">6. 关键问题深入</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A2%9E%E5%8A%A0%E7%82%B9%E6%95%B0%E6%97%A0%E6%B3%95%E8%A7%A3%E5%86%B3%E6%A8%A1%E5%9E%8B%E9%97%AE%E9%A2%98"><span class="toc-text">6.1 为什么增加点数无法解决模型问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5%E5%A4%84%E7%90%86"><span class="toc-text">6.2 退化情况处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E5%A4%9A%E8%A7%A3%E6%B6%88%E6%AD%A7"><span class="toc-text">6.3 多解消歧</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">7. 工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-OpenCV%E5%AE%9E%E7%8E%B0"><span class="toc-text">7.1 OpenCV实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E5%85%B3%E9%94%AE%E5%B7%A5%E7%A8%8B%E7%BB%86%E8%8A%82"><span class="toc-text">7.2 关键工程细节</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%80%BB%E7%BB%93"><span class="toc-text">8. 总结</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E6%A0%B8%E5%BF%83%E8%A6%81%E7%82%B9"><span class="toc-text">8.1 核心要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E5%AE%9E%E8%B7%B5%E5%BB%BA%E8%AE%AE"><span class="toc-text">8.2 实践建议</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="toc-text">8.3 参考文献</span></a></li></ol></li></ol></div>
 
 <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>多视图几何研究如何从多张图像恢复相机运动和场景结构。核心是三个 3×3 矩阵：单应矩阵 H、本质矩阵 E、基础矩阵 F。它们分别对应不同的场景约束和坐标系层级。</p>
 <p>理解多视图几何的关键在于：</p>
@@ -80,14 +80,24 @@
 </ul>
 <h3 id="1-2-DLT（Direct-Linear-Transform）算法"><a href="#1-2-DLT（Direct-Linear-Transform）算法" class="headerlink" title="1.2 DLT（Direct Linear Transform）算法"></a>1.2 DLT（Direct Linear Transform）算法</h3><p><strong>最少点数</strong>：4 对应点</p>
 <p><strong>数学公式</strong>：</p>
-<p>$$x_i’ &#x3D; H x_i$$</p>
-<p>$$\begin{bmatrix} -x_i^T &amp; 0^T &amp; x_i’^{(1)} x_i^T \\ 0^T &amp; -x_i^T &amp; x_i’^{(2)} x_i^T \end{bmatrix} h &#x3D; 0$$</p>
+<p>单应变换关系：<br>$$x_i’ &#x3D; H x_i$$</p>
+<p>展开为齐次线性方程形式：</p>
+<p>设 $H &#x3D; \begin{bmatrix} h_{11} &amp; h_{12} &amp; h_{13} \\ h_{21} &amp; h_{22} &amp; h_{23} \\ h_{31} &amp; h_{32} &amp; h_{33} \end{bmatrix}$，$x_i’ &#x3D; [u_i’, v_i’, 1]^T$，代入单应变换：</p>
+<p>$$\begin{aligned}<br>u_i’ &amp;&#x3D; \frac{h_{11}u_i + h_{12}v_i + h_{13}}{h_{31}u_i + h_{32}v_i + h_{33}} \\<br>v_i’ &amp;&#x3D; \frac{h_{21}u_i + h_{22}v_i + h_{23}}{h_{31}u_i + h_{32}v_i + h_{33}}<br>\end{aligned}$$</p>
+<p>消去分母后得到线性方程（每对点贡献 2 个约束）：</p>
+<p>$$\begin{bmatrix}<br>-u_i &amp; -v_i &amp; -1 &amp; 0 &amp; 0 &amp; 0 &amp; u_i’u_i &amp; u_i’v_i &amp; u_i’ \\<br>0 &amp; 0 &amp; 0 &amp; -u_i &amp; -v_i &amp; -1 &amp; v_i’u_i &amp; v_i’v_i &amp; v_i’<br>\end{bmatrix} \mathbf{h} &#x3D; 0$$</p>
+<p><strong>符号说明</strong>：</p>
+<ul>
+<li>$H$：3×3 单应矩阵</li>
+<li>$\mathbf{h} &#x3D; [h_{11}, h_{12}, h_{13}, h_{21}, h_{22}, h_{23}, h_{31}, h_{32}, h_{33}]^T$：$H$ 按行展开的 9 维向量</li>
+<li>$x_i &#x3D; [u_i, v_i, 1]^T$：齐次像素坐标</li>
+</ul>
 <p><strong>求解步骤</strong>：</p>
 <ol>
 <li>每对点提供 2 个线性约束</li>
-<li>构造线性方程组 $Ah &#x3D; 0$（$A$ 为 $2n \times 9$ 矩阵）</li>
-<li>SVD分解 $A &#x3D; U\Sigma V^T$，取最小奇异值对应的右奇异向量</li>
-<li>重塑为 3×3 矩阵</li>
+<li>构造线性方程组 $A\mathbf{h} &#x3D; 0$（$A$ 为 $2n \times 9$ 矩阵）</li>
+<li>SVD 分解 $A &#x3D; U\Sigma V^T$，取最小奇异值对应的右奇异向量 </li>
+<li>将 $\mathbf{h}$ 重塑为 3×3 矩阵 $H$</li>
 </ol>
 <p><strong>优点</strong>：</p>
 <ul>
@@ -127,7 +137,17 @@
 <p><strong>最少点数</strong>：5 对应点（理论最少）</p>
 <p><strong>数学公式</strong>：</p>
 <p>极线约束：<br>$$\tilde{x}_2^T E \tilde{x}_1 &#x3D; 0$$</p>
-<p>本质矩阵约束：<br>$$2E E^T E - \text{trace}(E E^T) E &#x3D; 0 \quad (\text{立方约束})$$<br>$$\det(E) &#x3D; 0 \quad (\text{秩约束})$$</p>
+<p>本质矩阵的特殊约束（源自其奇异值结构 $(\sigma, \sigma, 0)$）：</p>
+<p><strong>立方约束</strong>（Cubic constraint）：<br>$$2E E^T E - \text{trace}(E E^T) E &#x3D; 0$$</p>
+<p><strong>秩约束</strong>：<br>$$\det(E) &#x3D; 0$$</p>
+<p><strong>符号说明</strong>：</p>
+<ul>
+<li>$E$：3×3 本质矩阵，秩为 2，奇异值为 $(\sigma, \sigma, 0)$</li>
+<li>$\tilde{x} &#x3D; K^{-1}x$：归一化相机坐标</li>
+<li>$E E^T E$：三个矩阵相乘，先计算 $E E^T$ 再乘 $E$</li>
+<li>$\text{trace}(E E^T)$：$E E^T$ 的迹（对角线元素之和，一个标量）</li>
+<li>这两个约束保证 $E$ 具有两个相等的非零奇异值</li>
+</ul>
 <p><strong>求解思路</strong>：</p>
 <ol>
 <li>5 个点提供 5 个线性约束，$E$ 的零空间为 4 维</li>
@@ -180,17 +200,28 @@
 <li>F 是图像空间的“投影运动”</li>
 <li>F 混入了 K，无法直接分解出 R,t</li>
 </ul>
-<h3 id="3-3-八点法算法"><a href="#3-3-八点法算法" class="headerlink" title="3.3 八点法算法"></a>3.3 八点法算法</h3><p><strong>提出</strong>：Longuet-Higgins (1981)，改进版Hartley (1997)</p>
+<h3 id="3-3-八点法算法"><a href="#3-3-八点法算法" class="headerlink" title="3.3 八点法算法"></a>3.3 八点法算法</h3><p><strong>提出</strong>：Longuet-Higgins (1981)，改进版 Hartley (1997)</p>
 <p><strong>最少点数</strong>：8 对应点（线性求解）</p>
 <p><strong>数学公式</strong>：</p>
-<p>$$x_i’^T F x_i &#x3D; 0$$</p>
-<p>$$\begin{bmatrix} x_i x_i’ &amp; x_i y_i’ &amp; x_i’ &amp; y_i x_i’ &amp; y_i y_i’ &amp; y_i’ &amp; x_i &amp; y_i &amp; 1 \end{bmatrix} f &#x3D; 0$$</p>
+<p>极线约束：<br>$$x_i’^T F x_i &#x3D; 0$$</p>
+<p>展开详细推导：</p>
+<p>设 $$F &#x3D; \begin{bmatrix} f_{11} &amp; f_{12} &amp; f_{13} \\ f_{21} &amp; f_{22} &amp; f_{23} \\ f_{31} &amp; f_{32} &amp; f_{33} \end{bmatrix}, \quad x_i &#x3D; \begin{bmatrix} u_i \\ v_i \\ 1 \end{bmatrix}, \quad x_i’ &#x3D; \begin{bmatrix} u_i’ \\ v_i’ \\ 1 \end{bmatrix}$$</p>
+<p>代入 $x_i’^T F x_i &#x3D; 0$ 并展开：</p>
+<p>$$[u_i’, v_i’, 1] \begin{bmatrix} f_{11} &amp; f_{12} &amp; f_{13} \\ f_{21} &amp; f_{22} &amp; f_{23} \\ f_{31} &amp; f_{32} &amp; f_{33} \end{bmatrix} \begin{bmatrix} u_i \\ v_i \\ 1 \end{bmatrix} &#x3D; 0$$</p>
+<p>得到线性方程：</p>
+<p>$$\begin{bmatrix} u_iu_i’ &amp; u_iv_i’ &amp; u_i’ &amp; v_iu_i’ &amp; v_iv_i’ &amp; v_i’ &amp; u_i &amp; v_i &amp; 1 \end{bmatrix} \mathbf{f} &#x3D; 0$$</p>
+<p><strong>符号说明</strong>：</p>
+<ul>
+<li>$F$：3×3 基础矩阵</li>
+<li>$\mathbf{f} &#x3D; [f_{11}, f_{12}, f_{13}, f_{21}, f_{22}, f_{23}, f_{31}, f_{32}, f_{33}]^T$：$F$ 按行展开的 9 维向量</li>
+<li>$x_i &#x3D; [u_i, v_i, 1]^T$：像素坐标</li>
+</ul>
 <p><strong>求解步骤</strong>：</p>
 <ol>
 <li>n≥8 个点构造 $n \times 9$ 矩阵 $A$</li>
-<li>SVD分解求解 $Af &#x3D; 0$，得最小奇异值对应向量</li>
-<li>重塑为 3×3 矩阵 $F’$</li>
-<li>强制秩 2 约束：$F’ &#x3D; U \text{diag}(\sigma_1, \sigma_2, 0) V^T$</li>
+<li>SVD 分解求解 $A\mathbf{f} &#x3D; 0$，得最小奇异值对应向量</li>
+<li>将 $\mathbf{f}$ 重塑为 3×3 矩阵 $F’$</li>
+<li>强制秩 2 约束：对 $F’$ 进行 SVD，将最小奇异值置 0<br>$$F &#x3D; U \text{diag}(\sigma_1, \sigma_2, 0) V^T$$</li>
 </ol>
 <p><strong>归一化八点法</strong>（Hartley 1997）：</p>
 <ul>
@@ -284,9 +315,19 @@
 <td>重建</td>
 </tr>
 </tbody></table>
-<h3 id="4-2-P3P算法"><a href="#4-2-P3P算法" class="headerlink" title="4.2 P3P算法"></a>4.2 P3P算法</h3><p><strong>最少点数</strong>：3 对应点</p>
+<h3 id="4-2-P3P-算法"><a href="#4-2-P3P-算法" class="headerlink" title="4.2 P3P 算法"></a>4.2 P3P 算法</h3><p><strong>最少点数</strong>：3 对应点</p>
 <p><strong>数学公式</strong>：</p>
-<p>$$\begin{cases}<br>x^2 + y^2 - 2xy\cos\gamma &#x3D; c^2 \\<br>x^2 + z^2 - 2xz\cos\beta &#x3D; b^2 \\<br>y^2 + z^2 - 2yz\cos\alpha &#x3D; a^2<br>\end{cases}$$</p>
+<p>根据余弦定理，对三个三角形建立方程：</p>
+<p>$$\begin{cases}<br>x^2 + y^2 - 2xy\cos\gamma &#x3D; c^2 \quad (\triangle OAB\text{，已知} c \text{ 和 } \gamma) \\<br>x^2 + z^2 - 2xz\cos\beta &#x3D; b^2 \quad (\triangle OAC\text{，已知} b \text{ 和 } \beta) \\<br>y^2 + z^2 - 2yz\cos\alpha &#x3D; a^2 \quad (\triangle OBC\text{，已知} a \text{ 和 } \alpha)<br>\end{cases}$$</p>
+<p>求解这个非线性方程组得到 $x, y, z$，然后通过三点位置计算 $R, t$。</p>
+<p><strong>符号说明</strong>：</p>
+<ul>
+<li>$O$：相机光心</li>
+<li>$A, B, C$：三个 3D 点（世界坐标系）</li>
+<li>$x, y, z$：光心到三点的距离（<strong>未知</strong>，待求解）</li>
+<li>$a &#x3D; |BC|, b &#x3D; |AC|, c &#x3D; |AB|$：3D 点间距离（<strong>已知</strong>）</li>
+<li>$\alpha, \beta, \gamma$：观测射线间夹角（<strong>已知</strong>，由 2D 观测计算）</li>
+</ul>
 <p><strong>解个数</strong>：最多 4 个解</p>
 <p><strong>优点</strong>：</p>
 <ul>
@@ -298,11 +339,19 @@
 <li>多解需验证</li>
 <li>数值不稳定</li>
 </ul>
-<h3 id="4-3-EPnP算法"><a href="#4-3-EPnP算法" class="headerlink" title="4.3 EPnP算法"></a>4.3 EPnP算法</h3><p><strong>适用</strong>：n ≥ 4 个点</p>
+<h3 id="4-3-EPnP-算法"><a href="#4-3-EPnP-算法" class="headerlink" title="4.3 EPnP 算法"></a>4.3 EPnP 算法</h3><p><strong>适用</strong>：n ≥ 4 个点</p>
+<p><strong>核心思想</strong>：将所有 3D 点表示为 4 个控制点的线性组合。</p>
 <p><strong>数学公式</strong>：</p>
-<p>$$P_i^w &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^w, \quad \sum_{j&#x3D;1}^{4} \alpha_{ij} &#x3D; 1$$</p>
-<p>$$P_i^c &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$$</p>
-<p>$$\lambda_i \begin{bmatrix} u_i \\ v_i \\ 1 \end{bmatrix} &#x3D; K \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$$</p>
+<p>世界坐标系中的表示（已知）：<br>$$P_i^w &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^w, \quad \sum_{j&#x3D;1}^{4} \alpha_{ij} &#x3D; 1$$</p>
+<p>相机坐标系中的表示（未知）：<br>$$P_i^c &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$$</p>
+<p>投影方程：<br>$$\lambda_i \begin{bmatrix} u_i \\ v_i \\ 1 \end{bmatrix} &#x3D; K \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$$</p>
+<p>求解：通过多个投影方程和控制点间距离约束，求解 $C_j^c$，然后计算 $R, t$。</p>
+<p><strong>符号说明</strong>：</p>
+<ul>
+<li>$P_i^w, P_i^c$：第 $i$ 个 3D 点在世界&#x2F;相机坐标系下的坐标</li>
+<li>$C_j^w, C_j^c$：第 $j$ 个控制点在世界&#x2F;相机坐标系下的坐标（仅需求解 4 个 $C_j^c$）</li>
+<li>$\alpha_{ij}$：第 $i$ 个点关于第 $j$ 个控制点的权重（由世界坐标计算得到）</li>
+</ul>
 <p><strong>优点</strong>：</p>
 <ul>
 <li>线性时间复杂度 O(n)</li>
