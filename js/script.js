@@ -42,9 +42,9 @@ document.addEventListener('DOMContentLoaded', function() {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
             const href = this.getAttribute('href');
-            // 解码 URL 编码的锚点
-            const targetId = decodeURIComponent(href);
-            const target = document.querySelector(targetId);
+            // 解码 URL 编码的锚点，并移除开头的 #
+            const targetId = decodeURIComponent(href.substring(1));
+            const target = document.getElementById(targetId);
             if (target) {
                 target.scrollIntoView({
                     behavior: 'smooth',
