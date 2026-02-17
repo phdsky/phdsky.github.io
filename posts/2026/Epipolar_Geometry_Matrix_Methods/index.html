@@ -60,16 +60,9 @@
             <p>Topic: Multi-View Geometry<br>Keywords: Homography, Essential Matrix, Fundamental Matrix, PnP<br>Reference: Multiple View Geometry in Computer Vision (Hartley &amp; Zisserman, 2003)</p>
 <span id="more"></span>
 
-<div class="post-toc"><div class="toc-title">目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%8D%95%E5%BA%94%E7%9F%A9%E9%98%B5-H"><span class="toc-text">1. 单应矩阵 H</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">1.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-DLT%EF%BC%88Direct-Linear-Transform%EF%BC%89%E7%AE%97%E6%B3%95"><span class="toc-text">1.2 DLT（Direct Linear Transform）算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5"><span class="toc-text">1.3 退化情况</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9C%AC%E8%B4%A8%E7%9F%A9%E9%98%B5-E"><span class="toc-text">2. 本质矩阵 E</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">2.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%BA%94%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">2.2 五点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%88%86%E8%A7%A3%E6%81%A2%E5%A4%8D%E4%BD%8D%E5%A7%BF"><span class="toc-text">2.3 分解恢复位姿</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%86%85%E5%8F%82%E4%BE%9D%E8%B5%96%E9%97%AE%E9%A2%98"><span class="toc-text">2.4 内参依赖问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%9F%BA%E7%A1%80%E7%9F%A9%E9%98%B5-F"><span class="toc-text">3. 基础矩阵 F</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">3.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%8E-E-%E7%9F%A9%E9%98%B5%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">3.2 与 E 矩阵的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%85%AB%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.3 八点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%83%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.4 七点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E4%B8%BA%E4%BB%80%E4%B9%88-F-%E6%97%A0%E6%B3%95%E5%88%86%E8%A7%A3%E5%87%BA%E4%BD%8D%E5%A7%BF"><span class="toc-text">3.5 为什么 F 无法分解出位姿</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-PnP-%E9%97%AE%E9%A2%98"><span class="toc-text">4. PnP 问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="toc-text">4.1 问题定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-P3P-%E7%AE%97%E6%B3%95"><span class="toc-text">4.2 P3P 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-EPnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.3 EPnP 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-DLT%E4%BC%98%E5%8C%96%E7%AE%97%E6%B3%95"><span class="toc-text">4.4 DLT优化算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">4.5 应用场景</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%AE%97%E6%B3%95%E6%A8%AA%E5%90%91%E5%AF%B9%E6%AF%94"><span class="toc-text">5. 算法横向对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%82%B9%E6%B3%95%E7%B3%BB%E5%88%97%E6%80%BB%E7%BB%93"><span class="toc-text">5.1 点法系列总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%9D%90%E6%A0%87%E7%B3%BB%E5%B1%82%E7%BA%A7"><span class="toc-text">5.2 坐标系层级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%9C%BA%E6%99%AF%E9%80%82%E7%94%A8%E6%80%A7"><span class="toc-text">5.3 场景适用性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%B7%A5%E7%A8%8B%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.4 工程决策树</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98%E6%B7%B1%E5%85%A5"><span class="toc-text">6. 关键问题深入</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A2%9E%E5%8A%A0%E7%82%B9%E6%95%B0%E6%97%A0%E6%B3%95%E8%A7%A3%E5%86%B3%E6%A8%A1%E5%9E%8B%E9%97%AE%E9%A2%98"><span class="toc-text">6.1 为什么增加点数无法解决模型问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5%E5%A4%84%E7%90%86"><span class="toc-text">6.2 退化情况处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E5%A4%9A%E8%A7%A3%E6%B6%88%E6%AD%A7"><span class="toc-text">6.3 多解消歧</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">7. 工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-OpenCV%E5%AE%9E%E7%8E%B0"><span class="toc-text">7.1 OpenCV实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E5%85%B3%E9%94%AE%E5%B7%A5%E7%A8%8B%E7%BB%86%E8%8A%82"><span class="toc-text">7.2 关键工程细节</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%80%BB%E7%BB%93"><span class="toc-text">8. 总结</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E6%A0%B8%E5%BF%83%E8%A6%81%E7%82%B9"><span class="toc-text">8.1 核心要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E5%AE%9E%E8%B7%B5%E5%BB%BA%E8%AE%AE"><span class="toc-text">8.2 实践建议</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="toc-text">8.3 参考文献</span></a></li></ol></li></ol></div>
+<div class="post-toc"><div class="toc-title">目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%8D%95%E5%BA%94%E7%9F%A9%E9%98%B5-H"><span class="toc-text">1. 单应矩阵 H</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">1.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-DLT%EF%BC%88Direct-Linear-Transform%EF%BC%89%E7%AE%97%E6%B3%95"><span class="toc-text">1.2 DLT（Direct Linear Transform）算法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9C%AC%E8%B4%A8%E7%9F%A9%E9%98%B5-E"><span class="toc-text">2. 本质矩阵 E</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">2.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%BA%94%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">2.2 五点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%88%86%E8%A7%A3%E6%81%A2%E5%A4%8D%E4%BD%8D%E5%A7%BF"><span class="toc-text">2.3 分解恢复位姿</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%86%85%E5%8F%82%E4%BE%9D%E8%B5%96"><span class="toc-text">2.4 内参依赖</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%9F%BA%E7%A1%80%E7%9F%A9%E9%98%B5-F"><span class="toc-text">3. 基础矩阵 F</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">3.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%8E-E-%E7%9F%A9%E9%98%B5%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">3.2 与 E 矩阵的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%85%AB%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.3 八点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%83%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.4 七点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-F-%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E5%88%86%E8%A7%A3%E4%BD%8D%E5%A7%BF"><span class="toc-text">3.5 F 无法直接分解位姿</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-PnP-%E9%97%AE%E9%A2%98"><span class="toc-text">4. PnP 问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="toc-text">4.1 问题定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-P3P-%E7%AE%97%E6%B3%95"><span class="toc-text">4.2 P3P 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-EPnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.3 EPnP 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-DLT-PnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.4 DLT PnP 算法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%AE%97%E6%B3%95%E6%A8%AA%E5%90%91%E5%AF%B9%E6%AF%94"><span class="toc-text">5. 算法横向对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%82%B9%E6%B3%95%E7%B3%BB%E5%88%97%E6%80%BB%E7%BB%93"><span class="toc-text">5.1 点法系列总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%9D%90%E6%A0%87%E7%B3%BB%E5%B1%82%E7%BA%A7"><span class="toc-text">5.2 坐标系层级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%9C%BA%E6%99%AF%E9%80%82%E7%94%A8%E6%80%A7"><span class="toc-text">5.3 场景适用性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%B7%A5%E7%A8%8B%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.4 工程决策树</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98"><span class="toc-text">6. 关键问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A2%9E%E5%8A%A0%E7%82%B9%E6%95%B0%E6%97%A0%E6%B3%95%E8%A7%A3%E5%86%B3%E6%A8%A1%E5%9E%8B%E9%97%AE%E9%A2%98"><span class="toc-text">6.1 为什么增加点数无法解决模型问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5%E5%A4%84%E7%90%86"><span class="toc-text">6.2 退化情况处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E5%A4%9A%E8%A7%A3%E6%B6%88%E6%AD%A7"><span class="toc-text">6.3 多解消歧</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">7. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%80%BB%E7%BB%93"><span class="toc-text">8. 总结</span></a></li></ol></div>
 
-<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>多视图几何研究如何从多张图像恢复相机运动和场景结构。核心是三个 3×3 矩阵：单应矩阵 H、本质矩阵 E、基础矩阵 F。它们分别对应不同的场景约束和坐标系层级。</p>
-<p>理解多视图几何的关键在于：</p>
-<ol>
-<li><strong>坐标系层级</strong>：像素坐标 vs 归一化坐标</li>
-<li><strong>自由度分析</strong>：矩阵约束对应的几何意义</li>
-<li><strong>算法适用条件</strong>：已标定&#x2F;未标定，平面&#x2F;一般场景</li>
-</ol>
-<p>本文从 H、E、F 三个矩阵出发，逐步深入到各类算法及其适用场景。</p>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>多视图几何研究从多张图像恢复相机运动和场景结构，核心是三个 3×3 矩阵：单应矩阵 H、本质矩阵 E、基础矩阵 F。它们对应不同的坐标系层级（像素&#x2F;归一化）和场景约束（平面&#x2F;一般）。理解关键在于自由度分析和算法适用条件。</p>
 <h2 id="1-单应矩阵-H"><a href="#1-单应矩阵-H" class="headerlink" title="1. 单应矩阵 H"></a>1. 单应矩阵 H</h2><h3 id="1-1-定义与约束"><a href="#1-1-定义与约束" class="headerlink" title="1.1 定义与约束"></a>1.1 定义与约束</h3><p>单应矩阵描述两个图像平面间的投影变换：<br>$$x_2 &#x3D; H x_1$$</p>
 <p><strong>自由度</strong>：8 DOF（9 个元素，尺度不重要）</p>
 <p><strong>适用场景</strong>：</p>
@@ -79,49 +72,11 @@
 <li>远距离场景（平移可忽略）</li>
 </ul>
 <h3 id="1-2-DLT（Direct-Linear-Transform）算法"><a href="#1-2-DLT（Direct-Linear-Transform）算法" class="headerlink" title="1.2 DLT（Direct Linear Transform）算法"></a>1.2 DLT（Direct Linear Transform）算法</h3><p><strong>最少点数</strong>：4 对应点</p>
-<p><strong>数学公式</strong>：</p>
-<p>单应变换关系：<br>$$x_i’ &#x3D; H x_i$$</p>
-<p>展开为齐次线性方程形式：</p>
-<p>设 $H &#x3D; \begin{bmatrix} h_{11} &amp; h_{12} &amp; h_{13} \\ h_{21} &amp; h_{22} &amp; h_{23} \\ h_{31} &amp; h_{32} &amp; h_{33} \end{bmatrix}$，$x_i’ &#x3D; [u_i’, v_i’, 1]^T$，代入单应变换：</p>
-<p>$$\begin{aligned}<br>u_i’ &amp;&#x3D; \frac{h_{11}u_i + h_{12}v_i + h_{13}}{h_{31}u_i + h_{32}v_i + h_{33}} \\<br>v_i’ &amp;&#x3D; \frac{h_{21}u_i + h_{22}v_i + h_{23}}{h_{31}u_i + h_{32}v_i + h_{33}}<br>\end{aligned}$$</p>
-<p>消去分母后得到线性方程（每对点贡献 2 个约束）：</p>
+<p><strong>核心思想</strong>：将非线性投影方程线性化，通过 SVD 求解。</p>
+<p>单应变换消去分母后，每对点贡献 2 个线性约束：</p>
 <p>$$\begin{bmatrix}<br>-u_i &amp; -v_i &amp; -1 &amp; 0 &amp; 0 &amp; 0 &amp; u_i’u_i &amp; u_i’v_i &amp; u_i’ \\<br>0 &amp; 0 &amp; 0 &amp; -u_i &amp; -v_i &amp; -1 &amp; v_i’u_i &amp; v_i’v_i &amp; v_i’<br>\end{bmatrix} \mathbf{h} &#x3D; 0$$</p>
-<p><strong>符号说明</strong>：</p>
-<ul>
-<li>$H$：3×3 单应矩阵</li>
-<li>$\mathbf{h} &#x3D; [h_{11}, h_{12}, h_{13}, h_{21}, h_{22}, h_{23}, h_{31}, h_{32}, h_{33}]^T$：$H$ 按行展开的 9 维向量</li>
-<li>$x_i &#x3D; [u_i, v_i, 1]^T$：齐次像素坐标</li>
-</ul>
-<p><strong>求解步骤</strong>：</p>
-<ol>
-<li>每对点提供 2 个线性约束</li>
-<li>构造线性方程组 $A\mathbf{h} &#x3D; 0$（$A$ 为 $2n \times 9$ 矩阵）</li>
-<li>SVD 分解 $A &#x3D; U\Sigma V^T$，取最小奇异值对应的右奇异向量 </li>
-<li>将 $\mathbf{h}$ 重塑为 3×3 矩阵 $H$</li>
-</ol>
-<p><strong>优点</strong>：</p>
-<ul>
-<li>线性求解，速度快</li>
-<li>无需初值</li>
-</ul>
-<p><strong>问题与解决</strong>：</p>
-<ul>
-<li><strong>数值不稳定</strong>：坐标值差异大导致条件数过高<ul>
-<li>解决：归一化坐标到均值为 0，标准差为 $\sqrt{2}$</li>
-</ul>
-</li>
-<li><strong>噪声敏感</strong>：最小二乘对外点敏感<ul>
-<li>解决：RANSAC 鲁棒估计</li>
-</ul>
-</li>
-</ul>
-<h3 id="1-3-退化情况"><a href="#1-3-退化情况" class="headerlink" title="1.3 退化情况"></a>1.3 退化情况</h3><p>当场景不满足平面约束但使用 H 估计时：</p>
-<ul>
-<li>估计结果不稳定</li>
-<li>重投影误差大</li>
-<li>应切换到 F 或 E 矩阵</li>
-</ul>
-<p><strong>检测方法</strong>：比较 H 重投影误差与 F 重投影误差</p>
+<p>其中 $\mathbf{h}$ 是 $H$ 按行展开的 9 维向量。构造 $A\mathbf{h} &#x3D; 0$ 后 SVD 求解，最小奇异值对应的向量即为解。</p>
+<p><strong>关键点</strong>：归一化坐标（均值 0，标准差 $\sqrt{2}$）显著提升数值稳定性；RANSAC 处理外点。退化检测：比较 H 与 F 的重投影误差。</p>
 <h2 id="2-本质矩阵-E"><a href="#2-本质矩阵-E" class="headerlink" title="2. 本质矩阵 E"></a>2. 本质矩阵 E</h2><h3 id="2-1-定义与约束"><a href="#2-1-定义与约束" class="headerlink" title="2.1 定义与约束"></a>2.1 定义与约束</h3><p>本质矩阵描述两个<strong>已标定</strong>相机间的极几何约束（归一化坐标）：<br>$$\tilde{x}_2^T E \tilde{x}_1 &#x3D; 0$$</p>
 <p>其中 $\tilde{x} &#x3D; K^{-1} x$ 是归一化坐标。</p>
 <p><strong>数学形式</strong>：<br>$$E &#x3D; [t]_\times R$$</p>
@@ -133,50 +88,15 @@
 <li>自由度：5 DOF（$R$: 3, $t$方向: 2）</li>
 <li>不依赖内参：纯相机运动</li>
 </ul>
-<h3 id="2-2-五点法算法"><a href="#2-2-五点法算法" class="headerlink" title="2.2 五点法算法"></a>2.2 五点法算法</h3><p><strong>历史</strong>：David Nister (CVPR 2004) 提出</p>
-<p><strong>最少点数</strong>：5 对应点（理论最少）</p>
-<p><strong>数学公式</strong>：</p>
-<p>极线约束：<br>$$\tilde{x}_2^T E \tilde{x}_1 &#x3D; 0$$</p>
-<p>本质矩阵的特殊约束（源自其奇异值结构 $(\sigma, \sigma, 0)$）：</p>
-<p><strong>立方约束</strong>（Cubic constraint）：<br>$$2E E^T E - \text{trace}(E E^T) E &#x3D; 0$$</p>
-<p><strong>秩约束</strong>：<br>$$\det(E) &#x3D; 0$$</p>
-<p><strong>符号说明</strong>：</p>
-<ul>
-<li>$E$：3×3 本质矩阵，秩为 2，奇异值为 $(\sigma, \sigma, 0)$</li>
-<li>$\tilde{x} &#x3D; K^{-1}x$：归一化相机坐标</li>
-<li>$E E^T E$：三个矩阵相乘，先计算 $E E^T$ 再乘 $E$</li>
-<li>$\text{trace}(E E^T)$：$E E^T$ 的迹（对角线元素之和，一个标量）</li>
-<li>这两个约束保证 $E$ 具有两个相等的非零奇异值</li>
-</ul>
-<p><strong>求解思路</strong>：</p>
-<ol>
-<li>5 个点提供 5 个线性约束，$E$ 的零空间为 4 维</li>
-<li>将 $E$ 表示为 4 个基矩阵的线性组合</li>
-<li>代入立方约束和秩约束，得到关于系数的多项式方程组</li>
-<li>高斯消元+特征值法求解，最多 10 个实数解</li>
-</ol>
-<p><strong>优点</strong>：</p>
-<ul>
-<li>理论最少点数</li>
-<li>直接估计 E，避免 F→E 转换</li>
-<li>数值稳定性好</li>
-</ul>
-<h3 id="2-3-分解恢复位姿"><a href="#2-3-分解恢复位姿" class="headerlink" title="2.3 分解恢复位姿"></a>2.3 分解恢复位姿</h3><p><strong>SVD分解</strong>：<br>$$E &#x3D; U \cdot \text{diag}(1, 1, 0) \cdot V^T$$</p>
-<p>注意：需先将奇异值校正为$(1,1,0)$</p>
-<p><strong>四组解</strong>：<br>$$R_1 &#x3D; U W V^T, \quad t_1 &#x3D; U(:,3)$$<br>$$R_2 &#x3D; U W V^T, \quad t_2 &#x3D; -U(:,3)$$<br>$$R_3 &#x3D; U W^T V^T, \quad t_3 &#x3D; U(:,3)$$<br>$$R_4 &#x3D; U W^T V^T, \quad t_4 &#x3D; -U(:,3)$$</p>
-<p>其中 $W &#x3D; \begin{bmatrix} 0 &amp; -1 &amp; 0 \\ 1 &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; 1 \end{bmatrix}$</p>
-<p><strong>消歧：Cheirality Check</strong></p>
-<ul>
-<li>三角化测试点</li>
-<li>要求点在两相机前方（深度&gt;0）</li>
-<li>仅 1 组解满足</li>
-</ul>
-<h3 id="2-4-内参依赖问题"><a href="#2-4-内参依赖问题" class="headerlink" title="2.4 内参依赖问题"></a>2.4 内参依赖问题</h3><p>E 矩阵要求输入归一化坐标 $\tilde{x} &#x3D; K^{-1}x$，因此必须预先标定相机。</p>
-<p><strong>标定方法</strong>：</p>
-<ul>
-<li>张正友标定法（棋盘格）</li>
-<li>在线标定（SLAM 初始化）</li>
-</ul>
+<h3 id="2-2-五点法算法"><a href="#2-2-五点法算法" class="headerlink" title="2.2 五点法算法"></a>2.2 五点法算法</h3><p><strong>最少点数</strong>：5 对应点（理论最少）</p>
+<p><strong>核心约束</strong>：极线约束 $\tilde{x}_2^T E \tilde{x}_1 &#x3D; 0$ + 本质矩阵奇异值结构约束</p>
+<p>$$2E E^T E - \text{trace}(E E^T) E &#x3D; 0, \quad \det(E) &#x3D; 0$$</p>
+<p><strong>求解</strong>：5 点确定 $E$ 的 4 维零空间，代入立方约束得多项式方程组，最多 10 个实数解。</p>
+<p><strong>优势</strong>：理论最少点数，直接估计 E，数值稳定性好。</p>
+<h3 id="2-3-分解恢复位姿"><a href="#2-3-分解恢复位姿" class="headerlink" title="2.3 分解恢复位姿"></a>2.3 分解恢复位姿</h3><p><strong>SVD 分解</strong>：$E &#x3D; U \cdot \text{diag}(1, 1, 0) \cdot V^T$（需先校正奇异值）</p>
+<p><strong>四组解</strong>：$R \in {U W V^T, U W^T V^T}$，$t \in {U(:,3), -U(:,3)}$ 其中 $W &#x3D; \begin{bmatrix} 0 &amp; -1 &amp; 0 \\ 1 &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; 1 \end{bmatrix}$</p>
+<p><strong>Cheirality Check</strong>：三角化测试点，要求深度 &gt; 0，仅 1 组解满足。</p>
+<h3 id="2-4-内参依赖"><a href="#2-4-内参依赖" class="headerlink" title="2.4 内参依赖"></a>2.4 内参依赖</h3><p>E 矩阵要求输入归一化坐标 $\tilde{x} &#x3D; K^{-1}x$，因此必须预先标定相机（棋盘格标定或 SLAM 在线标定）。</p>
 <h2 id="3-基础矩阵-F"><a href="#3-基础矩阵-F" class="headerlink" title="3. 基础矩阵 F"></a>3. 基础矩阵 F</h2><h3 id="3-1-定义与约束"><a href="#3-1-定义与约束" class="headerlink" title="3.1 定义与约束"></a>3.1 定义与约束</h3><p>基础矩阵描述两个<strong>未标定</strong>相机间的极几何约束（像素坐标）：<br>$$x_2^T F x_1 &#x3D; 0$$</p>
 <p><strong>关键特性</strong>：</p>
 <ul>
@@ -200,80 +120,17 @@
 <li>F 是图像空间的“投影运动”</li>
 <li>F 混入了 K，无法直接分解出 R,t</li>
 </ul>
-<h3 id="3-3-八点法算法"><a href="#3-3-八点法算法" class="headerlink" title="3.3 八点法算法"></a>3.3 八点法算法</h3><p><strong>提出</strong>：Longuet-Higgins (1981)，改进版 Hartley (1997)</p>
-<p><strong>最少点数</strong>：8 对应点（线性求解）</p>
-<p><strong>数学公式</strong>：</p>
-<p>极线约束：<br>$$x_i’^T F x_i &#x3D; 0$$</p>
-<p>展开详细推导：</p>
-<p>设 $$F &#x3D; \begin{bmatrix} f_{11} &amp; f_{12} &amp; f_{13} \\ f_{21} &amp; f_{22} &amp; f_{23} \\ f_{31} &amp; f_{32} &amp; f_{33} \end{bmatrix}, \quad x_i &#x3D; \begin{bmatrix} u_i \\ v_i \\ 1 \end{bmatrix}, \quad x_i’ &#x3D; \begin{bmatrix} u_i’ \\ v_i’ \\ 1 \end{bmatrix}$$</p>
-<p>代入 $x_i’^T F x_i &#x3D; 0$ 并展开：</p>
-<p>$$[u_i’, v_i’, 1] \begin{bmatrix} f_{11} &amp; f_{12} &amp; f_{13} \\ f_{21} &amp; f_{22} &amp; f_{23} \\ f_{31} &amp; f_{32} &amp; f_{33} \end{bmatrix} \begin{bmatrix} u_i \\ v_i \\ 1 \end{bmatrix} &#x3D; 0$$</p>
-<p>得到线性方程：</p>
+<h3 id="3-3-八点法算法"><a href="#3-3-八点法算法" class="headerlink" title="3.3 八点法算法"></a>3.3 八点法算法</h3><p><strong>最少点数</strong>：8 对应点（线性求解）</p>
+<p>极线约束 $x_i’^T F x_i &#x3D; 0$ 展开为线性方程：</p>
 <p>$$\begin{bmatrix} u_iu_i’ &amp; u_iv_i’ &amp; u_i’ &amp; v_iu_i’ &amp; v_iv_i’ &amp; v_i’ &amp; u_i &amp; v_i &amp; 1 \end{bmatrix} \mathbf{f} &#x3D; 0$$</p>
-<p><strong>符号说明</strong>：</p>
-<ul>
-<li>$F$：3×3 基础矩阵</li>
-<li>$\mathbf{f} &#x3D; [f_{11}, f_{12}, f_{13}, f_{21}, f_{22}, f_{23}, f_{31}, f_{32}, f_{33}]^T$：$F$ 按行展开的 9 维向量</li>
-<li>$x_i &#x3D; [u_i, v_i, 1]^T$：像素坐标</li>
-</ul>
-<p><strong>求解步骤</strong>：</p>
-<ol>
-<li>n≥8 个点构造 $n \times 9$ 矩阵 $A$</li>
-<li>SVD 分解求解 $A\mathbf{f} &#x3D; 0$，得最小奇异值对应向量</li>
-<li>将 $\mathbf{f}$ 重塑为 3×3 矩阵 $F’$</li>
-<li>强制秩 2 约束：对 $F’$ 进行 SVD，将最小奇异值置 0<br>$$F &#x3D; U \text{diag}(\sigma_1, \sigma_2, 0) V^T$$</li>
-</ol>
-<p><strong>归一化八点法</strong>（Hartley 1997）：</p>
-<ul>
-<li>将图像坐标归一化到$[-1,1]$</li>
-<li>均值为 0，标准差为 $\sqrt{2}$</li>
-<li>显著提升数值稳定性</li>
-</ul>
-<p><strong>优点</strong>：</p>
-<ul>
-<li>线性求解，无需初值</li>
-<li>不需要内参</li>
-</ul>
-<p><strong>缺点</strong>：</p>
-<ul>
-<li>理论冗余（7 DOF 用 8 点）</li>
-<li>噪声敏感</li>
-</ul>
+<p><strong>求解</strong>：构造 $A\mathbf{f} &#x3D; 0$，SVD 求解后将最小奇异值向量重塑为 $F$，再强制秩 2 约束（将最小奇异值置 0）。</p>
+<p><strong>归一化八点法</strong>（Hartley 1997）：坐标归一化到均值 0、标准差 $\sqrt{2}$，显著提升稳定性。</p>
+<p><strong>特点</strong>：线性求解，无需内参，但 8 点对 7 自由度有冗余。</p>
 <h3 id="3-4-七点法算法"><a href="#3-4-七点法算法" class="headerlink" title="3.4 七点法算法"></a>3.4 七点法算法</h3><p><strong>最少点数</strong>：7 对应点（理论最少）</p>
-<p><strong>数学公式</strong>：</p>
-<p>$$F &#x3D; \alpha F_1 + (1-\alpha) F_2$$</p>
-<p>$$\det(F) &#x3D; \det(\alpha F_1 + (1-\alpha) F_2) &#x3D; 0$$</p>
-<p>$$a_3 \alpha^3 + a_2 \alpha^2 + a_1 \alpha + a_0 &#x3D; 0$$</p>
-<p><strong>求解思路</strong>：</p>
-<ul>
-<li>求解三次方程，得 1 个或 3 个实根</li>
-<li>每个根对应一个候选 $F$ 矩阵</li>
-<li>通过重投影误差选择最优解</li>
-</ul>
-<p><strong>优点</strong>：</p>
-<ul>
-<li>理论最少点数</li>
-<li>RANSAC 中最小集更小</li>
-</ul>
-<p><strong>缺点</strong>：</p>
-<ul>
-<li>非线性求解</li>
-<li>可能有 3 个解，需额外验证</li>
-</ul>
-<h3 id="3-5-为什么-F-无法分解出位姿"><a href="#3-5-为什么-F-无法分解出位姿" class="headerlink" title="3.5 为什么 F 无法分解出位姿"></a>3.5 为什么 F 无法分解出位姿</h3><p><strong>核心原因</strong>：F 混入了内参 K 的影响。</p>
-<p><strong>自由度分析</strong>：<br>$$\begin{aligned}<br>\text{DOF}(F) &amp;&#x3D; 7 \\<br>\text{DOF}(R, t) &amp;&#x3D; 5 \quad (R: 3, ; t\text{方向}: 2) \\<br>\text{内参影响} &amp;&#x3D; 7 - 5 &#x3D; 2<br>\end{aligned}$$</p>
-<p><strong>几何意义</strong>：</p>
-<ul>
-<li>F 只知道极线方向（像素空间）</li>
-<li>不知道焦距、主点等物理参数</li>
-<li>无法还原真实相机运动</li>
-</ul>
-<p><strong>解决方案</strong>：</p>
-<ol>
-<li>如果已知 K：$E &#x3D; K_2^T F K_1$，然后分解 E</li>
-<li>如果未知 K：只能做极线约束，无法恢复 R,t</li>
-<li>自标定：多视图 Kruppa 约束（复杂且不稳定）</li>
-</ol>
+<p>将 $F$ 表示为两个基矩阵的线性组合 $F &#x3D; \alpha F_1 + (1-\alpha) F_2$，代入秩约束 $\det(F) &#x3D; 0$ 得三次方程，最多 3 个实根。通过重投影误差选择最优解。</p>
+<p><strong>适用</strong>：RANSAC 最小集，但需处理多解。</p>
+<h3 id="3-5-F-无法直接分解位姿"><a href="#3-5-F-无法直接分解位姿" class="headerlink" title="3.5 F 无法直接分解位姿"></a>3.5 F 无法直接分解位姿</h3><p><strong>原因</strong>：$\text{DOF}(F) &#x3D; 7$，而 $\text{DOF}(R, t) &#x3D; 5$，多出的 2 个自由度来自内参影响。F 只知道极线方向（像素空间），不知道焦距、主点等物理参数，无法还原真实相机运动。</p>
+<p><strong>解决</strong>：已知 K 时通过 $E &#x3D; K_2^T F K_1$ 转换后分解；未知 K 只能做极线约束，无法恢复位姿。</p>
 <h2 id="4-PnP-问题"><a href="#4-PnP-问题" class="headerlink" title="4. PnP 问题"></a>4. PnP 问题</h2><h3 id="4-1-问题定义"><a href="#4-1-问题定义" class="headerlink" title="4.1 问题定义"></a>4.1 问题定义</h3><p>PnP (Perspective-n-Point) 求解 3D-2D 对应下的相机位姿：<br>$$x &#x3D; K(RX + t)$$</p>
 <p><strong>输入</strong>：</p>
 <ul>
@@ -316,69 +173,17 @@
 </tr>
 </tbody></table>
 <h3 id="4-2-P3P-算法"><a href="#4-2-P3P-算法" class="headerlink" title="4.2 P3P 算法"></a>4.2 P3P 算法</h3><p><strong>最少点数</strong>：3 对应点</p>
-<p><strong>数学公式</strong>：</p>
-<p>根据余弦定理，对三个三角形建立方程：</p>
-<p>$$\begin{cases}<br>x^2 + y^2 - 2xy\cos\gamma &#x3D; c^2 \quad (\triangle OAB\text{，已知} c \text{ 和 } \gamma) \\<br>x^2 + z^2 - 2xz\cos\beta &#x3D; b^2 \quad (\triangle OAC\text{，已知} b \text{ 和 } \beta) \\<br>y^2 + z^2 - 2yz\cos\alpha &#x3D; a^2 \quad (\triangle OBC\text{，已知} a \text{ 和 } \alpha)<br>\end{cases}$$</p>
-<p>求解这个非线性方程组得到 $x, y, z$，然后通过三点位置计算 $R, t$。</p>
-<p><strong>符号说明</strong>：</p>
-<ul>
-<li>$O$：相机光心</li>
-<li>$A, B, C$：三个 3D 点（世界坐标系）</li>
-<li>$x, y, z$：光心到三点的距离（<strong>未知</strong>，待求解）</li>
-<li>$a &#x3D; |BC|, b &#x3D; |AC|, c &#x3D; |AB|$：3D 点间距离（<strong>已知</strong>）</li>
-<li>$\alpha, \beta, \gamma$：观测射线间夹角（<strong>已知</strong>，由 2D 观测计算）</li>
-</ul>
-<p><strong>解个数</strong>：最多 4 个解</p>
-<p><strong>优点</strong>：</p>
-<ul>
-<li>最少点数，RANSAC 效率高</li>
-<li>闭式解，速度快</li>
-</ul>
-<p><strong>缺点</strong>：</p>
-<ul>
-<li>多解需验证</li>
-<li>数值不稳定</li>
-</ul>
+<p>根据余弦定理建立三角形方程组（$x, y, z$ 为光心到三 3D 点的距离）：</p>
+<p>$$\begin{cases}<br>x^2 + y^2 - 2xy\cos\gamma &#x3D; c^2 \\<br>x^2 + z^2 - 2xz\cos\beta &#x3D; b^2 \\<br>y^2 + z^2 - 2yz\cos\alpha &#x3D; a^2<br>\end{cases}$$</p>
+<p>其中 $a, b, c$ 为 3D 点间距离（已知），$\alpha, \beta, \gamma$ 为观测射线夹角（由 2D 观测计算）。求解得到 $x, y, z$ 后计算 $R, t$。</p>
+<p><strong>特点</strong>：最少点数，闭式解，但最多 4 个解需验证，数值不够稳定。</p>
 <h3 id="4-3-EPnP-算法"><a href="#4-3-EPnP-算法" class="headerlink" title="4.3 EPnP 算法"></a>4.3 EPnP 算法</h3><p><strong>适用</strong>：n ≥ 4 个点</p>
 <p><strong>核心思想</strong>：将所有 3D 点表示为 4 个控制点的线性组合。</p>
-<p><strong>数学公式</strong>：</p>
-<p>世界坐标系中的表示（已知）：<br>$$P_i^w &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^w, \quad \sum_{j&#x3D;1}^{4} \alpha_{ij} &#x3D; 1$$</p>
-<p>相机坐标系中的表示（未知）：<br>$$P_i^c &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$$</p>
-<p>投影方程：<br>$$\lambda_i \begin{bmatrix} u_i \\ v_i \\ 1 \end{bmatrix} &#x3D; K \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$$</p>
-<p>求解：通过多个投影方程和控制点间距离约束，求解 $C_j^c$，然后计算 $R, t$。</p>
-<p><strong>符号说明</strong>：</p>
-<ul>
-<li>$P_i^w, P_i^c$：第 $i$ 个 3D 点在世界&#x2F;相机坐标系下的坐标</li>
-<li>$C_j^w, C_j^c$：第 $j$ 个控制点在世界&#x2F;相机坐标系下的坐标（仅需求解 4 个 $C_j^c$）</li>
-<li>$\alpha_{ij}$：第 $i$ 个点关于第 $j$ 个控制点的权重（由世界坐标计算得到）</li>
-</ul>
-<p><strong>优点</strong>：</p>
-<ul>
-<li>线性时间复杂度 O(n)</li>
-<li>非迭代</li>
-<li>精度高</li>
-</ul>
-<h3 id="4-4-DLT优化算法"><a href="#4-4-DLT优化算法" class="headerlink" title="4.4 DLT优化算法"></a>4.4 DLT优化算法</h3><p><strong>DLT步骤</strong>：</p>
-<ol>
-<li>构造投影方程的线性形式</li>
-<li>SVD求解初值</li>
-<li>分解投影矩阵得R,t</li>
-</ol>
-<p><strong>问题</strong>：</p>
-<ul>
-<li>未利用 R 的正交性</li>
-<li>估计精度受限</li>
-</ul>
-<p><strong>改进</strong>：</p>
-<ul>
-<li>DLT 初值 + LM 非线性优化</li>
-<li>最小化重投影误差</li>
-</ul>
-<h3 id="4-5-应用场景"><a href="#4-5-应用场景" class="headerlink" title="4.5 应用场景"></a>4.5 应用场景</h3><ul>
-<li><strong>AR&#x2F;VR</strong>：已知标志物 3D 位置，定位相机</li>
-<li><strong>机器人导航</strong>：已知地图特征点</li>
-<li><strong>SLAM 重定位</strong>：回环检测后的位姿恢复</li>
-</ul>
+<p>$$P_i^w &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^w \quad \Rightarrow \quad P_i^c &#x3D; \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$$</p>
+<p>投影方程 $\lambda_i x_i &#x3D; K \sum_{j&#x3D;1}^{4} \alpha_{ij} C_j^c$ 结合控制点距离约束求解 $C_j^c$，再计算 $R, t$。</p>
+<p><strong>优势</strong>：$O(n)$ 复杂度，非迭代，精度高。</p>
+<h3 id="4-4-DLT-PnP-算法"><a href="#4-4-DLT-PnP-算法" class="headerlink" title="4.4 DLT PnP 算法"></a>4.4 DLT PnP 算法</h3><p>直接线性化投影方程 SVD 求解，但未利用 $R$ 正交性。实际常用 DLT 初值 + LM 优化最小化重投影误差。</p>
+<p><strong>PnP 应用</strong>：AR 标志物定位、机器人导航、SLAM 重定位。</p>
 <h2 id="5-算法横向对比"><a href="#5-算法横向对比" class="headerlink" title="5. 算法横向对比"></a>5. 算法横向对比</h2><h3 id="5-1-点法系列总结"><a href="#5-1-点法系列总结" class="headerlink" title="5.1 点法系列总结"></a>5.1 点法系列总结</h3><table>
 <thead>
 <tr>
@@ -474,118 +279,28 @@
 </tbody></table>
 <h3 id="5-4-工程决策树"><a href="#5-4-工程决策树" class="headerlink" title="5.4 工程决策树"></a>5.4 工程决策树</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">是否已知 3D 结构？</span><br><span class="line">├─ 是 → PnP → R,t</span><br><span class="line">└─ 否 → 是否平面场景？</span><br><span class="line">    ├─ 是 → DLT → H</span><br><span class="line">    └─ 否 → 是否已标定？</span><br><span class="line">        ├─ 是 → 五点法 → E → R,t</span><br><span class="line">        └─ 否 → 八点法 → F → (极线约束)</span><br></pre></td></tr></table></figure>
 
-<h2 id="6-关键问题深入"><a href="#6-关键问题深入" class="headerlink" title="6. 关键问题深入"></a>6. 关键问题深入</h2><h3 id="6-1-为什么增加点数无法解决模型问题"><a href="#6-1-为什么增加点数无法解决模型问题" class="headerlink" title="6.1 为什么增加点数无法解决模型问题"></a>6.1 为什么增加点数无法解决模型问题</h3><p><strong>误区</strong>：用 100 个点从像素坐标估计 E</p>
-<p><strong>真相</strong>：模型层级错误，点再多也没用</p>
-<p><strong>原因分析</strong>：</p>
-<ol>
-<li>像素坐标满足 $x_2^T F x_1 &#x3D; 0$</li>
-<li>归一化坐标满足 $\tilde{x}_2^T E \tilde{x}_1 &#x3D; 0$</li>
-<li>强行用像素坐标解 E 本质上是在拟合 F</li>
-</ol>
-<p><strong>类比</strong>：</p>
-<ul>
-<li>用”米”为单位的公式拟合”像素”数据</li>
-<li>点数解决统计问题，内参解决层级问题</li>
-</ul>
-<h3 id="6-2-退化情况处理"><a href="#6-2-退化情况处理" class="headerlink" title="6.2 退化情况处理"></a>6.2 退化情况处理</h3><p><strong>常见退化</strong>：</p>
-<ul>
-<li>纯旋转：$t&#x3D;0$，E 和 F 退化</li>
-<li>平面场景：H 优于 F</li>
-<li>共线点：无法估计</li>
-</ul>
-<p><strong>检测方法</strong>：</p>
-<ul>
-<li>比较 F 和 H 的重投影误差</li>
-<li>检查运动 baseline</li>
-<li>GRIC准则（Geometric Robust Information Criterion）</li>
-</ul>
-<p><strong>处理</strong>：</p>
-<ul>
-<li>自动切换H&#x2F;F&#x2F;E</li>
-<li>要求重新采集数据</li>
-</ul>
-<h3 id="6-3-多解消歧"><a href="#6-3-多解消歧" class="headerlink" title="6.3 多解消歧"></a>6.3 多解消歧</h3><p><strong>E 分解 4 组解</strong>：</p>
-<ul>
-<li>Cheirality check：三角化深度&gt;0</li>
-<li>仅 1 组满足</li>
-</ul>
-<p><strong>P3P 可有 4 组解</strong>：</p>
-<ul>
-<li>重投影误差验证</li>
-<li>深度一致性检验</li>
-</ul>
-<p><strong>七点法 1 或 3 个解</strong>：</p>
-<ul>
-<li>RANSAC 框架下自动验证</li>
-<li>选重投影误差最小解</li>
-</ul>
-<h2 id="7-工程实践"><a href="#7-工程实践" class="headerlink" title="7. 工程实践"></a>7. 工程实践</h2><h3 id="7-1-OpenCV实现"><a href="#7-1-OpenCV实现" class="headerlink" title="7.1 OpenCV实现"></a>7.1 OpenCV实现</h3><figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 八点法求F</span></span><br><span class="line">cv::Mat F = cv::<span class="built_in">findFundamentalMat</span>(pts1, pts2, cv::FM_RANSAC);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 五点法求E（已标定）</span></span><br><span class="line">cv::Mat E = cv::<span class="built_in">findEssentialMat</span>(pts1, pts2, K, cv::RANSAC);</span><br><span class="line">cv::Mat R, t;</span><br><span class="line">cv::<span class="built_in">recoverPose</span>(E, pts1, pts2, K, R, t);</span><br><span class="line"></span><br><span class="line"><span class="comment">// DLT求H</span></span><br><span class="line">cv::Mat H = cv::<span class="built_in">findHomography</span>(pts1, pts2, cv::RANSAC);</span><br><span class="line"></span><br><span class="line"><span class="comment">// EPnP</span></span><br><span class="line">cv::Mat rvec, tvec;</span><br><span class="line">cv::<span class="built_in">solvePnP</span>(pts3d, pts2d, K, distCoeffs, rvec, tvec);</span><br></pre></td></tr></table></figure>
+<h2 id="6-关键问题"><a href="#6-关键问题" class="headerlink" title="6. 关键问题"></a>6. 关键问题</h2><h3 id="6-1-为什么增加点数无法解决模型问题"><a href="#6-1-为什么增加点数无法解决模型问题" class="headerlink" title="6.1 为什么增加点数无法解决模型问题"></a>6.1 为什么增加点数无法解决模型问题</h3><p><strong>误区</strong>：用 100 个点从像素坐标估计 E</p>
+<p><strong>真相</strong>：像素坐标满足 $x_2^T F x_1 &#x3D; 0$，归一化坐标满足 $\tilde{x}_2^T E \tilde{x}_1 &#x3D; 0$。强行用像素坐标解 E 本质上是在拟合 F。<strong>点数解决统计问题，内参解决层级问题</strong>。</p>
+<h3 id="6-2-退化情况处理"><a href="#6-2-退化情况处理" class="headerlink" title="6.2 退化情况处理"></a>6.2 退化情况处理</h3><p><strong>常见退化</strong>：纯旋转（$t&#x3D;0$，E&#x2F;F 退化）、平面场景（H 优于 F）、共线点。</p>
+<p><strong>检测</strong>：比较 F 和 H 的重投影误差，检查运动 baseline，GRIC 准则。自动切换 H&#x2F;F&#x2F;E 或重新采集。</p>
+<h3 id="6-3-多解消歧"><a href="#6-3-多解消歧" class="headerlink" title="6.3 多解消歧"></a>6.3 多解消歧</h3><p>E 分解 4 组解用 Cheirality check（三角化深度 &gt; 0）；P3P 可有 4 组解用重投影误差验证；七点法 1-3 个解在 RANSAC 框架下自动选择最优。</p>
+<h2 id="7-工程实践"><a href="#7-工程实践" class="headerlink" title="7. 工程实践"></a>7. 工程实践</h2><p><strong>OpenCV 实现</strong>：</p>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 八点法求 F</span></span><br><span class="line">cv::Mat F = cv::<span class="built_in">findFundamentalMat</span>(pts1, pts2, cv::FM_RANSAC);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 五点法求 E（已标定）</span></span><br><span class="line">cv::Mat E = cv::<span class="built_in">findEssentialMat</span>(pts1, pts2, K, cv::RANSAC);</span><br><span class="line">cv::<span class="built_in">recoverPose</span>(E, pts1, pts2, K, R, t);</span><br><span class="line"></span><br><span class="line"><span class="comment">// DLT 求 H</span></span><br><span class="line">cv::Mat H = cv::<span class="built_in">findHomography</span>(pts1, pts2, cv::RANSAC);</span><br><span class="line"></span><br><span class="line"><span class="comment">// EPnP</span></span><br><span class="line">cv::<span class="built_in">solvePnP</span>(pts3d, pts2d, K, distCoeffs, rvec, tvec);</span><br></pre></td></tr></table></figure>
 
-<h3 id="7-2-关键工程细节"><a href="#7-2-关键工程细节" class="headerlink" title="7.2 关键工程细节"></a>7.2 关键工程细节</h3><p><strong>归一化必不可少</strong>：</p>
+<p><strong>关键细节</strong>：坐标归一化提升稳定性；RANSAC 处理外点；五点法依赖准确 $K$；多视图 BA 优化全局一致性。</p>
+<h2 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h2><p><strong>核心要点</strong>：</p>
 <ul>
-<li>八点法前必须归一化</li>
-<li>提升条件数，数值稳定</li>
+<li>H、E、F 对应不同约束：H（平面&#x2F;旋转，8 DOF）、E（已标定，5 DOF）、F（未标定，7 DOF）</li>
+<li>坐标系层级决定算法：像素坐标 → F，归一化坐标 → E</li>
+<li>F 无法直接分解 R,t（混入内参 2 DOF，需转换为 E）</li>
+<li>点数解决统计问题，内参解决几何层级</li>
+<li>PnP 是 3D-2D 问题，直接求位姿</li>
 </ul>
-<p><strong>RANSAC 鲁棒估计</strong>：</p>
-<ul>
-<li>实际匹配有外点</li>
-<li>迭代次数与内点率相关</li>
-</ul>
-<p><strong>内参精度要求</strong>：</p>
-<ul>
-<li>五点法依赖准确的 K</li>
-<li>内参误差会传播到 R,t</li>
-</ul>
-<p><strong>多视图一致性</strong>：</p>
-<ul>
-<li>单对图像精度有限</li>
-<li>BA 优化全局一致性</li>
-</ul>
-<h2 id="8-总结"><a href="#8-总结" class="headerlink" title="8. 总结"></a>8. 总结</h2><h3 id="8-1-核心要点"><a href="#8-1-核心要点" class="headerlink" title="8.1 核心要点"></a>8.1 核心要点</h3><ol>
-<li><p><strong>H、E、F对应不同约束</strong>：</p>
-<ul>
-<li>H：平面或纯旋转（8 DOF）</li>
-<li>E：已标定一般运动（5 DOF）</li>
-<li>F：未标定一般运动（7 DOF）</li>
-</ul>
-</li>
-<li><p><strong>坐标系层级决定算法</strong>：</p>
-<ul>
-<li>像素坐标 → F（八点法）</li>
-<li>归一化坐标 → E（五点法）</li>
-</ul>
-</li>
-<li><p><strong>F 无法直接分解 R,t</strong>：</p>
-<ul>
-<li>混入内参（2 DOF）</li>
-<li>需转换为 E（需要 K）</li>
-</ul>
-</li>
-<li><p><strong>点数量与模型层级</strong>：</p>
-<ul>
-<li>点数解决统计问题</li>
-<li>内参解决几何层级</li>
-</ul>
-</li>
-<li><p><strong>PnP 是不同问题</strong>：</p>
-<ul>
-<li>3D-2D 问题（需要结构）</li>
-<li>直接求位姿</li>
-</ul>
-</li>
-</ol>
-<h3 id="8-2-实践建议"><a href="#8-2-实践建议" class="headerlink" title="8.2 实践建议"></a>8.2 实践建议</h3><ul>
-<li>SLAM 系统优先五点法（设备内参已知）</li>
-<li>图像拼接优先 DLT 单应</li>
-<li>未标定双目优先八点法+极线校正</li>
-<li>重定位&#x2F;AR 优先 PnP</li>
-<li>所有算法配合 RANSAC 使用</li>
-</ul>
-<h3 id="8-3-参考文献"><a href="#8-3-参考文献" class="headerlink" title="8.3 参考文献"></a>8.3 参考文献</h3><ol>
+<p><strong>实践建议</strong>：SLAM 优先五点法，图像拼接优先 DLT，未标定双目优先八点法，重定位&#x2F;AR 优先 PnP，所有算法配合 RANSAC。</p>
+<p><strong>参考文献</strong>：</p>
+<ol>
 <li>Hartley &amp; Zisserman, <em>Multiple View Geometry in Computer Vision</em>, 2003</li>
 <li>Nister, <em>An Efficient Solution to the Five-Point Relative Pose Problem</em>, CVPR 2004</li>
-<li>Hartley, <em>In Defense of the Eight-Point Algorithm</em>, ICCV 1997</li>
-<li>Lepetit et al., <em>EPnP: An Accurate O(n) Solution to the PnP Problem</em>, IJCV 2009</li>
 </ol>
 
     </div>
