@@ -52,11 +52,11 @@
                     
                         <div class="post-item-tags">
                             
+                                <a href="/tags/SLAM/" class="tag">#SLAM</a>
+                                
                                 <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                                 
                                 <a href="/tags/%E5%A4%9A%E8%A7%86%E5%9B%BE%E5%87%A0%E4%BD%95/" class="tag">#多视图几何</a>
-                                
-                                <a href="/tags/SLAM/" class="tag">#SLAM</a>
                                 
                         </div>
                         
@@ -74,9 +74,9 @@
                     
                         <div class="post-item-tags">
                             
-                                <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
-                                
                                 <a href="/tags/SLAM/" class="tag">#SLAM</a>
+                                
+                                <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                                 
                                 <a href="/tags/%E6%9C%BA%E5%99%A8%E4%BA%BA/" class="tag">#机器人</a>
                                 
@@ -235,6 +235,29 @@
                         };
                     </script>
                     <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
 </body>
 
 </html>

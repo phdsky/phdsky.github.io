@@ -51,16 +51,12 @@
             </div>
         </header>
 
-        <div class="post-body">
-            
-            
-                
-                
-            
-            <p>Topic: Multi-View Geometry<br>Keywords: Homography, Essential Matrix, Fundamental Matrix, PnP<br>Reference: Multiple View Geometry in Computer Vision</p>
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Topic: Multi-View Geometry<br>Keywords: Homography, Essential Matrix, Fundamental Matrix, PnP<br>Reference: Multiple View Geometry in Computer Vision</p>
 <span id="more"></span>
 
-<div class="post-toc"><div class="toc-title">目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%8D%95%E5%BA%94%E7%9F%A9%E9%98%B5-H"><span class="toc-text">1. 单应矩阵 H</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">1.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-DLT%EF%BC%88Direct-Linear-Transform%EF%BC%89%E7%AE%97%E6%B3%95"><span class="toc-text">1.2 DLT（Direct Linear Transform）算法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9C%AC%E8%B4%A8%E7%9F%A9%E9%98%B5-E"><span class="toc-text">2. 本质矩阵 E</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">2.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%BA%94%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">2.2 五点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%88%86%E8%A7%A3%E6%81%A2%E5%A4%8D%E4%BD%8D%E5%A7%BF"><span class="toc-text">2.3 分解恢复位姿</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%86%85%E5%8F%82%E4%BE%9D%E8%B5%96"><span class="toc-text">2.4 内参依赖</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%9F%BA%E7%A1%80%E7%9F%A9%E9%98%B5-F"><span class="toc-text">3. 基础矩阵 F</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">3.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%8E-E-%E7%9F%A9%E9%98%B5%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">3.2 与 E 矩阵的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%85%AB%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.3 八点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%83%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.4 七点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-F-%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E5%88%86%E8%A7%A3%E4%BD%8D%E5%A7%BF"><span class="toc-text">3.5 F 无法直接分解位姿</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-PnP-%E9%97%AE%E9%A2%98"><span class="toc-text">4. PnP 问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="toc-text">4.1 问题定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-P3P-%E7%AE%97%E6%B3%95"><span class="toc-text">4.2 P3P 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-EPnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.3 EPnP 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-DLT-PnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.4 DLT PnP 算法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%AE%97%E6%B3%95%E6%A8%AA%E5%90%91%E5%AF%B9%E6%AF%94"><span class="toc-text">5. 算法横向对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%82%B9%E6%B3%95%E7%B3%BB%E5%88%97%E6%80%BB%E7%BB%93"><span class="toc-text">5.1 点法系列总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%9D%90%E6%A0%87%E7%B3%BB%E5%B1%82%E7%BA%A7"><span class="toc-text">5.2 坐标系层级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%9C%BA%E6%99%AF%E9%80%82%E7%94%A8%E6%80%A7"><span class="toc-text">5.3 场景适用性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%B7%A5%E7%A8%8B%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.4 工程决策树</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98"><span class="toc-text">6. 关键问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A2%9E%E5%8A%A0%E7%82%B9%E6%95%B0%E6%97%A0%E6%B3%95%E8%A7%A3%E5%86%B3%E6%A8%A1%E5%9E%8B%E9%97%AE%E9%A2%98"><span class="toc-text">6.1 为什么增加点数无法解决模型问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%BD%92%E4%B8%80%E5%8C%96%E5%9D%90%E6%A0%87"><span class="toc-text">6.2 为什么需要归一化坐标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5%E5%A4%84%E7%90%86"><span class="toc-text">6.3 退化情况处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-%E5%A4%9A%E8%A7%A3%E6%B6%88%E6%AD%A7"><span class="toc-text">6.4 多解消歧</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">7. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%80%BB%E7%BB%93"><span class="toc-text">8. 总结</span></a></li></ol></div>
+<!-- toc -->
 
 <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>多视图几何研究从多张图像恢复相机运动和场景结构，核心是三个 3×3 矩阵：单应矩阵 H、本质矩阵 E、基础矩阵 F。<br>它们对应不同的坐标系层级（像素&#x2F;归一化）和场景约束（平面&#x2F;一般）。理解关键在于自由度分析和算法适用条件。</p>
 <h2 id="1-单应矩阵-H"><a href="#1-单应矩阵-H" class="headerlink" title="1. 单应矩阵 H"></a>1. 单应矩阵 H</h2><h3 id="1-1-定义与约束"><a href="#1-1-定义与约束" class="headerlink" title="1.1 定义与约束"></a>1.1 定义与约束</h3><p>单应矩阵描述两个图像平面间的投影变换：<br>$$x_2 &#x3D; H x_1$$</p>
@@ -324,7 +320,7 @@
 <li>七点法 1-3 个解：在 RANSAC 框架下自动选择最优</li>
 </ul>
 <h2 id="7-工程实践"><a href="#7-工程实践" class="headerlink" title="7. 工程实践"></a>7. 工程实践</h2><p><strong>OpenCV 实现</strong>：</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 八点法求 F</span></span><br><span class="line">cv::Mat F = cv::<span class="built_in">findFundamentalMat</span>(pts1, pts2, cv::FM_RANSAC);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 五点法求 E（已标定）</span></span><br><span class="line">cv::Mat E = cv::<span class="built_in">findEssentialMat</span>(pts1, pts2, K, cv::RANSAC);</span><br><span class="line">cv::<span class="built_in">recoverPose</span>(E, pts1, pts2, K, R, t);</span><br><span class="line"></span><br><span class="line"><span class="comment">// DLT 求 H</span></span><br><span class="line">cv::Mat H = cv::<span class="built_in">findHomography</span>(pts1, pts2, cv::RANSAC);</span><br><span class="line"></span><br><span class="line"><span class="comment">// EPnP</span></span><br><span class="line">cv::<span class="built_in">solvePnP</span>(pts3d, pts2d, K, distCoeffs, rvec, tvec);</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">// 八点法求 F</span><br><span class="line">cv::Mat F = cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC);</span><br><span class="line"></span><br><span class="line">// 五点法求 E（已标定）</span><br><span class="line">cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC);</span><br><span class="line">cv::recoverPose(E, pts1, pts2, K, R, t);</span><br><span class="line"></span><br><span class="line">// DLT 求 H</span><br><span class="line">cv::Mat H = cv::findHomography(pts1, pts2, cv::RANSAC);</span><br><span class="line"></span><br><span class="line">// EPnP</span><br><span class="line">cv::solvePnP(pts3d, pts2d, K, distCoeffs, rvec, tvec);</span><br></pre></td></tr></table></figure>
 
 <p><strong>关键细节</strong>：</p>
 <ul>
@@ -355,17 +351,30 @@
 <li><em>An Efficient Solution to the Five-Point Relative Pose Problem</em>, CVPR 2004, David Nister</li>
 </ol>
 
-    </div>
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%8D%95%E5%BA%94%E7%9F%A9%E9%98%B5-H"><span class="toc-text">1. 单应矩阵 H</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">1.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-DLT%EF%BC%88Direct-Linear-Transform%EF%BC%89%E7%AE%97%E6%B3%95"><span class="toc-text">1.2 DLT（Direct Linear Transform）算法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9C%AC%E8%B4%A8%E7%9F%A9%E9%98%B5-E"><span class="toc-text">2. 本质矩阵 E</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">2.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%BA%94%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">2.2 五点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%88%86%E8%A7%A3%E6%81%A2%E5%A4%8D%E4%BD%8D%E5%A7%BF"><span class="toc-text">2.3 分解恢复位姿</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%86%85%E5%8F%82%E4%BE%9D%E8%B5%96"><span class="toc-text">2.4 内参依赖</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%9F%BA%E7%A1%80%E7%9F%A9%E9%98%B5-F"><span class="toc-text">3. 基础矩阵 F</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E7%BA%A6%E6%9D%9F"><span class="toc-text">3.1 定义与约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%8E-E-%E7%9F%A9%E9%98%B5%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">3.2 与 E 矩阵的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%85%AB%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.3 八点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%83%E7%82%B9%E6%B3%95%E7%AE%97%E6%B3%95"><span class="toc-text">3.4 七点法算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-F-%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E5%88%86%E8%A7%A3%E4%BD%8D%E5%A7%BF"><span class="toc-text">3.5 F 无法直接分解位姿</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-PnP-%E9%97%AE%E9%A2%98"><span class="toc-text">4. PnP 问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="toc-text">4.1 问题定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-P3P-%E7%AE%97%E6%B3%95"><span class="toc-text">4.2 P3P 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-EPnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.3 EPnP 算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-DLT-PnP-%E7%AE%97%E6%B3%95"><span class="toc-text">4.4 DLT PnP 算法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%AE%97%E6%B3%95%E6%A8%AA%E5%90%91%E5%AF%B9%E6%AF%94"><span class="toc-text">5. 算法横向对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E7%82%B9%E6%B3%95%E7%B3%BB%E5%88%97%E6%80%BB%E7%BB%93"><span class="toc-text">5.1 点法系列总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%9D%90%E6%A0%87%E7%B3%BB%E5%B1%82%E7%BA%A7"><span class="toc-text">5.2 坐标系层级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%9C%BA%E6%99%AF%E9%80%82%E7%94%A8%E6%80%A7"><span class="toc-text">5.3 场景适用性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%B7%A5%E7%A8%8B%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.4 工程决策树</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98"><span class="toc-text">6. 关键问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%A2%9E%E5%8A%A0%E7%82%B9%E6%95%B0%E6%97%A0%E6%B3%95%E8%A7%A3%E5%86%B3%E6%A8%A1%E5%9E%8B%E9%97%AE%E9%A2%98"><span class="toc-text">6.1 为什么增加点数无法解决模型问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%BD%92%E4%B8%80%E5%8C%96%E5%9D%90%E6%A0%87"><span class="toc-text">6.2 为什么需要归一化坐标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E9%80%80%E5%8C%96%E6%83%85%E5%86%B5%E5%A4%84%E7%90%86"><span class="toc-text">6.3 退化情况处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-%E5%A4%9A%E8%A7%A3%E6%B6%88%E6%AD%A7"><span class="toc-text">6.4 多解消歧</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">7. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%80%BB%E7%BB%93"><span class="toc-text">8. 总结</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
 
             
                 <footer class="post-footer">
                     <div class="post-tags">
                         
+                            <a href="/tags/SLAM/" class="tag">#SLAM</a>
+                            
                             <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                             
                             <a href="/tags/%E5%A4%9A%E8%A7%86%E5%9B%BE%E5%87%A0%E4%BD%95/" class="tag">#多视图几何</a>
-                            
-                            <a href="/tags/SLAM/" class="tag">#SLAM</a>
                             
                     </div>
                 </footer>
@@ -416,6 +425,29 @@
                         };
                     </script>
                     <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
 </body>
 
 </html>

@@ -31,7 +31,7 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 0 20px;
 }
@@ -354,6 +354,89 @@ a:hover {
     box-shadow: var(--shadow-sm);
     line-height: 1.8;
     font-size: 16px;
+    min-width: 0;
+    flex: 1;
+}
+
+/* 正文 + 目录侧边栏双栏布局 */
+.post-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+.post-toc-sidebar {
+    flex: 0 0 260px;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+.post-toc-sidebar .toc-inner {
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+}
+
+.post-toc-sidebar .toc-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.post-toc-sidebar ol,
+.post-toc-sidebar ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.post-toc-sidebar li {
+    margin: 0;
+}
+
+.post-toc-sidebar ol ol,
+.post-toc-sidebar ul ul {
+    padding-left: 12px;
+}
+
+.post-toc-sidebar a {
+    display: block;
+    padding: 3px 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+    line-height: 1.5;
+    border-left: 2px solid transparent;
+    padding-left: 8px;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.post-toc-sidebar a:hover {
+    color: var(--accent-color);
+    border-left-color: var(--accent-color);
+}
+
+.post-toc-sidebar a.active {
+    color: var(--accent-color);
+    border-left-color: var(--accent-color);
+    font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+    .post-toc-sidebar {
+        display: none;
+    }
 }
 
 .post-body h1,
@@ -1861,3 +1944,138 @@ a:hover {
         font-size: 2rem;
     }
 }
+
+/* ========== 代码语法高亮（VSCode Dark 风格）========== */
+/* 只对 Python、JavaScript 等编程语言代码使用深色主题 */
+.post-body .highlight.python pre,
+.post-body .highlight.javascript pre,
+.post-body .highlight.java pre,
+.post-body .highlight.cpp pre,
+.post-body .highlight.c pre {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    padding: 16px !important;
+    border-radius: 8px !important;
+    margin: 16px 0 !important;
+}
+
+.post-body .highlight.python pre code,
+.post-body .highlight.javascript pre code,
+.post-body .highlight.java pre code,
+.post-body .highlight.cpp pre code,
+.post-body .highlight.c pre code {
+    background: transparent !important;
+    color: #d4d4d4 !important;
+}
+
+/* YAML、配置文件等使用浅色主题 */
+.post-body .highlight.yaml pre,
+.post-body .highlight.yml pre,
+.post-body .highlight.json pre {
+    background: #f5f7fa !important;
+    color: #333 !important;
+    padding: 16px !important;
+    border-radius: 8px !important;
+    margin: 16px 0 !important;
+    border-left: 4px solid #667eea !important;
+}
+
+.post-body .highlight.yaml pre code,
+.post-body .highlight.yml pre code,
+.post-body .highlight.json pre code {
+    background: transparent !important;
+    color: #333 !important;
+}
+
+/* Python 语法高亮 */
+.post-body .highlight.python pre .keyword,
+.post-body .highlight.javascript pre .keyword {
+    color: #569cd6; /* 关键字: def, if, for, return 等 */
+    font-weight: normal;
+}
+
+.post-body .highlight.python pre .function_,
+.post-body .highlight.python pre .title,
+.post-body .highlight.javascript pre .function_,
+.post-body .highlight.javascript pre .title {
+    color: #dcdcaa; /* 函数名 */
+}
+
+.post-body .highlight.python pre .params,
+.post-body .highlight.javascript pre .params {
+    color: #d4d4d4; /* 参数 */
+}
+
+.post-body .highlight.python pre .string,
+.post-body .highlight.javascript pre .string {
+    color: #ce9178; /* 字符串 */
+}
+
+.post-body .highlight.python pre .number,
+.post-body .highlight.python pre .literal,
+.post-body .highlight.javascript pre .number,
+.post-body .highlight.javascript pre .literal {
+    color: #b5cea8; /* 数字和字面量 */
+}
+
+.post-body .highlight.python pre .comment,
+.post-body .highlight.javascript pre .comment {
+    color: #6a9955; /* 注释 */
+    font-style: italic;
+}
+
+.post-body .highlight.python pre .built_in,
+.post-body .highlight.javascript pre .built_in {
+    color: #4ec9b0; /* 内置函数: range, len, int 等 */
+}
+
+.post-body .highlight.python pre .operator,
+.post-body .highlight.javascript pre .operator {
+    color: #d4d4d4; /* 操作符 */
+}
+
+.post-body .highlight.python pre .punctuation,
+.post-body .highlight.javascript pre .punctuation {
+    color: #d4d4d4; /* 标点符号 */
+}
+
+/* YAML 语法高亮（浅色） */
+.post-body .highlight.yaml pre .attr,
+.post-body .highlight.yml pre .attr {
+    color: #0451a5; /* 键名 */
+    font-weight: 600;
+}
+
+.post-body .highlight.yaml pre .string,
+.post-body .highlight.yml pre .string {
+    color: #a31515; /* 字符串值 */
+}
+
+.post-body .highlight.yaml pre .number,
+.post-body .highlight.yml pre .number {
+    color: #098658; /* 数字 */
+}
+
+/* Project detail 页面也应用相同规则 */
+.project-detail-body .highlight.python pre,
+.project-detail-body .highlight.javascript pre {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+}
+
+.project-detail-body .highlight.yaml pre,
+.project-detail-body .highlight.yml pre {
+    background: #f5f7fa !important;
+    color: #333 !important;
+    border-left: 4px solid #667eea !important;
+}
+
+.project-detail-body .highlight.python pre .keyword { color: #569cd6; }
+.project-detail-body .highlight.python pre .function_,
+.project-detail-body .highlight.python pre .title { color: #dcdcaa; }
+.project-detail-body .highlight.python pre .string { color: #ce9178; }
+.project-detail-body .highlight.python pre .number,
+.project-detail-body .highlight.python pre .literal { color: #b5cea8; }
+.project-detail-body .highlight.python pre .comment { color: #6a9955; font-style: italic; }
+.project-detail-body .highlight.python pre .built_in { color: #4ec9b0; }
+

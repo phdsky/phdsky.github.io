@@ -80,11 +80,11 @@
                         
                         <span class="post-tags">
                             
+                            <span class="tag">#SLAM</span>
+                            
                             <span class="tag">#计算机视觉</span>
                             
                             <span class="tag">#多视图几何</span>
-                            
-                            <span class="tag">#SLAM</span>
                             
                         </span>
                         
@@ -120,9 +120,9 @@
                         
                         <span class="post-tags">
                             
-                            <span class="tag">#计算机视觉</span>
-                            
                             <span class="tag">#SLAM</span>
+                            
+                            <span class="tag">#计算机视觉</span>
                             
                             <span class="tag">#机器人</span>
                             
@@ -147,7 +147,7 @@
                 
                 <div class="post-info">
                     <h2 class="post-title">
-                        <a href="/posts/2021/2021_arXiv_LaneAF_Robust_Multi_Lane_Detection/">LaneAF Robust Multi-Lane Detection with Affinity Fields</a>
+                        <a href="/posts/2021/2021_arXiv_LaneAF_Robust_Multi_Lane_Detection_with_Affinity_Fields/">LaneAF Robust Multi-Lane Detection with Affinity Fields</a>
                     </h2>
                     
                     <div class="post-meta">
@@ -421,6 +421,29 @@
                         };
                     </script>
                     <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
 </body>
 
 </html>
