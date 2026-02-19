@@ -168,7 +168,45 @@
 <li><strong>Size</strong>：跨类别共享，直接回归宽高</li>
 <li><strong>Offset</strong>：补偿 stride&#x3D;4 引入的 0-3 像素偏差，提升 1.2% AP</li>
 </ul>
-<h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">                          输入图像</span><br><span class="line">                             ↓</span><br><span class="line">                         [H, W, 3]</span><br><span class="line">                             ↓</span><br><span class="line">                 ┌───────────────────────┐</span><br><span class="line">                 │  Backbone(stride=4)   │</span><br><span class="line">                 │  ResNet-18/DLA-34/    │</span><br><span class="line">                 │  Hourglass-104        │</span><br><span class="line">                 └───────────────────────┘</span><br><span class="line">                             ↓</span><br><span class="line">                       [H/4, W/4, C]</span><br><span class="line">                             ↓</span><br><span class="line">       ┌─────────────────────┼─────────────────────┐</span><br><span class="line">       │                     │                     │</span><br><span class="line">       ↓                     ↓                     ↓</span><br><span class="line">┌─────────────┐       ┌─────────────┐       ┌─────────────┐</span><br><span class="line">│ Heatmap     │       │ Size Head   │       │ Offset Head │</span><br><span class="line">│ Head        │       │             │       │             │</span><br><span class="line">│ Conv 1×1    │       │ Conv 1×1    │       │ Conv 1×1    │</span><br><span class="line">└─────────────┘       └─────────────┘       └─────────────┘</span><br><span class="line">       ↓                     ↓                     ↓</span><br><span class="line">  [H/4,W/4,C]           [H/4,W/4,2]           [H/4,W/4,2]</span><br><span class="line">       ↓                     ↓                     ↓</span><br><span class="line">       └─────────────────────┼─────────────────────┘</span><br><span class="line">                             ↓</span><br><span class="line">               ┌────────────────────────────┐</span><br><span class="line">               │  Peak Detection + Decoding │</span><br><span class="line">               │  - Local max pooling       │</span><br><span class="line">               │  - Top-K keep 100          │</span><br><span class="line">               │  - offset correction       │</span><br><span class="line">               │  - size regression         │</span><br><span class="line">               └────────────────────────────┘</span><br><span class="line">                             ↓</span><br><span class="line">                         输出检测框</span><br><span class="line">                    [N×(cx,cy,w,h,conf)]</span><br></pre></td></tr></table></figure>
+<h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+                           输入图像
+                              ↓
+                          [H, W, 3]
+                              ↓
+                  ┌───────────────────────┐
+                  │  Backbone(stride=4)   │
+                  │  ResNet-18/DLA-34/    │
+                  │  Hourglass-104        │
+                  └───────────────────────┘
+                              ↓
+                        [H/4, W/4, C]
+                              ↓
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ↓                     ↓                     ↓
+ ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+ │ Heatmap     │       │ Size Head   │       │ Offset Head │
+ │ Head        │       │             │       │             │
+ │ Conv 1×1    │       │ Conv 1×1    │       │ Conv 1×1    │
+ └─────────────┘       └─────────────┘       └─────────────┘
+        ↓                     ↓                     ↓
+   [H/4,W/4,C]           [H/4,W/4,2]           [H/4,W/4,2]
+        ↓                     ↓                     ↓
+        └─────────────────────┼─────────────────────┘
+                              ↓
+                ┌────────────────────────────┐
+                │  Peak Detection + Decoding │
+                │  - Local max pooling       │
+                │  - Top-K keep 100          │
+                │  - offset correction       │
+                │  - size regression         │
+                └────────────────────────────┘
+                              ↓
+                          输出检测框
+                    [N×(cx,cy,w,h,conf)]
+</pre>
+</div>
 
 <p><strong>损失函数</strong>：</p>
 <p>$$L &#x3D; L_{heatmap} + 0.1 L_{size} + L_{offset}$$</p>
@@ -352,31 +390,7 @@
 </tr>
 </tbody></table>
 <p><strong>关键发现</strong>：CenterNet 的性能瓶颈<strong>几乎 100% 来自中心点检测</strong>。一旦中心点用 GT 替换，检测任务几乎”零难度”，说明 Size 和 Offset 预测已经足够准确，提升空间在于改进 heatmap 预测质量。</p>
-<h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><p><strong>中心点碰撞问题</strong>：当两个不同物体中心点完全重合时，CenterNet 无法同时检测两者。</p>
-<table>
-<thead>
-<tr>
-<th>方法</th>
-<th>失效率</th>
-<th>主要原因</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>CenterNet</td>
-<td><strong>0.1%</strong></td>
-<td>中心点碰撞</td>
-</tr>
-<tr>
-<td>Faster R-CNN</td>
-<td>2.0%</td>
-<td>NMS 误删</td>
-</tr>
-<tr>
-<td>Anchor-based</td>
-<td>20%+</td>
-<td>样本不平衡</td>
-</tr>
-</tbody></table>
+<h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><p><strong>中心点碰撞问题</strong>：当两个不同物体中心点完全重合时，CenterNet 无法同时检测两者。论文统计此类碰撞在 COCO 中概率极低（<strong>0.1%</strong>），实际影响可忽略不计。</p>
 <p><strong>其他限制</strong>：</p>
 <ul>
 <li><strong>密集&#x2F;遮挡目标</strong>：多个紧密相邻的物体容易混淆</li>
@@ -440,11 +454,11 @@
 <li>Deformable 卷积：增强遮挡适应性</li>
 <li>动态 Gaussian：根据物体尺寸自适应 sigma</li>
 </ul>
-<p><strong>速度优化</strong>（2-4x FPS）：</p>
+<p><strong>速度优化</strong>：</p>
 <ul>
-<li>去除 Offset 头：-1.5% AP，+10% FPS</li>
-<li>轻量 Backbone（MobileNet）：-5~10% AP，+2x FPS</li>
-<li>单尺度固定分辨率：-1~2% AP，适合移动端</li>
+<li>去除 Offset 头：精度略降（论文消融约 -0.3 AP），推理速度有所提升</li>
+<li>轻量 Backbone（MobileNet）：精度损失较大，速度显著提升，适合移动端</li>
+<li>单尺度固定分辨率：简化处理流程，适合特定尺度目标的部署场景</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ol>
 <li><p><strong>简化问题定义 &gt; 增加网络复杂度</strong><br>CenterNet 通过重新定义”物体 &#x3D; 中心点”，消除 anchor&#x2F;proposal&#x2F;NMS，反而提升性能。启示：深入理解任务本质，找到最简表示往往比堆叠模块更有效。</p>
