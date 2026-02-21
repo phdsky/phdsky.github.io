@@ -2079,3 +2079,66 @@ a:hover {
 .project-detail-body .highlight.python pre .comment { color: #6a9955; font-style: italic; }
 .project-detail-body .highlight.python pre .built_in { color: #4ec9b0; }
 
+
+/* ========== Inline Tooltip ========== */
+.tip-trigger {
+  text-decoration: underline wavy #999;
+  cursor: pointer;
+  position: relative;
+  display: inline;
+  font-weight: bold;
+}
+.tip-trigger .tip-box {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 700px;
+  max-width: 90vw;
+  background: #ffffff;
+  color: var(--text-color);
+  border: 1px solid #d0d7f5;
+  border-radius: var(--radius-sm);
+  padding: 14px 28px 14px 16px;
+  font-size: 13px;
+  line-height: 1.75;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(102,126,234,0.15);
+  font-weight: normal;
+  font-style: normal;
+  pointer-events: none;
+  white-space: normal;
+}
+.tip-trigger:hover .tip-box {
+  display: block;
+}
+.tip-trigger.tip-pinned .tip-box {
+  display: block;
+  pointer-events: auto;
+}
+.tip-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  color: var(--text-lighter);
+  font-size: 17px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.tip-close:hover {
+  color: var(--primary-color);
+  background: #f0f2ff;
+}
+.tip-trigger .tip-box b {
+  color: var(--primary-color);
+}

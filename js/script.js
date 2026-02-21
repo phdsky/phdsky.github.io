@@ -138,6 +138,50 @@ function createBackToTop() {
     });
 }
 
+// Inline Tooltip：点击固定，右上角关闭按钮
+document.addEventListener('DOMContentLoaded', function () {
+  function unpinAll() {
+    document.querySelectorAll('.tip-trigger.tip-pinned').forEach(function (t) {
+      t.classList.remove('tip-pinned');
+      var btn = t.querySelector('.tip-close');
+      if (btn) btn.remove();
+    });
+  }
+
+  document.querySelectorAll('.tip-trigger').forEach(function (trigger) {
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasPinned = trigger.classList.contains('tip-pinned');
+      unpinAll();
+      if (!wasPinned) {
+        trigger.classList.add('tip-pinned');
+        var box = trigger.querySelector('.tip-box');
+        if (box && !box.querySelector('.tip-close')) {
+          // 阻止 tip-box 内的所有事件冒泡，防止选中文字时关闭
+          box.addEventListener('click', function (e) { e.stopPropagation(); });
+          box.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+          box.addEventListener('mouseup', function (e) { e.stopPropagation(); });
+          var btn = document.createElement('button');
+          btn.className = 'tip-close';
+          btn.innerHTML = '&times;';
+          btn.title = '关闭';
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            trigger.classList.remove('tip-pinned');
+            btn.remove();
+          });
+          box.appendChild(btn);
+        }
+      }
+    });
+  });
+
+  // 点击其他区域关闭
+  document.addEventListener('click', function () {
+    unpinAll();
+  });
+});
+
 // 移动端菜单切换（如果需要）
 function initMobileMenu() {
     const menuToggle = document.querySelector('.menu-toggle');

@@ -615,14 +615,7 @@ $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mat
 </li>
 <li><p><strong>匈牙利匹配的代价函数</strong>：匹配阶段使用概率值 $\hat{p}_{\sigma(i)}(c_i)$（而非对数概率），这使分类代价与边界框代价在数量级上一致，论文发现这带来更好的经验性能。</p>
 </li>
-<li><p><strong>推理优化技巧（$\varnothing$ 槽位替换）</strong>：将预测为 $\varnothing$ 的检测槽位替换为其置信度第二高的真实类别，可提升约 2 AP。<br>要理解这一技巧，需先明确 AP 的计算方式：<strong>AP 并非在某个固定阈值下评估，而是在所有可能的置信度阈值上扫描</strong>，对每个阈值计算一组 (precision, recall)，最终取 precision-recall 曲线下面积。具体原理如下：</p>
-<ul>
-<li>DETR 的 100 个槽位大部分预测为 $\varnothing$（一张图通常只有几个到几十个物体），替换后这些槽位变成低置信度的真实类别预测</li>
-<li><strong>高阈值区间不受影响</strong>：这些替补预测的置信度很低，在高阈值下会被过滤掉，不会引入误检、不拉低 precision</li>
-<li><strong>低阈值区间增加 recall</strong>：当阈值扫描到足够低时，如果某些替补预测恰好正确（模型对该物体的第二选择碰巧是对的），就额外召回了物体，recall 增大</li>
-<li><strong>曲线面积增大</strong>：precision-recall 曲线的尾部向右延伸，积分面积增大，AP 因此提升约 2 个点</li>
-<li>此技巧<strong>仅在评估时使用</strong>，实际部署直接用置信度阈值（如 &gt;0.7）过滤即可</li>
-</ul>
+<li><p><span class="tip-trigger">推理优化技巧（∅ 槽位替换）<span class="tip-box">要理解这一技巧，需先明确 AP 的计算方式：<b>AP 并非在某个固定阈值下评估，而是在所有可能的置信度阈值上扫描</b>，对每个阈值计算一组 (precision, recall)，最终取曲线下面积。<br>• DETR 的 100 个槽位大部分预测为 ∅（通常只有几个到几十个物体），替换后变成低置信度的真实类别预测<br>• <b>高阈值区间不受影响</b>：这些替补预测置信度很低，会被过滤掉，不会引入误检、不拉低 precision<br>• <b>低阈值区间增加 recall</b>：当阈值扫描到足够低时，恰好正确的替补预测额外召回了物体，recall 增大<br>• <b>曲线面积增大</b>：PR 曲线尾部向右延伸，积分面积增大，AP 提升约 2 个点<br>• 此技巧<b>仅在评估时使用</b>，实际部署直接用置信度阈值（如 &gt;0.7）过滤即可</span></span>：将预测为 $\varnothing$ 的检测槽位替换为其置信度第二高的真实类别，可提升约 2 AP。</p>
 </li>
 <li><p><strong>辅助解码损失</strong>：每个解码器层都添加预测头和匈牙利损失，共享 FFN 参数 + 额外共享 LayerNorm，对学习正确物体数量帮助显著。</p>
 </li>
