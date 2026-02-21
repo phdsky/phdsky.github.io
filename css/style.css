@@ -565,8 +565,7 @@ a:hover {
 }
 
 .post-body blockquote {
-    border-left: 4px solid var(--primary-color);
-    padding-left: 20px;
+    padding-left: 0;
     margin: 20px 0;
     color: var(--text-light);
     font-style: italic;
