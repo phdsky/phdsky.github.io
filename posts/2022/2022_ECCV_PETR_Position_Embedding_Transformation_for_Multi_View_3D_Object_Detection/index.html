@@ -165,6 +165,10 @@ $$F_i^{3d} = \psi(F_i^{2d}, P_i^{3d}), \quad i = 1, 2, \ldots, N$$
 <li><strong>10.7 FPS</strong>：PETR（R50, 1056×384）的推理速度，同分辨率下 BEVDet 仅 4.2 FPS（在更强的 3090 上）</li>
 </ul>
 <h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>$$\text{Multi-View 3D Detection} &#x3D; \text{Backbone} + \text{3D Coordinates Generator} + \text{3D Position Encoder} + \text{Transformer Decoder}$$</p>
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://raw.githubusercontent.com/megvii-research/PETR/main/figs/overview.png" alt="PETR 论文原始架构图" style="max-width:100%;">
+</div>
+
 <div style="display:flex; justify-content:center; margin: 24px 0;">
 <pre>
       多视图输入 {I_i}, i=1..N (N=6)

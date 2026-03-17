@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         
-            PyTorch 量化工程范式：基于 FX 的 QAT 链路设计与部署 - 
+            PyTorch 量化工程范式：基于 FX 的 QAT 设计与部署 - 
                     phdsky
     </title>
     <meta name="description" content="">
@@ -42,7 +42,7 @@
                 <article class="post-detail">
     <div class="container">
         <header class="post-header">
-            <h1 class="post-title">PyTorch 量化工程范式：基于 FX 的 QAT 链路设计与部署</h1>
+            <h1 class="post-title">PyTorch 量化工程范式：基于 FX 的 QAT 设计与部署</h1>
             <div class="post-meta">
                 <span class="post-date">
                     2026年02月25日
@@ -57,378 +57,193 @@
 
 <!-- toc -->
 
-<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>本文聚焦 PyTorch 量化的工程主问题：QAT 从训练到部署的链路一致性。<br>项目中的精度回退主要由链路不一致触发，包括参数初始化、量化状态初始化、图改写路径与后端执行配置。  </p>
-<p>全文围绕三项关键约束展开：  </p>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>模型量化的工程目标很简单：用 INT8 替代 FP32，换取更小的模型体积和更快的推理速度。但几乎每一个量化项目都会遭遇同一个问题——<strong>精度回退</strong>。</p>
+<p>精度为什么会掉？表面原因各不相同，但追溯到底层，回退的根源可以归纳为三层：</p>
+<ol>
+<li><strong>量化本身的信息损失</strong>：将连续浮点值映射到离散整数，必然引入截断与舍入误差。</li>
+<li><strong>训练与部署的计算图不一致</strong>：训练阶段的计算图与部署阶段的执行图存在结构差异，导致“训练时没问题、部署后掉点”。</li>
+<li><strong>校准与量化初始化</strong>：QAT 的起点需要通过 calibration 获得合理的量化范围初始值，否则训练不稳定。</li>
+</ol>
+<p>QAT（Quantization Aware Training）的价值正在于：它让模型在训练阶段就提前感知量化误差，从而在三个层面上同时进行修正。本文围绕这三层根因，梳理 PyTorch FX Graph Mode 下 QAT 的核心原理与工程实践。</p>
+<h2 id="1-第一层：量化的信息损失"><a href="#1-第一层：量化的信息损失" class="headerlink" title="1. 第一层：量化的信息损失"></a>1. 第一层：量化的信息损失</h2><h3 id="1-1-均匀量化的误差来源"><a href="#1-1-均匀量化的误差来源" class="headerlink" title="1.1 均匀量化的误差来源"></a>1.1 均匀量化的误差来源</h3><p>均匀量化将浮点数 $x$ 映射为整数 $x_q$：</p>
+
+$$x_q = \text{clamp}\!\left(\left\lfloor \frac{x}{s} \right\rceil + z,\; 0,\; 2^b - 1\right)$$
+
+
+<p>其中 $s$ 是 scale，$z$ 是 zero point，$b$ 是位宽（通常为 8）。反量化得到 $\hat{x} &#x3D; s \cdot (x_q - z)$。</p>
+<p>误差 $\epsilon &#x3D; x - \hat{x}$ 来自两个环节：</p>
 <ul>
-<li>双 checkpoint（float + calibration）初始化；  </li>
-<li>calibration checkpoint 的职责边界；  </li>
-<li>FX 在执行&#x2F;导出模式体系中的定位与部署衔接。</li>
+<li><strong>舍入误差</strong>：$\lfloor \cdot \rceil$ 将连续值离散化，最大误差为 $s&#x2F;2$。</li>
+<li><strong>截断误差</strong>：超出 $[0, 2^b - 1]$ 范围的值被 clamp，信息完全丢失。</li>
 </ul>
-<h2 id="1-QAT-的双初始化机制"><a href="#1-QAT-的双初始化机制" class="headerlink" title="1. QAT 的双初始化机制"></a>1. QAT 的双初始化机制</h2><h3 id="1-1-问题定义"><a href="#1-1-问题定义" class="headerlink" title="1.1 问题定义"></a>1.1 问题定义</h3><p>QAT（Quantization Aware Training）的目标是让模型在训练阶段提前感知量化误差。<br>其核心可写为：</p>
-<p>$$<br>\hat{y} &#x3D; f_{\text{fake-quant}}(x; \theta), \quad<br>\min_{\theta}\mathcal{L}(\hat{y}, y)<br>$$</p>
-<p>其中参数仍在浮点域更新，但前向行为已近似部署时的离散化路径。</p>
-<h3 id="1-2-双-checkpoint-初始化的必要性"><a href="#1-2-双-checkpoint-初始化的必要性" class="headerlink" title="1.2 双 checkpoint 初始化的必要性"></a>1.2 双 checkpoint 初始化的必要性</h3><p>QAT 起点需要同时满足两类条件：</p>
+<p>scale $s$ 的选择决定了两种误差的权衡：$s$ 越小，舍入精度越高，但截断范围越窄；$s$ 越大，覆盖范围越广，但每个量化区间的精度越差。这就是 observer（观测器，负责统计数据分布并计算 scale&#x2F;zero_point 的组件，常见策略有 MinMax &#x2F; Histogram &#x2F; Percentile）要解决的核心问题。</p>
+<h3 id="1-2-伪量化（Fake-Quant）与-STE"><a href="#1-2-伪量化（Fake-Quant）与-STE" class="headerlink" title="1.2 伪量化（Fake Quant）与 STE"></a>1.2 伪量化（Fake Quant）与 STE</h3><p>QAT 的核心机制是 <strong>伪量化（Fake Quantization）</strong>：前向传播中执行量化→反量化（模拟部署时的精度损失，但实际计算仍用浮点数），反向传播中用 <strong>直通估计器（Straight-Through Estimator, STE）</strong> 直接传递梯度。</p>
+
+$$\text{forward: } \hat{x} = s \cdot \left(\text{clamp}\!\left(\left\lfloor \frac{x}{s} \right\rceil + z,\; 0,\; 2^b-1\right) - z\right)$$
+
+
+<p>$$\text{backward: } \frac{\partial \mathcal{L}}{\partial x} \approx \frac{\partial \mathcal{L}}{\partial \hat{x}}$$</p>
+<p>STE 是一个近似方法（它假设量化操作的梯度为 1，这显然不精确）：梯度在截断区域为零，这意味着被 clamp 掉的值无法通过梯度修正自身。这就是为什么 calibration 阶段的 scale&#x2F;zero_point 初值如此重要——如果初始量化范围偏差过大，大量值落入截断区域，训练早期的梯度信号就会严重失真。</p>
+<h3 id="1-3-QAT-如何修正这层损失"><a href="#1-3-QAT-如何修正这层损失" class="headerlink" title="1.3 QAT 如何修正这层损失"></a>1.3 QAT 如何修正这层损失</h3><p>QAT 让模型参数在感知到量化误差的前提下继续优化。经过若干轮 fine-tune，权重会自适应地调整到量化友好的分布——峰值更集中、长尾被压缩、关键通道的数值范围更紧凑。这是 QAT 相比 PTQ（Post-Training Quantization）精度更高的核心原因。</p>
+<h2 id="2-第二层：训练与部署的计算图不一致"><a href="#2-第二层：训练与部署的计算图不一致" class="headerlink" title="2. 第二层：训练与部署的计算图不一致"></a>2. 第二层：训练与部署的计算图不一致</h2><h3 id="2-1-为什么训练和部署会不一致"><a href="#2-1-为什么训练和部署会不一致" class="headerlink" title="2.1 为什么训练和部署会不一致"></a>2.1 为什么训练和部署会不一致</h3><p>这里的“一致性”指：训练时伪量化模拟的行为，必须与部署时 INT8 算子的实际计算完全一致。但在工程中，这种对齐很容易被破坏：</p>
 <ul>
-<li>参数语义起点：模型权重已在 FP32 训练中收敛（float checkpoint）。</li>
-<li>量化语义起点：observer 统计、scale&#x2F;zero_point 已完成可用初始化（calibration checkpoint）。</li>
+<li><strong>算子融合差异</strong>：训练时 <code>Conv + BN + ReLU</code> 是三个独立算子（BN 在 train 模式下需要统计均值方差），部署时被融合为一个 <code>ConvBnReLU</code> 或进一步折叠 BN 到 Conv 权重中。如果伪量化节点的插入位置没有考虑融合后的语义，量化范围就会偏移。</li>
+<li><strong>后端配置不匹配</strong>：训练用 <code>fbgemm</code>（x86），部署用 <code>qnnpack</code>（ARM），两者的量化 scheme 可能不同（对称 vs 非对称）。</li>
+<li><strong>图结构遗漏</strong>：手工在代码中插入伪量化节点时容易遗漏中间节点，导致部分路径在训练时未被量化但部署时被量化。</li>
 </ul>
-<table>
-<thead>
-<tr>
-<th>checkpoint</th>
-<th>主要作用</th>
-<th>缺失后风险</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>float checkpoint</td>
-<td>提供可优化的参数初值</td>
-<td>训练起点差，收敛慢或不稳</td>
-</tr>
-<tr>
-<td>calibration checkpoint</td>
-<td>提供量化参数初值</td>
-<td>fake quant 误差异常，易震荡</td>
-</tr>
-</tbody></table>
-<p>结论：QAT 的稳定性来自“参数初始化 + 量化初始化”的协同，而不是单点加载。</p>
-<h3 id="1-3-calibration-checkpoint-的语义"><a href="#1-3-calibration-checkpoint-的语义" class="headerlink" title="1.3 calibration checkpoint 的语义"></a>1.3 calibration checkpoint 的语义</h3><p>calibration checkpoint 不是普通权重快照，它通常包含：</p>
+<h3 id="2-2-FX-如何解决这个问题"><a href="#2-2-FX-如何解决这个问题" class="headerlink" title="2.2 FX 如何解决这个问题"></a>2.2 FX 如何解决这个问题</h3><p>FX Graph Mode 的核心价值是把量化从“手工在代码中插入量化节点”提升为<strong>自动化的计算图变换</strong>：</p>
 <ul>
-<li>模型参数（通常为 FP32）；</li>
-<li>observer 统计状态；</li>
-<li>scale &#x2F; zero_point；</li>
-<li>fake quant 相关状态。</li>
+<li><strong>自动算子融合</strong>：自动识别 <code>Conv-BN-ReLU</code> 等组合并在正确位置插入伪量化节点。</li>
+<li><strong>自动观测器插入</strong>：根据量化配置规则（qconfig mapping），确保每个需要量化的节点都被覆盖。</li>
+<li><strong>转换一致性</strong>：<code>convert_fx</code> 将伪量化图直接转换为 INT8 执行图，训练和部署使用同一张图的不同形态。</li>
 </ul>
-<p>因此它承担的是“量化语义起跑线”，而不是替代 float checkpoint。</p>
-<h2 id="2-FX-Graph-Mode-的工程定位"><a href="#2-FX-Graph-Mode-的工程定位" class="headerlink" title="2. FX Graph Mode 的工程定位"></a>2. FX Graph Mode 的工程定位</h2><h3 id="2-1-FX-相比-Eager-的核心变化"><a href="#2-1-FX-相比-Eager-的核心变化" class="headerlink" title="2.1 FX 相比 Eager 的核心变化"></a>2.1 FX 相比 Eager 的核心变化</h3><p>Eager 模式下，量化常依赖手工插桩与手工融合；<br>FX 模式把这些操作提升为图变换问题：</p>
-<ul>
-<li>pattern 匹配与融合；</li>
-<li>observer &#x2F; fake quant 自动插入；</li>
-<li>convert 阶段量化算子替换。</li>
-</ul>
-<p>这使量化流程更标准化、可维护性更高。</p>
-<h3 id="2-2-FX-QAT-的标准流程"><a href="#2-2-FX-QAT-的标准流程" class="headerlink" title="2.2 FX-QAT 的标准流程"></a>2.2 FX-QAT 的标准流程</h3><div style="display:flex; justify-content:center; margin: 24px 0;">
+<p>这使得计算图一致性从“人工保证”变为“框架保证”。</p>
+<h3 id="2-3-FX-QAT-标准流程"><a href="#2-3-FX-QAT-标准流程" class="headerlink" title="2.3 FX-QAT 标准流程"></a>2.3 FX-QAT 标准流程</h3><div style="display:flex; justify-content:center; margin: 24px 0;">
 <pre>
 FP32 Checkpoint
-      │
-      ▼
-Load Float Model ───────────────┐
-      │                         │
-      ▼                         │
-Build QAT Graph (FX)            │
-      │                         │
-      ▼                         │
-Load Calibration Checkpoint ◄───┘
-      │
-      ▼
+      |
+      v
+Load Float Model ---------------+
+      |                         |
+      v                         |
+Build QAT Graph (FX)            |
+      |                         |
+      v                         |
+Load Calibration Checkpoint <---+
+      |
+      v
 QAT Fine-tune (FakeQuant Active)
-      │
-      ▼
+      |
+      v
 convert_fx
-      │
-      ▼
+      |
+      v
 INT8 Deployable Model
 </pre>
 </div>
 
-<h3 id="2-3-关键代码"><a href="#2-3-关键代码" class="headerlink" title="2.3 关键代码"></a>2.3 关键代码</h3><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> mmcv.runner <span class="keyword">import</span> load_checkpoint</span><br><span class="line"><span class="keyword">from</span> torch.ao.quantization <span class="keyword">import</span> get_default_qat_qconfig_mapping</span><br><span class="line"><span class="keyword">from</span> torch.ao.quantization.quantize_fx <span class="keyword">import</span> prepare_qat_fx, convert_fx</span><br><span class="line"></span><br><span class="line">torch.backends.quantized.engine = <span class="string">&quot;fbgemm&quot;</span></span><br><span class="line"></span><br><span class="line">model = MyModel()</span><br><span class="line">example_inputs = (torch.randn(<span class="number">1</span>, <span class="number">3</span>, <span class="number">224</span>, <span class="number">224</span>),)</span><br><span class="line">qconfig_mapping = get_default_qat_qconfig_mapping(<span class="string">&quot;fbgemm&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 1) 参数语义初始化</span></span><br><span class="line">load_checkpoint(model, <span class="string">&quot;float_checkpoint.pth&quot;</span>, map_location=<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) 构建 QAT 图</span></span><br><span class="line">qat_model = prepare_qat_fx(model.<span class="built_in">eval</span>(), qconfig_mapping, example_inputs)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) 量化语义初始化</span></span><br><span class="line">calib_state = torch.load(<span class="string">&quot;qat_checkpoint_path.pth&quot;</span>, map_location=<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line"><span class="keyword">if</span> <span class="string">&quot;state_dict&quot;</span> <span class="keyword">in</span> calib_state:</span><br><span class="line">    calib_state = calib_state[<span class="string">&quot;state_dict&quot;</span>]</span><br><span class="line">qat_model.load_state_dict(calib_state, strict=<span class="literal">False</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4) QAT 训练与转换</span></span><br><span class="line">qat_model.train()</span><br><span class="line">qat_model.<span class="built_in">eval</span>()</span><br><span class="line">int8_model = convert_fx(qat_model)</span><br></pre></td></tr></table></figure>
+<h3 id="2-4-关键代码"><a href="#2-4-关键代码" class="headerlink" title="2.4 关键代码"></a>2.4 关键代码</h3><p><strong>标准流程（单 checkpoint + 在线 calibration）：</strong></p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> torch.ao.quantization <span class="keyword">import</span> get_default_qat_qconfig_mapping</span><br><span class="line"><span class="keyword">from</span> torch.ao.quantization.quantize_fx <span class="keyword">import</span> prepare_qat_fx, convert_fx</span><br><span class="line"></span><br><span class="line">torch.backends.quantized.engine = <span class="string">&quot;fbgemm&quot;</span></span><br><span class="line"></span><br><span class="line">model = MyModel()</span><br><span class="line">model.load_state_dict(torch.load(<span class="string">&quot;float_checkpoint.pth&quot;</span>, map_location=<span class="string">&quot;cpu&quot;</span>))</span><br><span class="line">example_inputs = (torch.randn(<span class="number">1</span>, <span class="number">3</span>, <span class="number">224</span>, <span class="number">224</span>),)</span><br><span class="line">qconfig_mapping = get_default_qat_qconfig_mapping(<span class="string">&quot;fbgemm&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 1) 建图</span></span><br><span class="line">qat_model = prepare_qat_fx(model.<span class="built_in">eval</span>(), qconfig_mapping, example_inputs)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) 在线 calibration：跑几轮前向填充 observer 统计量</span></span><br><span class="line">qat_model.<span class="built_in">eval</span>()</span><br><span class="line"><span class="keyword">with</span> torch.no_grad():</span><br><span class="line">    <span class="keyword">for</span> batch <span class="keyword">in</span> calib_dataloader:</span><br><span class="line">        qat_model(batch)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) QAT 训练</span></span><br><span class="line">qat_model.train()</span><br><span class="line"><span class="comment"># ... training loop ...</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 4) 转换为 INT8</span></span><br><span class="line">qat_model.<span class="built_in">eval</span>()</span><br><span class="line">int8_model = convert_fx(qat_model)</span><br></pre></td></tr></table></figure>
 
-<h2 id="3-PyTorch-模式全景"><a href="#3-PyTorch-模式全景" class="headerlink" title="3. PyTorch 模式全景"></a>3. PyTorch 模式全景</h2><h3 id="3-1-模式序列"><a href="#3-1-模式序列" class="headerlink" title="3.1 模式序列"></a>3.1 模式序列</h3><p><code>Eager -&gt; torch.jit.trace -&gt; torch.jit.script -&gt; torch.fx -&gt; torch.export -&gt; torch.compile -&gt; Backend IR -&gt; ONNX</code><br>这组模式应理解为“能力与表示层级”的对照，而非必须串行执行的流水线。<br>从工程视角看，可以用一条主轴和一条主干路径来理解：</p>
-<ul>
-<li>动态性主轴：<code>Eager -&gt; FX -&gt; Backend IR</code>，动态性逐步降低，结构确定性逐步提升。</li>
-<li>工程主干路径：<code>Eager -&gt; FX（量化/改图/融合） -&gt; torch.compile / Backend IR -&gt; ONNX（可选）</code>。</li>
-</ul>
-<p>在本文场景中，常用组合是 <code>Eager -&gt; FX(QAT) -&gt; convert_fx -&gt; 部署</code>；跨框架交付时再补充 ONNX 导出。<br>对应到实践决策，可按以下规则快速选型：</p>
-<ul>
-<li>模型开发与训练阶段：优先 Eager</li>
-<li>量化改图与 QDQ 插入：优先 FX</li>
-<li>自动编译与后端优化：优先 torch.compile &#x2F; Backend IR</li>
-<li>跨框架模型交付：优先 ONNX</li>
-</ul>
-<h3 id="3-2-模式对照"><a href="#3-2-模式对照" class="headerlink" title="3.2 模式对照"></a>3.2 模式对照</h3><div class="mode-table-wrap" style="overflow-x:auto;">
-<style>
-.mode-table-wrap table {
-  table-layout: fixed;
-  width: 1400px;
-}
-.mode-table-wrap th,
-.mode-table-wrap td {
-  width: 155px;
-  white-space: normal;
-  word-break: break-word;
-}
-</style>
+<p><strong>双 checkpoint 变体（生产环境优化）：</strong></p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 建图后加载预先保存的 calibration state，跳过在线 calibration</span></span><br><span class="line">qat_model = prepare_qat_fx(model.<span class="built_in">eval</span>(), qconfig_mapping, example_inputs)</span><br><span class="line">calib_state = torch.load(<span class="string">&quot;calib_checkpoint.pth&quot;</span>, map_location=<span class="string">&quot;cpu&quot;</span>)</span><br><span class="line">qat_model.load_state_dict(calib_state, strict=<span class="literal">False</span>)</span><br><span class="line">qat_model.train()</span><br><span class="line"><span class="comment"># ... training loop ...</span></span><br></pre></td></tr></table></figure>
 
+<h2 id="3-第三层：校准与量化初始化"><a href="#3-第三层：校准与量化初始化" class="headerlink" title="3. 第三层：校准与量化初始化"></a>3. 第三层：校准与量化初始化</h2><h3 id="3-1-标准流程：一个-checkpoint-在线-calibration"><a href="#3-1-标准流程：一个-checkpoint-在线-calibration" class="headerlink" title="3.1 标准流程：一个 checkpoint + 在线 calibration"></a>3.1 标准流程：一个 checkpoint + 在线 calibration</h3><p>标准 QAT 只需要<strong>一个 FP32 预训练 checkpoint</strong>。calibration 是建图后的在线步骤，不需要额外的 checkpoint 文件：</p>
+<ol>
+<li>加载 FP32 预训练权重</li>
+<li><code>prepare_qat_fx</code> 建图（插入 observer + fake quant）</li>
+<li><strong>在线 calibration</strong>：用代表性数据跑若干轮前向推理，observer 自动统计激活值的 min&#x2F;max 分布，计算初始 scale&#x2F;zero_point</li>
+<li>QAT fine-tune</li>
+<li><code>convert_fx</code> → INT8</li>
+</ol>
+<p>calibration 的本质是让 observer “看到”真实数据分布，从而给 fake quant 一个合理的初始量化范围。<strong>如果跳过 calibration 直接训练</strong>，observer 的 scale&#x2F;zero_point 处于默认值，fake quant 会在第一次前向传播中引入极大噪声，导致训练震荡或发散。</p>
+<h3 id="3-2-工程优化：双-checkpoint-模式"><a href="#3-2-工程优化：双-checkpoint-模式" class="headerlink" title="3.2 工程优化：双 checkpoint 模式"></a>3.2 工程优化：双 checkpoint 模式</h3><p>在生产环境（如 OpenMMLab 等框架）中，calibration 步骤常被独立出来并保存为第二个 checkpoint，形成”双 checkpoint”模式：</p>
 <table>
 <thead>
 <tr>
-<th>维度</th>
-<th>Eager</th>
-<th>torch.jit.trace</th>
-<th>torch.jit.script</th>
-<th>torch.fx</th>
-<th>torch.export</th>
-<th>torch.compile</th>
-<th>Backend IR</th>
-<th>ONNX</th>
+<th>checkpoint</th>
+<th>内容</th>
+<th>用途</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>核心定位</td>
-<td>即时执行</td>
-<td>样例跟踪（历史）</td>
-<td>脚本化静态图（历史）</td>
-<td>可编辑图 IR</td>
-<td>AOT 导出 IR</td>
-<td>自动捕获编译</td>
-<td>芯片&#x2F;Runtime IR</td>
-<td>交换格式</td>
+<td><strong>float checkpoint</strong></td>
+<td>FP32 训练收敛的权重</td>
+<td>提供参数起点</td>
 </tr>
 <tr>
-<td>面向对象</td>
-<td>人 &#x2F; 研究</td>
-<td>简单部署</td>
-<td>历史 TorchScript</td>
-<td>编译器 &#x2F; 改图工程</td>
-<td>编译器 &#x2F; 导出链路</td>
-<td>编译器</td>
-<td>芯片 &#x2F; Runtime</td>
-<td>跨框架</td>
-</tr>
-<tr>
-<td>是否立即执行</td>
-<td>✅</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-</tr>
-<tr>
-<td>Python 语义完整度</td>
-<td>✅</td>
-<td>❌</td>
-<td>⚠️</td>
-<td>❌</td>
-<td>❌</td>
-<td>⚠️</td>
-<td>❌</td>
-<td>❌</td>
-</tr>
-<tr>
-<td>动态控制流能力</td>
-<td>✅</td>
-<td>❌</td>
-<td>⚠️</td>
-<td>❌</td>
-<td>⚠️</td>
-<td>⚠️</td>
-<td>❌</td>
-<td>❌</td>
-</tr>
-<tr>
-<td>显式 IR</td>
-<td>❌</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr>
-<td>IR 可编辑</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>✅</td>
-<td>⚠️</td>
-<td>⚠️</td>
-<td>❌</td>
-<td>❌</td>
-</tr>
-<tr>
-<td>保留 Module 结构语义</td>
-<td>✅</td>
-<td>❌</td>
-<td>❌</td>
-<td>✅</td>
-<td>⚠️</td>
-<td>⚠️</td>
-<td>❌</td>
-<td>❌</td>
-</tr>
-<tr>
-<td>算子语义层级</td>
-<td>Python</td>
-<td>ATen&#x2F;TorchScript</td>
-<td>ATen&#x2F;TorchScript</td>
-<td>FX Node &#x2F; Python API</td>
-<td>Export IR</td>
-<td>FX&#x2F;后端中间表示</td>
-<td>Kernel&#x2F;Runtime Op</td>
-<td>ONNX Op</td>
-</tr>
-<tr>
-<td>量化主路径（官方趋势）</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>⚠️（维护态）</td>
-<td>✅（pt2e&#x2F;torchao）</td>
-<td>⚠️（后端配合）</td>
-<td>⚠️</td>
-<td>⚠️</td>
-</tr>
-<tr>
-<td>Quant&#x2F;DeQuant 插入能力</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>✅</td>
-<td>✅</td>
-<td>⚠️</td>
-<td>❌</td>
-<td>✅（表示层）</td>
-</tr>
-<tr>
-<td>融合 &#x2F; Pass 扩展能力</td>
-<td>❌</td>
-<td>⚠️</td>
-<td>⚠️</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>⚠️</td>
-</tr>
-<tr>
-<td>后端 Lowering 友好度</td>
-<td>极差</td>
-<td>差</td>
-<td>差</td>
-<td>好</td>
-<td>很好</td>
-<td>很好</td>
-<td>最好</td>
-<td>中</td>
-</tr>
-<tr>
-<td>芯片 &#x2F; 加速器适配能力</td>
-<td>❌</td>
-<td>❌</td>
-<td>❌</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>⚠️</td>
-</tr>
-<tr>
-<td>调试与可解释性</td>
-<td>⭐⭐⭐⭐⭐</td>
-<td>⭐</td>
-<td>⭐⭐</td>
-<td>⭐⭐⭐⭐</td>
-<td>⭐⭐⭐</td>
-<td>⭐⭐</td>
-<td>⭐</td>
-<td>⭐</td>
-</tr>
-<tr>
-<td>生态与未来投入</td>
-<td>✅</td>
-<td>❌</td>
-<td>⚠️</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-<td>✅</td>
-</tr>
-<tr>
-<td>典型阶段</td>
-<td>训练调试</td>
-<td>历史导出</td>
-<td>历史部署</td>
-<td>量化改图 &#x2F; 分析</td>
-<td>导出 &#x2F; PT2E &#x2F; AOT</td>
-<td>编译优化</td>
-<td>最终执行</td>
-<td>跨框架交付</td>
+<td><strong>calibration checkpoint</strong></td>
+<td>模型参数 + observer 统计量 + scale&#x2F;zero_point</td>
+<td>提供量化初始范围</td>
 </tr>
 </tbody></table>
-</div>
-
-<h2 id="4-实验与风险分析"><a href="#4-实验与风险分析" class="headerlink" title="4. 实验与风险分析"></a>4. 实验与风险分析</h2><h3 id="4-1-结果趋势"><a href="#4-1-结果趋势" class="headerlink" title="4.1 结果趋势"></a>4.1 结果趋势</h3><p>QAT 相比 PTQ 的主要收益通常在三点：</p>
-<ul>
-<li>精度稳定性更高；</li>
-<li>训练态与部署态一致性更好；</li>
-<li>上线后回归风险更低。</li>
-</ul>
-<h3 id="4-2-消融映射"><a href="#4-2-消融映射" class="headerlink" title="4.2 消融映射"></a>4.2 消融映射</h3><table>
+<p>这样做的好处是：多次 QAT 实验（调超参、换数据集）不需要每次重新跑 calibration，节省时间。加载顺序为：先 <code>prepare_qat_fx</code> 建图，再 <code>load_state_dict</code> 加载 calibration state（因为建图后 state_dict 才包含 observer 和 fake quant 的 key）。</p>
+<p><strong>双 checkpoint 是工程最佳实践，不是 QAT 的前置必要条件。</strong> 标准流程中，在线 calibration 完全可以替代第二个 checkpoint。</p>
+<h2 id="4-PyTorch-量化模式定位"><a href="#4-PyTorch-量化模式定位" class="headerlink" title="4. PyTorch 量化模式定位"></a>4. PyTorch 量化模式定位</h2><p>PyTorch 的执行&#x2F;导出模式体系可以用一条主轴来理解：</p>
+<p><strong>动态性主轴</strong>：<code>Eager -&gt; FX -&gt; torch.export -&gt; Backend IR</code>，动态性逐步降低，结构确定性逐步提升。</p>
+<p>在量化场景中，常用组合是 <code>Eager -&gt; FX(QAT) -&gt; convert_fx -&gt; 部署</code>；跨框架交付时补充 ONNX 导出。选型规则：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>推荐模式</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型开发与训练</td>
+<td>Eager</td>
+<td>完整 Python 语义，调试友好</td>
+</tr>
+<tr>
+<td>量化改图与插入量化&#x2F;反量化节点</td>
+<td>FX</td>
+<td>自动算子匹配，计算图一致性</td>
+</tr>
+<tr>
+<td>自动编译与后端优化</td>
+<td>torch.compile</td>
+<td>算子融合，硬件适配</td>
+</tr>
+<tr>
+<td>跨框架模型交付</td>
+<td>ONNX</td>
+<td>标准交换格式</td>
+</tr>
+</tbody></table>
+<p>从生态趋势看，<code>torch.export</code> + pt2e（PyTorch 2 Export Quantization，基于 <code>torch.export</code> 的新一代量化框架）路线正在成为官方推荐的新量化路径，但短期内 FX 仍是大量存量项目的核心。</p>
+<h2 id="5-工程决策与风险"><a href="#5-工程决策与风险" class="headerlink" title="5. 工程决策与风险"></a>5. 工程决策与风险</h2><h3 id="5-1-消融映射"><a href="#5-1-消融映射" class="headerlink" title="5.1 消融映射"></a>5.1 消融映射</h3><table>
 <thead>
 <tr>
 <th>设置</th>
 <th>float ckpt</th>
-<th>calibration ckpt</th>
-<th>预期现象</th>
-<th>对应结论</th>
+<th>calibration</th>
+<th>现象</th>
+<th>对应根因</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>A</td>
 <td>✓</td>
-<td>✓</td>
-<td>收敛稳定，效果最好</td>
-<td>双初始化有效</td>
+<td>✓（在线或 ckpt）</td>
+<td>收敛稳定</td>
+<td>三层均受控</td>
 </tr>
 <tr>
 <td>B</td>
 <td>✓</td>
-<td>✗</td>
-<td>训练震荡，掉点风险高</td>
-<td>量化初值关键</td>
+<td>✗（跳过）</td>
+<td>训练震荡</td>
+<td>第一层：scale 偏差导致 STE 梯度失真</td>
 </tr>
 <tr>
 <td>C</td>
 <td>✗</td>
 <td>✓</td>
 <td>收敛慢，上限受限</td>
-<td>参数初值关键</td>
+<td>第三层：参数起点不在可优化区域</td>
 </tr>
 <tr>
 <td>D</td>
-<td>Eager 手工流程</td>
+<td>Eager 手工</td>
 <td>N&#x2F;A</td>
 <td>可用但维护成本高</td>
-<td>FX 标准化收益</td>
+<td>第二层：计算图一致性靠人保证</td>
 </tr>
 </tbody></table>
-<blockquote>
-<p>注：本文为工程方法笔记，以上为定性结论，不提供统一 benchmark 数值。</p>
-</blockquote>
-<h3 id="4-3-失效场景"><a href="#4-3-失效场景" class="headerlink" title="4.3 失效场景"></a>4.3 失效场景</h3><ul>
-<li><strong>动态图路径复杂</strong>：FX trace 覆盖不足，量化插桩不完整。</li>
-<li><strong>后端配置不一致</strong>：训练、convert、部署配置不统一，结果偏移。</li>
-<li><strong>校准数据失配</strong>：scale&#x2F;zero_point 初值偏离真实分布。</li>
+<h3 id="5-2-失效场景"><a href="#5-2-失效场景" class="headerlink" title="5.2 失效场景"></a>5.2 失效场景</h3><ul>
+<li><strong>动态图路径复杂</strong>：模型含大量 if&#x2F;else 分支，FX 跟踪时只能覆盖其中一条路径，导致量化节点插入不完整 → 第二层问题。</li>
+<li><strong>后端配置不一致</strong>：训练用 fbgemm、部署用 qnnpack，量化方案不对齐（如对称 vs 非对称量化） → 第二层问题。</li>
+<li><strong>校准数据失配</strong>：calibration 用的数据分布与实际推理数据差异大，scale 偏移 → 第一层问题。</li>
 </ul>
-<h2 id="5-工程配置与决策"><a href="#5-工程配置与决策" class="headerlink" title="5. 工程配置与决策"></a>5. 工程配置与决策</h2><h3 id="5-1-流程配置"><a href="#5-1-流程配置" class="headerlink" title="5.1 流程配置"></a>5.1 流程配置</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">Backend: fbgemm (x86) / qnnpack (ARM)</span><br><span class="line">Prepare: prepare_qat_fx + qconfig_mapping</span><br><span class="line">Initialization: load float checkpoint + calibration checkpoint</span><br><span class="line">Training: small LR fine-tuning, optional BN freeze</span><br><span class="line">Convert: convert_fx after eval</span><br><span class="line">Validation: FP32 vs fake-quant vs INT8</span><br></pre></td></tr></table></figure>
+<h3 id="5-3-决策树"><a href="#5-3-决策树" class="headerlink" title="5.3 决策树"></a>5.3 决策树</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">目标是量化部署？</span><br><span class="line">├─ 仅快速压缩 → PTQ（风险：第一层误差不可修正）</span><br><span class="line">└─ 对精度敏感 → QAT</span><br><span class="line">    ├─ 新项目 → FX Graph Mode（计算图一致性强）</span><br><span class="line">    └─ 存量代码且结构稳定 → 可保留 Eager 路径</span><br></pre></td></tr></table></figure>
 
-<h3 id="5-2-复现要点"><a href="#5-2-复现要点" class="headerlink" title="5.2 复现要点"></a>5.2 复现要点</h3><ol>
-<li>先加载 float checkpoint，再构图，再加载 calibration checkpoint。  </li>
-<li>训练、导出、部署阶段保持 backend 一致。  </li>
-<li>检查 observer 与 quantized op 是否按预期插入。  </li>
-<li>分段回归：FP32 &#x2F; fake-quant &#x2F; INT8 三段都要可观测。</li>
+<h3 id="5-4-复现要点"><a href="#5-4-复现要点" class="headerlink" title="5.4 复现要点"></a>5.4 复现要点</h3><ol>
+<li><strong>加载顺序</strong>：先 float checkpoint → <code>prepare_qat_fx</code> 建图 → 在线 calibration（或加载 calibration state）。</li>
+<li><strong>后端一致</strong>：训练、convert、部署三阶段的 <code>torch.backends.quantized.engine</code> 必须相同。</li>
+<li><strong>分段验证</strong>：FP32 &#x2F; fake-quant &#x2F; INT8 三段精度都要可观测，定位回退发生在哪一层。</li>
+<li><strong>BN 冻结</strong>：QAT 后期建议冻结 BN 统计量，避免小 batch 下均值方差抖动干扰量化范围。</li>
 </ol>
-<h3 id="5-3-决策树"><a href="#5-3-决策树" class="headerlink" title="5.3 决策树"></a>5.3 决策树</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">目标是量化部署？</span><br><span class="line">├─ 仅快速压缩 -&gt; PTQ</span><br><span class="line">└─ 对精度敏感 -&gt; QAT</span><br><span class="line">    ├─ 结构经常改动 -&gt; 优先 FX 图改写</span><br><span class="line">    └─ 结构稳定且遗留代码重 -&gt; 可保留 Eager 路径</span><br></pre></td></tr></table></figure>
-
-<h2 id="6-关键问题"><a href="#6-关键问题" class="headerlink" title="6. 关键问题"></a>6. 关键问题</h2><h3 id="6-1-为什么不是只用-calibration-checkpoint"><a href="#6-1-为什么不是只用-calibration-checkpoint" class="headerlink" title="6.1 为什么不是只用 calibration checkpoint"></a>6.1 为什么不是只用 calibration checkpoint</h3><p>因为 calibration checkpoint 解决的是量化参数初始化，不保证参数语义处于最佳可优化区域；<br>QAT 仍需要来自 float checkpoint 的收敛起点。</p>
-<h3 id="6-2-为什么不是只用-float-checkpoint"><a href="#6-2-为什么不是只用-float-checkpoint" class="headerlink" title="6.2 为什么不是只用 float checkpoint"></a>6.2 为什么不是只用 float checkpoint</h3><p>因为没有 observer 统计与 scale&#x2F;zero_point 初始化，fake quant 误差可能过大，训练稳定性差。</p>
-<h3 id="6-3-FX-会不会被-torch-export-取代"><a href="#6-3-FX-会不会被-torch-export-取代" class="headerlink" title="6.3 FX 会不会被 torch.export 取代"></a>6.3 FX 会不会被 <code>torch.export</code> 取代</h3><p>短期内不会“一刀切”替代。现实项目中 FX 仍是大量量化改图流程的核心；<br>但从生态趋势看，export&#x2F;pt2e 路线正在成为新的标准化方向。</p>
 
             </div>
 
@@ -438,7 +253,7 @@ INT8 Deployable Model
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-QAT-%E7%9A%84%E5%8F%8C%E5%88%9D%E5%A7%8B%E5%8C%96%E6%9C%BA%E5%88%B6"><span class="toc-text">1. QAT 的双初始化机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E9%97%AE%E9%A2%98%E5%AE%9A%E4%B9%89"><span class="toc-text">1.1 问题定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E5%8F%8C-checkpoint-%E5%88%9D%E5%A7%8B%E5%8C%96%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7"><span class="toc-text">1.2 双 checkpoint 初始化的必要性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-calibration-checkpoint-%E7%9A%84%E8%AF%AD%E4%B9%89"><span class="toc-text">1.3 calibration checkpoint 的语义</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-FX-Graph-Mode-%E7%9A%84%E5%B7%A5%E7%A8%8B%E5%AE%9A%E4%BD%8D"><span class="toc-text">2. FX Graph Mode 的工程定位</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-FX-%E7%9B%B8%E6%AF%94-Eager-%E7%9A%84%E6%A0%B8%E5%BF%83%E5%8F%98%E5%8C%96"><span class="toc-text">2.1 FX 相比 Eager 的核心变化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-FX-QAT-%E7%9A%84%E6%A0%87%E5%87%86%E6%B5%81%E7%A8%8B"><span class="toc-text">2.2 FX-QAT 的标准流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">2.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-PyTorch-%E6%A8%A1%E5%BC%8F%E5%85%A8%E6%99%AF"><span class="toc-text">3. PyTorch 模式全景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%A8%A1%E5%BC%8F%E5%BA%8F%E5%88%97"><span class="toc-text">3.1 模式序列</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%A8%A1%E5%BC%8F%E5%AF%B9%E7%85%A7"><span class="toc-text">3.2 模式对照</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E9%A3%8E%E9%99%A9%E5%88%86%E6%9E%90"><span class="toc-text">4. 实验与风险分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E7%BB%93%E6%9E%9C%E8%B6%8B%E5%8A%BF"><span class="toc-text">4.1 结果趋势</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%B6%88%E8%9E%8D%E6%98%A0%E5%B0%84"><span class="toc-text">4.2 消融映射</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF"><span class="toc-text">4.3 失效场景</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%B7%A5%E7%A8%8B%E9%85%8D%E7%BD%AE%E4%B8%8E%E5%86%B3%E7%AD%96"><span class="toc-text">5. 工程配置与决策</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E6%B5%81%E7%A8%8B%E9%85%8D%E7%BD%AE"><span class="toc-text">5.1 流程配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">5.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.3 决策树</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%97%AE%E9%A2%98"><span class="toc-text">6. 关键问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E6%98%AF%E5%8F%AA%E7%94%A8-calibration-checkpoint"><span class="toc-text">6.1 为什么不是只用 calibration checkpoint</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E6%98%AF%E5%8F%AA%E7%94%A8-float-checkpoint"><span class="toc-text">6.2 为什么不是只用 float checkpoint</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-FX-%E4%BC%9A%E4%B8%8D%E4%BC%9A%E8%A2%AB-torch-export-%E5%8F%96%E4%BB%A3"><span class="toc-text">6.3 FX 会不会被 torch.export 取代</span></a></li></ol></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E7%AC%AC%E4%B8%80%E5%B1%82%EF%BC%9A%E9%87%8F%E5%8C%96%E7%9A%84%E4%BF%A1%E6%81%AF%E6%8D%9F%E5%A4%B1"><span class="toc-text">1. 第一层：量化的信息损失</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%9D%87%E5%8C%80%E9%87%8F%E5%8C%96%E7%9A%84%E8%AF%AF%E5%B7%AE%E6%9D%A5%E6%BA%90"><span class="toc-text">1.1 均匀量化的误差来源</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E4%BC%AA%E9%87%8F%E5%8C%96%EF%BC%88Fake-Quant%EF%BC%89%E4%B8%8E-STE"><span class="toc-text">1.2 伪量化（Fake Quant）与 STE</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-QAT-%E5%A6%82%E4%BD%95%E4%BF%AE%E6%AD%A3%E8%BF%99%E5%B1%82%E6%8D%9F%E5%A4%B1"><span class="toc-text">1.3 QAT 如何修正这层损失</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%AC%AC%E4%BA%8C%E5%B1%82%EF%BC%9A%E8%AE%AD%E7%BB%83%E4%B8%8E%E9%83%A8%E7%BD%B2%E7%9A%84%E8%AE%A1%E7%AE%97%E5%9B%BE%E4%B8%8D%E4%B8%80%E8%87%B4"><span class="toc-text">2. 第二层：训练与部署的计算图不一致</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%AE%AD%E7%BB%83%E5%92%8C%E9%83%A8%E7%BD%B2%E4%BC%9A%E4%B8%8D%E4%B8%80%E8%87%B4"><span class="toc-text">2.1 为什么训练和部署会不一致</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-FX-%E5%A6%82%E4%BD%95%E8%A7%A3%E5%86%B3%E8%BF%99%E4%B8%AA%E9%97%AE%E9%A2%98"><span class="toc-text">2.2 FX 如何解决这个问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-FX-QAT-%E6%A0%87%E5%87%86%E6%B5%81%E7%A8%8B"><span class="toc-text">2.3 FX-QAT 标准流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">2.4 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E7%AC%AC%E4%B8%89%E5%B1%82%EF%BC%9A%E6%A0%A1%E5%87%86%E4%B8%8E%E9%87%8F%E5%8C%96%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">3. 第三层：校准与量化初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E6%A0%87%E5%87%86%E6%B5%81%E7%A8%8B%EF%BC%9A%E4%B8%80%E4%B8%AA-checkpoint-%E5%9C%A8%E7%BA%BF-calibration"><span class="toc-text">3.1 标准流程：一个 checkpoint + 在线 calibration</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%B7%A5%E7%A8%8B%E4%BC%98%E5%8C%96%EF%BC%9A%E5%8F%8C-checkpoint-%E6%A8%A1%E5%BC%8F"><span class="toc-text">3.2 工程优化：双 checkpoint 模式</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-PyTorch-%E9%87%8F%E5%8C%96%E6%A8%A1%E5%BC%8F%E5%AE%9A%E4%BD%8D"><span class="toc-text">4. PyTorch 量化模式定位</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%B7%A5%E7%A8%8B%E5%86%B3%E7%AD%96%E4%B8%8E%E9%A3%8E%E9%99%A9"><span class="toc-text">5. 工程决策与风险</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E6%B6%88%E8%9E%8D%E6%98%A0%E5%B0%84"><span class="toc-text">5.1 消融映射</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF"><span class="toc-text">5.2 失效场景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">5.3 决策树</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">5.4 复现要点</span></a></li></ol></li></ol>
                         </div>
                     </aside>
                 
