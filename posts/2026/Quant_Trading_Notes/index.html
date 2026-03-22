@@ -99,7 +99,6 @@
 <td>实时监控账户状态，异常时推送通知</td>
 </tr>
 </tbody></table>
-<hr>
 <h2 id="第二章：回测（Backtest）"><a href="#第二章：回测（Backtest）" class="headerlink" title="第二章：回测（Backtest）"></a>第二章：回测（Backtest）</h2><h3 id="2-1-什么是回测"><a href="#2-1-什么是回测" class="headerlink" title="2.1 什么是回测"></a>2.1 什么是回测</h3><p>回测是指把交易策略放到历史数据上运行，模拟计算出如果过去按照这套规则交易，最终的盈亏结果。</p>
 <p><strong>直观类比</strong>：假设你有一个直觉——“每当 BTC 的 7 日均线上穿 30 日均线，价格往往会继续涨一段时间”。回测就是把这条规则放到过去 2 年的 K 线数据上，模拟每次触发时买入、离场时卖出，算出总盈亏、最大亏损、胜率等数据，用数字验证这个直觉是否真的有效。</p>
 <h3 id="2-2-前视偏差（Look-ahead-Bias）——回测最大的坑"><a href="#2-2-前视偏差（Look-ahead-Bias）——回测最大的坑" class="headerlink" title="2.2 前视偏差（Look-ahead Bias）——回测最大的坑"></a>2.2 前视偏差（Look-ahead Bias）——回测最大的坑</h3><p>前视偏差是回测中最常见、也最致命的错误。指在计算信号时，<strong>错误地使用了”未来才会出现”的数据</strong>，导致回测结果虚高，上了实盘就打回原形。</p>
@@ -119,7 +118,6 @@
 <blockquote>
 <p><strong>手续费的重要性</strong>：以 OKX 现货为例，Maker 手续费 0.08%，Taker 手续费 0.1%。看起来很小，但如果策略每天交易 10 次，一年就是 3650 次，单边手续费累计可能超过 36%。低频策略对手续费不敏感，高频策略则必须极其精确地建模。</p>
 </blockquote>
-<hr>
 <h2 id="第三章：绩效指标"><a href="#第三章：绩效指标" class="headerlink" title="第三章：绩效指标"></a>第三章：绩效指标</h2><p>回测跑完之后，需要用一组标准指标来客观评价策略的好坏。<strong>单看一个指标往往会被误导，必须综合来看。</strong></p>
 <table>
 <thead>
@@ -195,7 +193,6 @@
 </tbody></table>
 <h3 id="3-3-最大回撤的实际意义"><a href="#3-3-最大回撤的实际意义" class="headerlink" title="3.3 最大回撤的实际意义"></a>3.3 最大回撤的实际意义</h3><p>最大回撤不只是一个数字，它决定了能否在实盘中”拿得住”这个策略。一个最大回撤 40% 的策略，即使长期盈利，大多数人在回撤过程中也会因为恐惧而提前止损离场，导致实际收益远低于回测。</p>
 <p>低频稳健风格建议：<strong>最大回撤控制在 15–20% 以内</strong>。</p>
-<hr>
 <h2 id="第四章：CTA-策略"><a href="#第四章：CTA-策略" class="headerlink" title="第四章：CTA 策略"></a>第四章：CTA 策略</h2><h3 id="4-1-什么是-CTA"><a href="#4-1-什么是-CTA" class="headerlink" title="4.1 什么是 CTA"></a>4.1 什么是 CTA</h3><p>CTA（Commodity Trading Advisor，商品交易顾问）在量化领域泛指一类以”趋势跟踪”为核心的策略框架。在加密货币量化中，CTA 策略引擎是最基础也最常用的策略类型。</p>
 <h3 id="4-2-两种核心策略逻辑"><a href="#4-2-两种核心策略逻辑" class="headerlink" title="4.2 两种核心策略逻辑"></a>4.2 两种核心策略逻辑</h3><table>
 <thead>
@@ -282,7 +279,6 @@
 <h3 id="4-4-双均线策略代码示例"><a href="#4-4-双均线策略代码示例" class="headerlink" title="4.4 双均线策略代码示例"></a>4.4 双均线策略代码示例</h3><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pandas <span class="keyword">as</span> pd</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">DualMAStrategy</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, fast=<span class="number">7</span>, slow=<span class="number">30</span></span>):</span><br><span class="line">        <span class="variable language_">self</span>.fast = fast</span><br><span class="line">        <span class="variable language_">self</span>.slow = slow</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">generate_signal</span>(<span class="params">self, df: pd.DataFrame</span>) -&gt; pd.Series:</span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        输入：包含 close 列的 OHLCV DataFrame</span></span><br><span class="line"><span class="string">        输出：+1 = 买入, -1 = 卖出, 0 = 持仓不动</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        ma_fast = df[<span class="string">&#x27;close&#x27;</span>].rolling(<span class="variable language_">self</span>.fast).mean()</span><br><span class="line">        ma_slow = df[<span class="string">&#x27;close&#x27;</span>].rolling(<span class="variable language_">self</span>.slow).mean()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># shift(1) 确保使用上一根 K 线的均线值，避免前视偏差</span></span><br><span class="line">        prev_fast = ma_fast.shift(<span class="number">1</span>)</span><br><span class="line">        prev_slow = ma_slow.shift(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        signal = pd.Series(<span class="number">0</span>, index=df.index)</span><br><span class="line">        signal[prev_fast &gt; prev_slow] = <span class="number">1</span>   <span class="comment"># 金叉：多头</span></span><br><span class="line">        signal[prev_fast &lt; prev_slow] = -<span class="number">1</span>  <span class="comment"># 死叉：空头</span></span><br><span class="line">        <span class="keyword">return</span> signal</span><br></pre></td></tr></table></figure>
 
 <p>关键点：<code>shift(1)</code> 是防止前视偏差的核心操作——用昨天确认的均线值，决定今天的开仓方向。</p>
-<hr>
 <h2 id="第五章：风控"><a href="#第五章：风控" class="headerlink" title="第五章：风控"></a>第五章：风控</h2><h3 id="5-1-风控的三个层次"><a href="#5-1-风控的三个层次" class="headerlink" title="5.1 风控的三个层次"></a>5.1 风控的三个层次</h3><p>完整的风控体系分三个递进层次，各自负责不同粒度的风险管控：</p>
 <table>
 <thead>
@@ -347,7 +343,6 @@
 <blockquote>
 <p>宁可多触发几次熔断，也不要让账户在无人值守的情况下持续亏损。</p>
 </blockquote>
-<hr>
 <h2 id="第六章：Walk-forward-验证与过拟合"><a href="#第六章：Walk-forward-验证与过拟合" class="headerlink" title="第六章：Walk-forward 验证与过拟合"></a>第六章：Walk-forward 验证与过拟合</h2><h3 id="6-1-什么是过拟合"><a href="#6-1-什么是过拟合" class="headerlink" title="6.1 什么是过拟合"></a>6.1 什么是过拟合</h3><p>过拟合（Overfitting）指策略参数是专门针对某段历史数据”调出来的”，导致在这段数据上表现完美，但换一段时间就失效。</p>
 <p><strong>直观类比</strong>：假设背了 2020–2023 年所有考试的真题答案，考这段时间的题能得满分，但 2024 年出了新题就完全不会——因为学到的不是解题方法，而是答案本身。</p>
 <p>过拟合的常见表现：</p>
@@ -388,7 +383,6 @@
 <p><strong>Walk-forward 框架代码骨架</strong>：</p>
 <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">walk_forward_test</span>(<span class="params">df, strategy, train_months=<span class="number">6</span>, val_months=<span class="number">2</span></span>):</span><br><span class="line">    results = []</span><br><span class="line">    start = <span class="number">0</span></span><br><span class="line">    train_size = train_months * <span class="number">30</span>  <span class="comment"># 近似天数</span></span><br><span class="line">    val_size = val_months * <span class="number">30</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> start + train_size + val_size &lt;= <span class="built_in">len</span>(df):</span><br><span class="line">        train = df.iloc[start : start + train_size]</span><br><span class="line">        val   = df.iloc[start + train_size : start + train_size + val_size]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 1. 在训练期网格搜索最优参数</span></span><br><span class="line">        best_params = grid_search(strategy, train)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 2. 用最优参数在验证期评估</span></span><br><span class="line">        sharpe = backtest(strategy, val, **best_params)</span><br><span class="line">        results.append(&#123;<span class="string">&#x27;window&#x27;</span>: start, <span class="string">&#x27;sharpe&#x27;</span>: sharpe, <span class="string">&#x27;params&#x27;</span>: best_params&#125;)</span><br><span class="line"></span><br><span class="line">        start += val_size  <span class="comment"># 滚动向前</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> results</span><br></pre></td></tr></table></figure>
 
-<hr>
 <h2 id="第七章：统计套利"><a href="#第七章：统计套利" class="headerlink" title="第七章：统计套利"></a>第七章：统计套利</h2><h3 id="7-1-基本逻辑"><a href="#7-1-基本逻辑" class="headerlink" title="7.1 基本逻辑"></a>7.1 基本逻辑</h3><p>统计套利是指找到两个或多个价格存在统计相关性的资产，当它们之间的<strong>价差偏离历史均值</strong>时，买入相对便宜的、卖出相对贵的，等价差回归时获利。</p>
 <p>与趋势跟踪相比，统计套利的优点是：<strong>与大盘涨跌的相关性低，在震荡市中也能稳定盈利</strong>。</p>
 <h3 id="7-2-常见套利类型"><a href="#7-2-常见套利类型" class="headerlink" title="7.2 常见套利类型"></a>7.2 常见套利类型</h3><table>
@@ -418,7 +412,6 @@
 <blockquote>
 <p><strong>入门建议</strong>：跨交易所套利是逻辑最清晰的起点；现货-期货基差套利在有了现货稳定收益之后再引入，初期不要急于接触合约。</p>
 </blockquote>
-<hr>
 <h2 id="第八章：因子研究"><a href="#第八章：因子研究" class="headerlink" title="第八章：因子研究"></a>第八章：因子研究</h2><h3 id="8-1-什么是因子"><a href="#8-1-什么是因子" class="headerlink" title="8.1 什么是因子"></a>8.1 什么是因子</h3><p>因子是指<strong>能够预测未来价格变动的某个可计算的特征</strong>。比如：”过去 24 小时成交量是否异常放大”、”RSI 是否低于 30”、”价格是否突破 20 日新高”都可以是因子。</p>
 <p>因子研究的目的是：在花时间写完整策略之前，先用统计方法快速<strong>筛选出真正有预测力的信号</strong>，过滤掉无效想法。</p>
 <h3 id="8-2-IC（信息系数）"><a href="#8-2-IC（信息系数）" class="headerlink" title="8.2 IC（信息系数）"></a>8.2 IC（信息系数）</h3><p>IC（Information Coefficient，信息系数）衡量因子值和未来收益之间的相关性，是判断因子有效性最核心的指标：</p>
@@ -447,7 +440,6 @@
 <td>因子预测力较强，值得重点研究</td>
 </tr>
 </tbody></table>
-<hr>
 <h2 id="第九章：OMS-订单管理系统"><a href="#第九章：OMS-订单管理系统" class="headerlink" title="第九章：OMS 订单管理系统"></a>第九章：OMS 订单管理系统</h2><h3 id="9-1-为什么需要-OMS"><a href="#9-1-为什么需要-OMS" class="headerlink" title="9.1 为什么需要 OMS"></a>9.1 为什么需要 OMS</h3><p>量化程序自动交易时，情况远比手动点击复杂：订单可能部分成交、可能超时未成交、网络中断导致不知道订单是否发出、程序重启后需要恢复之前的订单状态……</p>
 <p>OMS（Order Management System，订单管理系统）专门管理这些复杂情况，确保每一笔订单的状态都<strong>清晰、准确、可追溯</strong>。</p>
 <h3 id="9-2-订单的生命周期"><a href="#9-2-订单的生命周期" class="headerlink" title="9.2 订单的生命周期"></a>9.2 订单的生命周期</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Pending（待发送）</span><br><span class="line">    ↓ API 调用</span><br><span class="line">Submitted（已提交）</span><br><span class="line">    ↓ 撮合</span><br><span class="line">Partial Filled（部分成交） → Filled（完全成交）</span><br><span class="line">    ↓ 超时/撤单              ↓ 更新持仓</span><br><span class="line">Cancelled（已撤销）        [Done]</span><br><span class="line">    </span><br><span class="line">Rejected（被拒绝）←── 余额不足 / 超出限额</span><br></pre></td></tr></table></figure>
@@ -476,7 +468,6 @@
 <td>网络异常时自动重试，避免因短暂断网导致订单丢失</td>
 </tr>
 </tbody></table>
-<hr>
 <h2 id="第十章：策略上线流程"><a href="#第十章：策略上线流程" class="headerlink" title="第十章：策略上线流程"></a>第十章：策略上线流程</h2><p>无论策略回测表现多好，都必须按以下流程逐步验证，<strong>不可跳过任何环节</strong>：</p>
 <table>
 <thead>
@@ -508,7 +499,6 @@
 </tr>
 </tbody></table>
 <p>每一步都是对前一步的验证，通过标准是强制要求，不是参考建议。</p>
-<hr>
 <h2 id="总结：推荐学习路径"><a href="#总结：推荐学习路径" class="headerlink" title="总结：推荐学习路径"></a>总结：推荐学习路径</h2><p>结合上述十章内容，建议按以下顺序循序渐进：</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">阶段 1：概念建立（第 1–3 章）</span><br><span class="line">  ├─ 理解量化 vs 主观交易的本质区别</span><br><span class="line">  ├─ 掌握前视偏差的识别与规避</span><br><span class="line">  └─ 学会用夏普率+最大回撤+期望值综合评价策略</span><br><span class="line"></span><br><span class="line">阶段 2：第一个策略（第 4 章）</span><br><span class="line">  ├─ 实现双均线趋势跟踪策略</span><br><span class="line">  ├─ 接入历史 K 线数据，跑通回测</span><br><span class="line">  └─ 对比布林带均值回归，理解两种逻辑的差异</span><br><span class="line"></span><br><span class="line">阶段 3：质量保障（第 5–6 章）</span><br><span class="line">  ├─ 给策略加上三层风控（单笔止损 + 账户限仓 + 熔断）</span><br><span class="line">  ├─ 用 Walk-forward 验证策略的样本外有效性</span><br><span class="line">  └─ 如果通过验证，进入 Paper Trading</span><br><span class="line"></span><br><span class="line">阶段 4：扩展能力（第 7–9 章）</span><br><span class="line">  ├─ 探索基差套利或跨交易所套利</span><br><span class="line">  ├─ 用 IC 分析筛选有效因子，构建多因子策略</span><br><span class="line">  └─ 完善 OMS，具备处理异常订单的能力</span><br><span class="line"></span><br><span class="line">阶段 5：上线实盘（第 10 章）</span><br><span class="line">  └─ 小仓位验证 → 逐步扩大，始终保持熔断机制开启</span><br></pre></td></tr></table></figure>
 
