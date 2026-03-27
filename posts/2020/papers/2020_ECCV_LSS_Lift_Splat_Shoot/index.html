@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            LSS Lift Splat Shoot Encoding Images From Arbitrary Camera Rigs by Implicitly Unprojecting to 3D - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">LSS Lift Splat Shoot Encoding Images From Arbitrary Camera Rigs by Implicitly Unprojecting to 3D</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2020年08月13日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: BEV Semantic Segmentation &#x2F; Motion Planning<br>Method: Latent Depth Distribution, Frustum Pooling, Cost Map Planning<br>Venue: ECCV<br>Year: 2020<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2008.05711">https://arxiv.org/abs/2008.05711</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/nv-tlabs/lift-splat-shoot">https://github.com/nv-tlabs/lift-splat-shoot</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>自动驾驶感知系统的目标是从多个传感器中提取语义表示，并将其融合到统一的鸟瞰图（BEV）坐标系中供运动规划使用。本文提出了一种端到端架构 <strong>Lift-Splat-Shoot (LSS)<strong>，能够从任意数量摄像头的图像数据中直接提取 BEV 表示。该方法的核心思路分三步：</strong>Lift</strong>——为每张图像的每个像素预测一个离散深度分布，将 2D 特征”提升”为视锥体形状的 3D 点云；<strong>Splat</strong>——利用相机内外参将所有视锥体”投射”到统一的 BEV 栅格上，通过 Pillar Pooling 进行聚合；<strong>Shoot</strong>——在 BEV 代价图上”射出”模板轨迹进行可解释的端到端运动规划。在 nuScenes 和 Lyft 数据集上的物体分割与地图分割任务中，LSS 超越了所有基线和同期工作。此外，该模型展现出了对标定误差和传感器失效的鲁棒性，以及跨相机配置的零样本迁移能力。</p>
+<p><strong>核心论点</strong>：多视图 BEV 感知的关键在于如何将 2D 图像特征”升维”到 3D 空间并融合——LSS 通过为每个像素预测隐式深度分布，以外积方式生成视锥体特征，开创了”Lift-Splat”这一从图像到 BEV 的通用转换范式，成为后续 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>、<a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 等一系列 BEV 感知方法的基础。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>自动驾驶感知系统需要将多相机图像融合到 BEV 坐标系中进行下游规划。现有方案面临核心挑战：如何从 2D 图像空间变换到 3D&#x2F;BEV 空间。</p>
+<table>
+<thead>
+<tr>
+<th>方法类型</th>
+<th>代表作</th>
+<th>核心问题</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>单目检测 + 后处理</td>
+<td>SSD-6D, MonoGRNet</td>
+<td>不可端到端微分，无法学习跨视图融合</td>
+<td>逐视图独立检测再拼接</td>
+</tr>
+<tr>
+<td>Pseudo-LiDAR</td>
+<td>PseudoLiDAR, PL++</td>
+<td>需独立训练深度网络，误差传播</td>
+<td>两阶段：深度估计 + BEV 检测</td>
+</tr>
+<tr>
+<td>3D 体素投影</td>
+<td>OFT</td>
+<td>像素对所有体素贡献相同特征，未建模深度</td>
+<td>固定体素投影</td>
+</tr>
+<tr>
+<td>BEV 直接推理</td>
+<td>MonoLayout, PON</td>
+<td>未利用几何先验，性能受限</td>
+<td>直接学习图像到 BEV 映射</td>
+</tr>
+</tbody></table>
+<p>传统的单目检测融合方案虽然具有三个良好的对称性（<strong>平移等变性</strong>、<strong>排列不变性</strong>、<strong>自身坐标等距等变性</strong>），但由于使用后处理检测结果拼接，无法端到端训练，也无法学习最优的跨视图融合策略。OFT 虽然利用了相机几何，但一个像素对所有深度的体素贡献完全相同的特征，无法区分深度信息。</p>
+<p><strong>核心痛点</strong>：如何设计一个既保持几何对称性、又端到端可微分的架构，使模型能够从数据中学习最优的跨视图融合方式，同时对深度不确定性进行显式建模。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：隐式深度分布——用概率建模替代确定性深度估计"><a href="#洞察-1：隐式深度分布——用概率建模替代确定性深度估计" class="headerlink" title="洞察 1：隐式深度分布——用概率建模替代确定性深度估计"></a>洞察 1：隐式深度分布——用概率建模替代确定性深度估计</h3><p>单目深度估计存在固有歧义：同一像素可能对应多个深度值。传统方法要么忽略深度（OFT 对所有深度均匀分配特征），要么做确定性深度预测（PseudoLiDAR 预测一个深度值）。LSS 提出了一种折中方案：为每个像素预测一个离散深度分布 $\alpha \in \Delta^{|D|-1}$ 和一个上下文向量 $\mathbf{c} \in \mathbb{R}^C$，通过外积生成每个深度上的特征。</p>
+<p><strong>OFT 做法</strong>：像素特征不加区分地复制到所有深度位置（等价于 $\alpha$ 为均匀分布）<br><strong>PseudoLiDAR 做法</strong>：预测单一确定性深度，特征仅存在于一个位置（等价于 $\alpha$ 为 one-hot 向量）<br><strong>LSS 做法</strong>：预测连续的深度分布 $\alpha$，特征按概率分配到各深度位置</p>
+<p>核心公式：</p>
+
+$$\mathbf{c}_d = \alpha_d \cdot \mathbf{c}$$
+
+
+<p>其中 $\mathbf{c}_d \in \mathbb{R}^C$ 是像素 $p$ 在深度 $d$ 处的特征，$\alpha_d$ 是深度为 $d$ 的概率。</p>
+<p><strong>为什么更优</strong>：网络可以自适应地选择：对深度确定的区域（如地面）输出尖锐分布集中特征；对深度模糊的区域（如远处物体）输出平滑分布扩散特征。这一机制统一了”确定性深度”和”均匀分配”两种极端策略。</p>
+<p><strong>算子层面的设计选择</strong>：外积运算 <code>depth_prob.unsqueeze(1) * image_feat.unsqueeze(2)</code> 是纯粹的 broadcast + elementwise multiply，刻意避开了 <code>F.grid_sample</code>。原因在于：若对全分辨率特征图做 $D$ 次连续坐标插值采样（$H \times W \times D$ 个采样点），<code>grid_sample</code> 的双线性插值会产生大量随机内存访问（non-coalesced access），cache 命中率极低；而 broadcast 是连续内存的规则 tensor 运算，GPU warp 利用率远高。这一取舍是 LSS 能以 35 Hz 运行的关键原因之一。</p>
+<h3 id="洞察-2：Pillar-Pooling-Cumsum-Trick——高效的视锥体到-BEV-转换"><a href="#洞察-2：Pillar-Pooling-Cumsum-Trick——高效的视锥体到-BEV-转换" class="headerlink" title="洞察 2：Pillar Pooling + Cumsum Trick——高效的视锥体到 BEV 转换"></a>洞察 2：Pillar Pooling + Cumsum Trick——高效的视锥体到 BEV 转换</h3><p>将每个像素提升到 $|D|$ 个深度点后，$n$ 个相机共生成 $n \times D \times H \times W$ 个 3D 点。如何将如此大规模的稀疏点云高效聚合到 BEV 栅格上是关键的工程挑战。</p>
+<p><strong>传统做法</strong>：对每个 pillar 分别收集落入的点，需要 padding 和变长索引操作<br><strong>LSS 做法</strong>：借鉴 PointPillars，将所有点按照 pillar 编号排序，利用 cumulative sum 技巧实现零填充的 sum pooling</p>
+<p>从 PyTorch 算子角度看，Splat 本质上是 <strong>voxel pooling</strong>（体素池化）：将不规则分布的视锥体点离散聚合到规则 BEV 网格，等价于 <code>torch.scatter_add</code>。QuickCumsum 是 <code>scatter_add</code> 的高效替代实现——通过排序 + 累积求和 + 差分避免了 scatter 的原子操作竞争，在 CUDA 上更快。后续 <a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 的 <code>QuickCumsumCuda</code> 进一步将 voxelization + pooling 融合为单一 kernel。</p>
+<p>具体步骤：</p>
+<ol>
+<li>将所有 3D 点映射到对应的 pillar（无限高度的体素）</li>
+<li>按 pillar ID 排序所有点</li>
+<li>对排序后的特征做累积求和</li>
+<li>在 pillar 边界处做差值即得到每个 pillar 的聚合特征</li>
+</ol>
+<p><strong>为什么更优</strong>：避免了 padding 带来的额外内存开销，且累积求和有解析梯度，训练速度提升 2 倍。这使得在完整 6 相机输入上训练大规模模型成为可能。</p>
+<h3 id="洞察-3：端到端几何感知架构——三大对称性保持"><a href="#洞察-3：端到端几何感知架构——三大对称性保持" class="headerlink" title="洞察 3：端到端几何感知架构——三大对称性保持"></a>洞察 3：端到端几何感知架构——三大对称性保持</h3><p>LSS 架构在设计上天然保持了三个关键对称性，而不需要任何后处理：</p>
+<ol>
+<li><strong>平移等变性</strong>：图像内像素坐标平移 → 输出对应平移（来自全卷积设计）</li>
+<li><strong>排列不变性</strong>：$n$ 个相机的输入顺序不影响最终输出（Splat 操作是 sum pooling）</li>
+<li><strong>自身坐标等距等变性</strong>：同一场景在不同自车位姿下，检测结果随之刚体变换（通过内外参显式变换坐标）</li>
+</ol>
+<p><strong>传统的 CNN baseline</strong> 将所有相机特征直接拼接后上采样到 BEV，破坏了排列不变性和等距等变性。实验表明，这种缺乏几何归纳偏置的 baseline 性能远低于 LSS（nuScenes 车辆分割 IoU 仅 24.25% vs. 32.07%）。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li>**32.07%**：nuScenes 车辆分割 IoU，超越所有基线和同期工作</li>
+<li><strong>35 Hz</strong>：Titan V GPU 上的前向推理速度，满足自动驾驶实时性需求</li>
+<li><strong>14.3M</strong>：模型总参数量，轻量级设计</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>给定 $n$ 张图像 ${X_k \in \mathbb{R}^{3 \times H \times W}}^n$ 及其对应的外参 $E_k \in \mathbb{R}^{3 \times 4}$ 和内参 $I_k \in \mathbb{R}^{3 \times 3}$，模型输出 BEV 表示 $\mathbf{y} \in \mathbb{R}^{C \times X \times Y}$：</p>
+
+$$\text{Images} \xrightarrow{\text{Lift}} \text{Frustum Point Cloud} \xrightarrow{\text{Splat}} \text{BEV Grid} \xrightarrow{\text{BEV CNN}} \text{Segmentation / Cost Map}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2008.05711/assets/imgs/newsplat.jpg" alt="LSS 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+输入：n 张图像 (128×352) + 内参 I + 外参 E
+              │
+              ▼
+ ┌─────────────────────────────┐
+ │  EfficientNet-B0 Backbone   │  逐图像独立处理
+ │  + Up(320+112 → 512)        │
+ └──────────────┬──────────────┘
+                │ 特征图 (8×22×512)
+                ▼
+ ┌─────────────────────────────┐
+ │  Depth Net (Conv 1×1)       │  输出 D+C = 41+64 = 105 通道
+ │  → α ∈ ℝ^D (softmax)        │  深度分布
+ │  → c ∈ ℝ^C                  │  上下文向量
+ └──────────────┬──────────────┘
+                │ 外积: c_d = α_d · c
+                ▼
+ ┌─────────────────────────────┐
+ │  Frustum Point Cloud        │  n × D × H × W × C
+ │  坐标变换 (I, E) → ego frame │  
+ └──────────────┬──────────────┘
+                │ 按 pillar 排序 + cumsum trick
+                ▼
+ ┌─────────────────────────────┐
+ │  BEV Pseudo Image           │  C × 200 × 200
+ │  (200×200, 0.5m/pixel)      │  [-50m, 50m] × [-50m, 50m]
+ └──────────────┬──────────────┘
+                │
+                ▼
+ ┌─────────────────────────────┐
+ │  BEV Encoder (ResNet-18)    │  Conv7s2 → layer1 → layer2 → layer3
+ │  + Multi-scale Upsample     │  Up(64+256→256, ×4) → Up(256→128→outC, ×2)
+ └──────────────┬──────────────┘
+                │
+                ▼
+     BEV Segmentation Map
+     或 Cost Map (用于规划)
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th>组件</th>
+<th>输出尺寸</th>
+<th>功能</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CamEncode</td>
+<td>(B×N) × 105 × 8 × 22</td>
+<td>提取图像特征 + 预测深度分布和上下文</td>
+<td>EfficientNet-B0 + 1×1Conv</td>
+</tr>
+<tr>
+<td>Depth Head</td>
+<td>D&#x3D;41 通道</td>
+<td>预测 4.0m~45.0m 离散深度概率</td>
+<td>Softmax 归一化</td>
+</tr>
+<tr>
+<td>Context Head</td>
+<td>C&#x3D;64 通道</td>
+<td>提取上下文语义特征</td>
+<td>与深度分布外积</td>
+</tr>
+<tr>
+<td>Frustum Pooling</td>
+<td>C × 200 × 200</td>
+<td>视锥体点云 → BEV 栅格聚合</td>
+<td>Cumsum trick, 2× 加速</td>
+</tr>
+<tr>
+<td>BevEncode</td>
+<td>outC × 200 × 200</td>
+<td>BEV 特征提取 + 多尺度融合</td>
+<td>ResNet-18 前 3 层 + FPN</td>
+</tr>
+</tbody></table>
+<p><strong>损失函数</strong>：</p>
+<p>物体分割和可行驶区域使用带正样本权重的二值交叉熵损失：</p>
+
+$$\mathcal{L} = \text{BCEWithLogitsLoss}(\hat{y}, y; w_{pos})$$
+
+
+<p>其中车辆分割和可行驶区域分割的 $w_{pos} &#x3D; 1.0$，车道线分割的 $w_{pos} &#x3D; 5.0$。</p>
+<p>运动规划使用 Boltzmann 分布形式的交叉熵损失：</p>
+
+$$p(\tau_i | o) = \frac{\exp(-\sum_{x_i, y_i \in \tau_i} c_o(x_i, y_i))}{\sum_{\tau \in \mathcal{T}} \exp(-\sum_{x_i, y_i \in \tau} c_o(x_i, y_i))}$$
+
+
+<p>其中 $c_o(x, y)$ 为 BEV 代价图上 $(x, y)$ 处的代价值，$\mathcal{T}$ 为 K-Means 聚类得到的 $K&#x3D;1000$ 条模板轨迹。</p>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><table>
+<thead>
+<tr>
+<th>函数 &#x2F; 类</th>
+<th>任务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CamEncode</code></td>
+<td>图像特征提取 + 深度分布&#x2F;上下文预测</td>
+</tr>
+<tr>
+<td><code>LiftSplatShoot.create_frustum</code></td>
+<td>构建视锥体网格坐标</td>
+</tr>
+<tr>
+<td><code>LiftSplatShoot.get_geometry</code></td>
+<td>将视锥体坐标变换到 ego 坐标系</td>
+</tr>
+<tr>
+<td><code>LiftSplatShoot.voxel_pooling</code></td>
+<td>Frustum Pooling（含 cumsum trick）</td>
+</tr>
+<tr>
+<td><code>QuickCumsum</code></td>
+<td>自定义 autograd 的高效累积求和</td>
+</tr>
+<tr>
+<td><code>BevEncode</code></td>
+<td>BEV 特征编码器</td>
+</tr>
+</tbody></table>
+<details><summary>📄 点击展开 CamEncode 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/nv-tlabs/lift-splat-shoot/blob/master/src/models.py">src&#x2F;models.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">CamEncode</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, D, C, downsample</span>):</span><br><span class="line">        <span class="built_in">super</span>(CamEncode, <span class="variable language_">self</span>).__init__()</span><br><span class="line">        <span class="variable language_">self</span>.D = D  <span class="comment"># 深度离散化数量（41）</span></span><br><span class="line">        <span class="variable language_">self</span>.C = C  <span class="comment"># 上下文特征维度（64）</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># EfficientNet-B0 作为图像骨干网络</span></span><br><span class="line">        <span class="variable language_">self</span>.trunk = EfficientNet.from_pretrained(<span class="string">&quot;efficientnet-b0&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 多尺度特征融合（reduction_5 + reduction_4）</span></span><br><span class="line">        <span class="variable language_">self</span>.up1 = Up(<span class="number">320</span>+<span class="number">112</span>, <span class="number">512</span>)</span><br><span class="line">        <span class="comment"># 1×1 卷积同时输出深度分布和上下文特征</span></span><br><span class="line">        <span class="variable language_">self</span>.depthnet = nn.Conv2d(<span class="number">512</span>, <span class="variable language_">self</span>.D + <span class="variable language_">self</span>.C, kernel_size=<span class="number">1</span>, padding=<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">get_depth_dist</span>(<span class="params">self, x, eps=<span class="number">1e-20</span></span>):</span><br><span class="line">        <span class="keyword">return</span> x.softmax(dim=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">get_depth_feat</span>(<span class="params">self, x</span>):</span><br><span class="line">        x = <span class="variable language_">self</span>.get_eff_depth(x)</span><br><span class="line">        <span class="comment"># Depth</span></span><br><span class="line">        x = <span class="variable language_">self</span>.depthnet(x)</span><br><span class="line">        <span class="comment"># 前 D 个通道 → 深度分布 α（softmax 归一化）</span></span><br><span class="line">        depth = <span class="variable language_">self</span>.get_depth_dist(x[:, :<span class="variable language_">self</span>.D])</span><br><span class="line">        <span class="comment"># 后 C 个通道 → 上下文特征 c</span></span><br><span class="line">        <span class="comment"># 外积：c_d = α_d · c，得到 D×H×W×C 的视锥体特征</span></span><br><span class="line">        new_x = depth.unsqueeze(<span class="number">1</span>) * x[:, <span class="variable language_">self</span>.D:(<span class="variable language_">self</span>.D + <span class="variable language_">self</span>.C)].unsqueeze(<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> depth, new_x</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">get_eff_depth</span>(<span class="params">self, x</span>):</span><br><span class="line">        endpoints = <span class="built_in">dict</span>()</span><br><span class="line">        x = <span class="variable language_">self</span>.trunk._swish(<span class="variable language_">self</span>.trunk._bn0(<span class="variable language_">self</span>.trunk._conv_stem(x)))</span><br><span class="line">        prev_x = x</span><br><span class="line">        <span class="keyword">for</span> idx, block <span class="keyword">in</span> <span class="built_in">enumerate</span>(<span class="variable language_">self</span>.trunk._blocks):</span><br><span class="line">            drop_connect_rate = <span class="variable language_">self</span>.trunk._global_params.drop_connect_rate</span><br><span class="line">            <span class="keyword">if</span> drop_connect_rate:</span><br><span class="line">                drop_connect_rate *= <span class="built_in">float</span>(idx) / <span class="built_in">len</span>(<span class="variable language_">self</span>.trunk._blocks)</span><br><span class="line">            x = block(x, drop_connect_rate=drop_connect_rate)</span><br><span class="line">            <span class="keyword">if</span> prev_x.size(<span class="number">2</span>) &gt; x.size(<span class="number">2</span>):</span><br><span class="line">                endpoints[<span class="string">&#x27;reduction_&#123;&#125;&#x27;</span>.<span class="built_in">format</span>(<span class="built_in">len</span>(endpoints)+<span class="number">1</span>)] = prev_x</span><br><span class="line">            prev_x = x</span><br><span class="line">        endpoints[<span class="string">&#x27;reduction_&#123;&#125;&#x27;</span>.<span class="built_in">format</span>(<span class="built_in">len</span>(endpoints)+<span class="number">1</span>)] = x</span><br><span class="line">        <span class="comment"># 融合 reduction_5（320ch）和 reduction_4（112ch）得到 512ch</span></span><br><span class="line">        x = <span class="variable language_">self</span>.up1(endpoints[<span class="string">&#x27;reduction_5&#x27;</span>], endpoints[<span class="string">&#x27;reduction_4&#x27;</span>])</span><br><span class="line">        <span class="keyword">return</span> x</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">        depth, x = <span class="variable language_">self</span>.get_depth_feat(x)</span><br><span class="line">        <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details><summary>📄 点击展开 QuickCumsum（Frustum Pooling 核心）代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/nv-tlabs/lift-splat-shoot/blob/master/src/tools.py">src&#x2F;tools.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">QuickCumsum</span>(torch.autograd.Function):</span><br><span class="line"><span class="meta">    @staticmethod</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">ctx, x, geom_feats, ranks</span>):</span><br><span class="line">        <span class="comment"># 对已排序的特征做累积求和</span></span><br><span class="line">        x = x.cumsum(<span class="number">0</span>)</span><br><span class="line">        <span class="comment"># 标记 pillar 边界（ranks 变化的位置）</span></span><br><span class="line">        kept = torch.ones(x.shape[<span class="number">0</span>], device=x.device, dtype=torch.<span class="built_in">bool</span>)</span><br><span class="line">        kept[:-<span class="number">1</span>] = (ranks[<span class="number">1</span>:] != ranks[:-<span class="number">1</span>])</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 只保留每个 pillar 的最后一个累积值</span></span><br><span class="line">        x, geom_feats = x[kept], geom_feats[kept]</span><br><span class="line">        <span class="comment"># 相邻边界值做差 → 得到每个 pillar 内的 sum pooling 结果</span></span><br><span class="line">        x = torch.cat((x[:<span class="number">1</span>], x[<span class="number">1</span>:] - x[:-<span class="number">1</span>]))</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 保存 kept 用于反向传播</span></span><br><span class="line">        ctx.save_for_backward(kept)</span><br><span class="line">        ctx.mark_non_differentiable(geom_feats)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> x, geom_feats</span><br><span class="line"></span><br><span class="line"><span class="meta">    @staticmethod</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">backward</span>(<span class="params">ctx, gradx, gradgeom</span>):</span><br><span class="line">        kept, = ctx.saved_tensors</span><br><span class="line">        <span class="comment"># 解析梯度：将 pillar 的梯度广播回所有属于该 pillar 的点</span></span><br><span class="line">        back = torch.cumsum(kept, <span class="number">0</span>)</span><br><span class="line">        back[kept] -= <span class="number">1</span></span><br><span class="line">        val = gradx[back]</span><br><span class="line">        <span class="keyword">return</span> val, <span class="literal">None</span>, <span class="literal">None</span></span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details><summary>📄 点击展开 voxel_pooling 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/nv-tlabs/lift-splat-shoot/blob/master/src/models.py">src&#x2F;models.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">voxel_pooling</span>(<span class="params">self, geom_feats, x</span>):</span><br><span class="line">    B, N, D, H, W, C = x.shape</span><br><span class="line">    Nprime = B*N*D*H*W</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 展平特征和坐标</span></span><br><span class="line">    x = x.reshape(Nprime, C)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 将连续坐标离散化到栅格索引</span></span><br><span class="line">    geom_feats = ((geom_feats - (<span class="variable language_">self</span>.bx - <span class="variable language_">self</span>.dx/<span class="number">2.</span>)) / <span class="variable language_">self</span>.dx).long()</span><br><span class="line">    geom_feats = geom_feats.view(Nprime, <span class="number">3</span>)</span><br><span class="line">    batch_ix = torch.cat([torch.full([Nprime//B, <span class="number">1</span>], ix,</span><br><span class="line">                 device=x.device, dtype=torch.long) <span class="keyword">for</span> ix <span class="keyword">in</span> <span class="built_in">range</span>(B)])</span><br><span class="line">    geom_feats = torch.cat((geom_feats, batch_ix), <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 过滤超出 BEV 网格范围的点</span></span><br><span class="line">    kept = (geom_feats[:, <span class="number">0</span>] &gt;= <span class="number">0</span>) &amp; (geom_feats[:, <span class="number">0</span>] &lt; <span class="variable language_">self</span>.nx[<span class="number">0</span>])\</span><br><span class="line">        &amp; (geom_feats[:, <span class="number">1</span>] &gt;= <span class="number">0</span>) &amp; (geom_feats[:, <span class="number">1</span>] &lt; <span class="variable language_">self</span>.nx[<span class="number">1</span>])\</span><br><span class="line">        &amp; (geom_feats[:, <span class="number">2</span>] &gt;= <span class="number">0</span>) &amp; (geom_feats[:, <span class="number">2</span>] &lt; <span class="variable language_">self</span>.nx[<span class="number">2</span>])</span><br><span class="line">    x = x[kept]</span><br><span class="line">    geom_feats = geom_feats[kept]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 计算一维排序索引，使同一 pillar 的点相邻</span></span><br><span class="line">    ranks = geom_feats[:, <span class="number">0</span>] * (<span class="variable language_">self</span>.nx[<span class="number">1</span>] * <span class="variable language_">self</span>.nx[<span class="number">2</span>] * B)\</span><br><span class="line">        + geom_feats[:, <span class="number">1</span>] * (<span class="variable language_">self</span>.nx[<span class="number">2</span>] * B)\</span><br><span class="line">        + geom_feats[:, <span class="number">2</span>] * B\</span><br><span class="line">        + geom_feats[:, <span class="number">3</span>]</span><br><span class="line">    sorts = ranks.argsort()</span><br><span class="line">    x, geom_feats, ranks = x[sorts], geom_feats[sorts], ranks[sorts]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># cumsum trick 进行 sum pooling</span></span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> <span class="variable language_">self</span>.use_quickcumsum:</span><br><span class="line">        x, geom_feats = cumsum_trick(x, geom_feats, ranks)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        x, geom_feats = QuickCumsum.apply(x, geom_feats, ranks)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 将聚合特征填入 BEV 网格 (B × C × Z × X × Y)</span></span><br><span class="line">    final = torch.zeros((B, C, <span class="variable language_">self</span>.nx[<span class="number">2</span>], <span class="variable language_">self</span>.nx[<span class="number">0</span>], <span class="variable language_">self</span>.nx[<span class="number">1</span>]), device=x.device)</span><br><span class="line">    final[geom_feats[:, <span class="number">3</span>], :, geom_feats[:, <span class="number">2</span>], geom_feats[:, <span class="number">0</span>], geom_feats[:, <span class="number">1</span>]] = x</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 沿 Z 轴展平 → BEV 伪图像</span></span><br><span class="line">    final = torch.cat(final.unbind(dim=<span class="number">2</span>), <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> final</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>物体分割（IoU %）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>nuScenes Car</th>
+<th>nuScenes Vehicle</th>
+<th>Lyft Car</th>
+<th>Lyft Vehicle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CNN Baseline</td>
+<td>22.78</td>
+<td>24.25</td>
+<td>30.71</td>
+<td>31.91</td>
+</tr>
+<tr>
+<td>Frozen Encoder</td>
+<td>25.51</td>
+<td>26.83</td>
+<td>35.28</td>
+<td>32.42</td>
+</tr>
+<tr>
+<td>OFT</td>
+<td>29.72</td>
+<td>30.05</td>
+<td>39.48</td>
+<td>40.43</td>
+</tr>
+<tr>
+<td><strong>Lift-Splat</strong></td>
+<td><strong>32.06</strong></td>
+<td><strong>32.07</strong></td>
+<td><strong>43.09</strong></td>
+<td><strong>44.64</strong></td>
+</tr>
+<tr>
+<td>PON*</td>
+<td>24.7</td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>FISHING Net*</td>
+<td>-</td>
+<td>30.0</td>
+<td>-</td>
+<td>56.0</td>
+</tr>
+</tbody></table>
+<p><strong>地图分割（IoU %）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Drivable Area</th>
+<th>Lane Boundary</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CNN Baseline</td>
+<td>68.96</td>
+<td>16.51</td>
+</tr>
+<tr>
+<td>Frozen Encoder</td>
+<td>61.62</td>
+<td>16.95</td>
+</tr>
+<tr>
+<td>OFT</td>
+<td>71.69</td>
+<td>18.07</td>
+</tr>
+<tr>
+<td><strong>Lift-Splat</strong></td>
+<td><strong>72.94</strong></td>
+<td><strong>19.96</strong></td>
+</tr>
+<tr>
+<td>PON*</td>
+<td>60.4</td>
+<td>-</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：PON 和 FISHING Net 使用不同的 BEV 网格定义和验证集划分，非严格对齐对比。</p>
+</blockquote>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>LSS 在所有 4 个物体分割任务和 2 个地图分割任务上全面超越基线</li>
+<li>相比无几何先验的 CNN baseline，LSS 在车辆分割上提升近 10 个百分点（24.25→32.07），证明显式建模 3D 几何结构的重要性</li>
+<li>相比 OFT（不做深度区分），LSS 的深度分布建模带来约 2% 的额外提升</li>
+</ol>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>nuScenes Vehicle IoU</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CNN Baseline（无几何先验）</td>
+<td>24.25</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>Frozen Encoder（深度隐式学习受限）</td>
+<td>26.83</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>OFT（均匀深度分布）</td>
+<td>30.05</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>Lift-Splat（学习深度分布）</td>
+<td><strong>32.07</strong></td>
+<td>洞察 1 + 2 + 3</td>
+</tr>
+<tr>
+<td>训练时 Sensor Dropout（随机丢 1 相机）</td>
+<td>最优性能（6 相机全在时）</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>训练时加外参噪声</td>
+<td>对高噪声更鲁棒</td>
+<td>洞察 3</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：CNN baseline 直接将所有相机特征拼接上采样到 BEV；Frozen Encoder 冻结 EfficientNet-B0 的预训练权重。</p>
+</blockquote>
+<ul>
+<li><strong>洞察 1 验证</strong>：OFT（30.05）vs. Lift-Splat（32.07），学习深度分布优于均匀分配</li>
+<li><strong>洞察 2 验证</strong>：Lift-Splat 的高效实现使得在 6 相机 × 41 深度点 × 8×22 特征图的规模上端到端训练成为可能，模型以 35 Hz 运行</li>
+<li><strong>洞察 3 验证</strong>：CNN baseline（24.25）远低于 Lift-Splat（32.07），说明几何归纳偏置至关重要</li>
+</ul>
+<h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><p><strong>与 Oracle Depth（LiDAR）对比</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Drivable Area</th>
+<th>Lane</th>
+<th>nuScenes Car</th>
+<th>nuScenes Vehicle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Oracle Depth (1 sweep)</td>
+<td>74.91</td>
+<td>25.12</td>
+<td>40.26</td>
+<td>44.48</td>
+</tr>
+<tr>
+<td>Oracle Depth (&gt;1 sweep)</td>
+<td>76.96</td>
+<td>26.80</td>
+<td>45.36</td>
+<td>49.51</td>
+</tr>
+<tr>
+<td>Lift-Splat</td>
+<td>70.81</td>
+<td>19.58</td>
+<td>32.06</td>
+<td>32.07</td>
+</tr>
+</tbody></table>
+<p>主要性能差距来源：</p>
+<ul>
+<li><strong>深度估计精度</strong>：单帧图像的隐式深度分布远不如 LiDAR 点云提供的真实深度</li>
+<li><strong>远距离衰减</strong>：两种方法性能均随距离线性下降，但 LSS 衰减更快</li>
+<li><strong>夜间场景</strong>：LSS 在夜间性能显著下降，而 LiDAR 不受光照影响</li>
+</ul>
+<p>提升空间明确在于深度估计的质量——未来需要多帧时序信息来接近或超越 LiDAR 的深度精度。</p>
+<h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
+<li><strong>夜间场景</strong>：图像质量大幅下降导致深度估计和语义理解同时恶化，性能相对 LiDAR 差距最大</li>
+<li><strong>远距离物体</strong>：单目深度歧义随距离增大而加剧，远处车辆分割 IoU 明显低于 LiDAR baseline</li>
+<li><strong>相机失效&#x2F;遮挡区域</strong>：当缺失某个相机时，对应覆盖区域的预测变得模糊；后视相机（更宽视角）缺失时性能下降最大</li>
+<li><strong>单帧运动推理</strong>：没有时序信息，模型无法准确判断物体运动状态和速度，限制了规划性能（Top-5 规划准确率 15.52% vs. LiDAR 1-sweep 19.27%）</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        EfficientNet-B0（ImageNet 预训练）</span><br><span class="line">BEV Encoder:     ResNet-18（层 1-3）+ 多尺度 FPN</span><br><span class="line">Input Size:      128 × 352（裁剪并调整内外参）</span><br><span class="line">BEV Grid:        200 × 200（-50m~50m, 0.5m/pixel）</span><br><span class="line">Depth Range:     4.0m ~ 45.0m, step 1.0m（41 bins）</span><br><span class="line">Optimizer:       Adam, lr=1e-3, weight_decay=1e-7</span><br><span class="line">Training Steps:  300k</span><br><span class="line">Loss:            BCEWithLogitsLoss（车辆/道路 pos_weight=1.0, 车道线 pos_weight=5.0）</span><br><span class="line">Parameters:      14.3M</span><br><span class="line">Inference Speed: 35 Hz (Titan V)</span><br><span class="line">Framework:       PyTorch</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>输入预处理</strong>：图像裁剪到 128×352 后必须相应调整内参（焦距和主点）和外参，否则投影关系错误</li>
+<li><strong>深度离散化范围</strong>：4.0m~45.0m 间隔 1.0m 共 41 个 bin，过小的 step 会显著增加内存消耗（点云规模 &#x3D; $n \times D \times H&#x2F;16 \times W&#x2F;16$）</li>
+<li><strong>Frustum Pooling 实现</strong>：必须使用 <code>QuickCumsum</code>（含自定义 backward）而非 autograd 默认梯度，否则训练速度减半</li>
+<li><strong>正样本权重</strong>：车道线分割的 pos_weight&#x3D;5.0 对平衡极度不均衡的正负样本至关重要</li>
+<li><strong>Sensor Dropout 训练策略</strong>：训练时随机丢弃 1 个相机可提升模型在完整输入下的性能（类似 Dropout 正则化效果）</li>
+<li><strong>BEV 网格 Z 轴</strong>：虽然生成 3D 体素，但最终通过沿 Z 轴 concatenate 展平为 2D BEV 伪图像，Z 轴分辨率不需要太高</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li><strong>时序融合</strong>：引入多帧图像，通过时序信息提升深度估计精度（论文结论明确指出这是未来方向）</li>
+<li><strong>深度监督</strong>：利用 LiDAR 投影深度对深度分布进行显式监督（后续 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 已验证有效）</li>
+<li><strong>更高分辨率 BEV 网格</strong>：增大 BEV 分辨率可提升小物体检测，但会增加 Frustum Pooling 的计算量</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li><strong>特征图下采样</strong>：增大 downsample 比例减少点云规模，但会损失空间分辨率</li>
+<li><strong>深度 bin 数量</strong>：减少离散深度数量可线性降低计算量，但损失深度精度</li>
+<li><strong>BEV Encoder 轻量化</strong>：使用更轻量的 BEV 网络（如 MobileNet 替代 ResNet-18），训练和推理均加速</li>
+<li><strong>BEVPoolv2 算子优化</strong>：通过索引间接访问替代显式外积存储，避免计算和缓存完整的 $(N,D,H,W,C)$ 视锥体特征张量，速度可提升 3.1×<del>15.1×，显存降至原先的 2%</del>5.7%（详见 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet 系列论文笔记</a>）</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>“Lift-Splat” 范式</strong>：将任意 2D 传感器特征通过深度分布提升到 3D 再投射到 BEV 的流程，已成为多视图 BEV 感知的标准方案，被 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>、<a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 等大量后续工作采用</li>
+<li><strong>隐式深度分布建模</strong>：用 softmax 将深度概率分布与上下文特征外积的思想，可推广到任何需要处理深度不确定性的任务（如 3D 语义分割、占据栅格预测）</li>
+<li><strong>Cumsum Trick</strong>：基于排序的 scatter_add 替代方案（参见洞察 2），不仅适用于 pillar pooling，也可用于其他需要对稀疏数据按组求和的场景（如点云分割中的 voxel 特征聚合）</li>
+<li><strong>几何归纳偏置</strong>：在模型中显式嵌入已知的物理&#x2F;几何约束（如相机投影模型），比让网络从数据中隐式学习更高效、更可泛化</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li>单帧推理缺少时序信息，深度估计精度有限，与 LiDAR 仍有明显差距</li>
+<li>深度分布无显式监督信号，完全依赖下游任务反向传播间接学习</li>
+<li><strong>Dense Lift 的空体素问题</strong>：每个像素按 $D$ 个 depth bin 展开后，$H \times W \times D$ 的视锥体中绝大多数体素概率接近 0（每个像素真实深度只有一个），带来显存浪费和计算冗余，后续 <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a> 等稀疏方案正是为解决这一问题而生</li>
+<li>BEV 表示为固定范围栅格（100m×100m），难以高效处理更大范围或更精细分辨率的需求</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li><strong>开创 BEV 感知范式</strong>：LSS 是首个提出完整的”图像→视锥体→BEV”端到端流程的工作，直接催生了 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>（2021）、<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>（2022）、<a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>（2022）等显式深度路线，同时也启发了 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>（2022）等 query-based 路线，进而演化出 <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a>（2022）等 sparse query 方法——两条路线共同构成了当前 BEV 感知的技术版图</li>
+<li><strong>推动纯视觉自动驾驶方案</strong>：证明了不依赖 LiDAR 进行 BEV 感知的可行性，对降低自动驾驶硬件成本具有重要意义（Tesla 纯视觉方案的理论基础之一）</li>
+<li><strong>Frustum Pooling 工程实践</strong>：QuickCumsum（scatter_add 的高效替代，参见洞察 2）及其 CUDA 实现被广泛复用，成为 BEV 感知 codebase 的标准组件</li>
+<li><strong>引发 BEV 深度估计研究</strong>：LSS 暴露的深度估计瓶颈直接催生了 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>（LiDAR 深度监督）、STS（时空立体匹配）等一系列改进工作</li>
+<li><strong>工业界偏好 LSS 范式</strong>：尽管 dense lift 产生大量空体素，但全流程均为连续内存的 dense tensor 计算（参见洞察 1），GPU 利用率高、TensorRT 易量化、延迟稳定；静态计算图利于 GPU&#x2F;NPU 算子融合，BEVPoolv2 等工程优化进一步抵消空体素开销。相比之下，<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 的 query-driven attention 是 memory-bound 的随机访存，落地困难得多。因此 LSS 仍是 Tesla、NVIDIA 及国内多家 OEM 量产方案的主流架构——<em>算得多但算得规整，比算得少但算得零散更适合 GPU</em></li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E9%9A%90%E5%BC%8F%E6%B7%B1%E5%BA%A6%E5%88%86%E5%B8%83%E2%80%94%E2%80%94%E7%94%A8%E6%A6%82%E7%8E%87%E5%BB%BA%E6%A8%A1%E6%9B%BF%E4%BB%A3%E7%A1%AE%E5%AE%9A%E6%80%A7%E6%B7%B1%E5%BA%A6%E4%BC%B0%E8%AE%A1"><span class="toc-text">洞察 1：隐式深度分布——用概率建模替代确定性深度估计</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9APillar-Pooling-Cumsum-Trick%E2%80%94%E2%80%94%E9%AB%98%E6%95%88%E7%9A%84%E8%A7%86%E9%94%A5%E4%BD%93%E5%88%B0-BEV-%E8%BD%AC%E6%8D%A2"><span class="toc-text">洞察 2：Pillar Pooling + Cumsum Trick——高效的视锥体到 BEV 转换</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E7%AB%AF%E5%88%B0%E7%AB%AF%E5%87%A0%E4%BD%95%E6%84%9F%E7%9F%A5%E6%9E%B6%E6%9E%84%E2%80%94%E2%80%94%E4%B8%89%E5%A4%A7%E5%AF%B9%E7%A7%B0%E6%80%A7%E4%BF%9D%E6%8C%81"><span class="toc-text">洞察 3：端到端几何感知架构——三大对称性保持</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.3 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.4 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

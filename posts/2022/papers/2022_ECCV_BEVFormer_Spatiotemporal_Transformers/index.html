@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            BEVFormer / BEVFormerV2 Learning Bird-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">BEVFormer / BEVFormerV2 Learning Bird-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2022年03月31日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Multi-Camera 3D Object Detection &#x2F; BEV Map Segmentation<br>Method: BEV Queries, Spatial Cross-Attention, Temporal Self-Attention, Deformable DETR Head, Perspective Supervision<br>Venue: ECCV 2022 (BEVFormer) &#x2F; arXiv 2022 (BEVFormer v2)<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.17270">https://arxiv.org/abs/2203.17270</a> (BEVFormer) &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2211.10439">https://arxiv.org/abs/2211.10439</a> (BEVFormer v2)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer">https://github.com/fundamentalvision/BEVFormer</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>在多相机 3D 感知中，如何将多视图图像特征统一到鸟瞰图（BEV）表示是核心问题。以 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 为代表的显式深度范式需要预测逐像素深度分布，其性能严重依赖深度估计质量（<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 对此有系统性验证）。本文提出 <strong>BEVFormer</strong>，采用完全不同的思路——通过<strong>时空 Transformer</strong> 学习 BEV 表示，不显式依赖深度信息。BEVFormer 的核心是一组可学习的<strong>栅格状 BEV Queries</strong>，它们通过<strong>空间交叉注意力（Spatial Cross-Attention）</strong> 从多视图图像中自适应采样空间特征，通过<strong>时序自注意力（Temporal Self-Attention）</strong> 以类 RNN 方式递归融合历史 BEV 特征。6 层编码器堆叠后，输出的统一 BEV 特征可同时支持 3D 目标检测和地图分割任务。</p>
+<p>在 nuScenes test 集上，BEVFormer 达到 <strong>56.9% NDS</strong>，比此前最优的 DETR3D 高出 9.0 个点，首次使纯相机方法逼近 LiDAR 基线。时序融合大幅改善了速度估计（mAVE 0.378 m&#x2F;s）和低可见度目标召回率。</p>
+<p><strong>核心论点</strong>：BEV 特征的生成不必依赖显式深度估计——通过可学习的 BEV Queries 配合可变形注意力，Transformer 可以自适应地从多视图图像中”查询”所需的空间信息；而 BEV 空间天然适合作为时序融合的桥梁，以递归方式引入历史帧几乎不增加计算量，却显著提升运动估计和遮挡检测能力。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2022 年初，多相机 BEV 感知存在两条主要技术路线，各有核心瓶颈：</p>
+<table>
+<thead>
+<tr>
+<th>方法类型</th>
+<th>代表作</th>
+<th>BEV 生成方式</th>
+<th>核心问题</th>
+<th>nuScenes val (mAP&#x2F;NDS)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LSS-based</td>
+<td><a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>, <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a></td>
+<td>像素级深度分布 → 视锥体投影</td>
+<td>依赖深度估计质量，对标定敏感</td>
+<td>28.2&#x2F;32.7 ~ 41.6&#x2F;51.7</td>
+</tr>
+<tr>
+<td>Query-based (稀疏)</td>
+<td>DETR3D</td>
+<td>3D query 投影到 2D 采样</td>
+<td>无 BEV 表示，无法做地图分割</td>
+<td>34.6&#x2F;42.5</td>
+</tr>
+<tr>
+<td>MLP-based</td>
+<td>VPN</td>
+<td>MLP 学习视角变换</td>
+<td>参数量大，分辨率受限</td>
+<td>25.2&#x2F;33.4</td>
+</tr>
+<tr>
+<td>IPM-based</td>
+<td>—</td>
+<td>逆透视映射</td>
+<td>假设地平面，无法处理 3D 结构</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p>两条路线的根本矛盾：</p>
+<ol>
+<li><strong>LSS 路线</strong>：BEV 生成质量强依赖深度准确度，深度预测不准则 BEV 特征不准，形成”深度-检测”复合误差</li>
+<li><strong>Query-based 路线</strong>：DETR3D 的 3D query 只与图像做稀疏交互，不生成空间密集的 BEV 特征，无法同时支持检测和分割等多任务</li>
+<li><strong>时序缺失</strong>：上述方法大多为单帧推理，不利用时序信息，导致速度估计几乎失效（mAVE &gt; 0.8 m&#x2F;s），且遮挡目标召回率低</li>
+</ol>
+<p><strong>核心痛点</strong>：如何设计一种不依赖显式深度的 BEV 生成方法，既能生成空间密集的 BEV 特征支持多任务，又能高效引入时序信息改善运动估计和遮挡检测。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：BEV-Queries-作为可学习栅格——用注意力替代显式深度投影"><a href="#洞察-1：BEV-Queries-作为可学习栅格——用注意力替代显式深度投影" class="headerlink" title="洞察 1：BEV Queries 作为可学习栅格——用注意力替代显式深度投影"></a>洞察 1：BEV Queries 作为可学习栅格——用注意力替代显式深度投影</h3><p><strong>传统做法</strong>：<a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 系列通过 DepthNet 为每个像素预测深度分布 $\alpha \in \Delta^{|D|-1}$，外积形成视锥体特征后投影到 BEV。这要求深度预测足够准确，否则整条管线的 BEV 特征质量直接受损。</p>
+<p><strong>本文做法</strong>：定义一组可学习的栅格状参数 $Q \in \mathbb{R}^{H \times W \times C}$ 作为 BEV Queries，其中每个 query $Q_p$ 对应 BEV 平面上位置 $p &#x3D; (x, y)$ 的网格单元，负责该区域的特征聚合。每个网格对应真实世界 $s$ 米的范围，BEV 中心默认与自车位置对齐。BEV Queries 不预测深度，而是通过注意力机制主动从图像特征中”查询”所需信息。</p>
+<p><strong>为什么更好</strong>：</p>
+<ul>
+<li>深度估计的误差不再是硬约束——注意力权重由数据驱动学习，可自适应选择最有用的图像区域</li>
+<li>BEV Queries 的栅格结构天然输出空间密集的 BEV 特征，可直接接检测头或分割头</li>
+<li>不依赖 LiDAR 深度真值做中间监督，纯视觉端到端训练</li>
+</ul>
+<h3 id="洞察-2：空间交叉注意力——从-BEV-“柱体”到-2D-图像的高效采样"><a href="#洞察-2：空间交叉注意力——从-BEV-“柱体”到-2D-图像的高效采样" class="headerlink" title="洞察 2：空间交叉注意力——从 BEV “柱体”到 2D 图像的高效采样"></a>洞察 2：空间交叉注意力——从 BEV “柱体”到 2D 图像的高效采样</h3><p><strong>传统做法</strong>：让每个 BEV query 与所有相机的全部图像特征做全局注意力。6 个相机、多尺度特征的输入规模巨大，全局注意力的 $O(N^2)$ 计算量不可承受。</p>
+<p><strong>本文做法</strong>：基于可变形注意力（Deformable Attention）设计空间交叉注意力（SCA）。核心思路是将 BEV query “提升”为 3D 柱体，在柱体上采样 $N_{ref}$ 个参考点，投影到 2D 视图后，仅在命中视图（$\mathcal{V}_{hit}$）的参考点附近局部采样：</p>
+
+$$\text{SCA}(Q_p, F_t) = \frac{1}{|\mathcal{V}_{hit}|} \sum_{i \in \mathcal{V}_{hit}} \sum_{j=1}^{N_{ref}} \text{DeformAttn}(Q_p, \mathcal{P}(p, i, j), F_t^i)$$
+
+
+其中投影函数 $\mathcal{P}$ 的计算方式为：先由 BEV 坐标还原真实世界位置 $x' = (x - W/2) \cdot s$, $y' = (y - H/2) \cdot s$，再结合预设高度锚点 $\{z_j'\}_{j=1}^{N_{ref}}$（从 $-5$m 到 $3$m 均匀采样），通过相机投影矩阵 $T_i$ 得到 2D 参考点：
+
+
+$$z_{ij} \cdot [x_{ij}, y_{ij}, 1]^T = T_i \cdot [x', y', z_j', 1]^T$$
+
+
+<p><strong>为什么更好</strong>：每个 BEV query 只与其几何上可能对应的视图区域交互（通常 1-2 个视图），而非全部 6 个视图的全部像素。全局注意力 36G 显存，可变形注意力仅需 20G，且 NDS 高出 4.4 个点（0.448 vs 0.404）。</p>
+<p><strong>范式对比</strong>：<a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 为了避免 dense <code>F.grid_sample</code> 的高昂开销（$H \times W \times D$ 个采样点的随机插值），转用 broadcast 显式构造 3D 特征。BEVFormer 之所以能”重新引入”采样思想，关键在于 <strong>BEV query 数量（200×200 &#x3D; 40K）远少于图像像素数（~1M）</strong>——每个 query 仅需 $N_{ref} \times |\mathcal{V}_{hit}|$ 个采样点（通常 4~8 个），使得 deformable sampling 的计算量可控，同时换来了更强的几何对齐精度和跨视角融合能力。本质上：<em>LSS 用规则计算换效率（快但粗），BEVFormer 用稀疏采样换精度（慢但准）</em>。</p>
+<h3 id="洞察-3：时序自注意力——以-RNN-方式递归融合历史-BEV"><a href="#洞察-3：时序自注意力——以-RNN-方式递归融合历史-BEV" class="headerlink" title="洞察 3：时序自注意力——以 RNN 方式递归融合历史 BEV"></a>洞察 3：时序自注意力——以 RNN 方式递归融合历史 BEV</h3><p><strong>传统做法</strong>：FIERY 等方法通过直接堆叠多帧 BEV 特征引入时序信息，但固定窗口长度限制了时序范围，且计算量随帧数线性增长。</p>
+<p><strong>本文做法</strong>：时序自注意力（TSA）采用类 RNN 的递归策略，仅使用前一帧的 BEV 特征 $B_{t-1}$ 与当前 BEV queries $Q$ 做可变形注意力：</p>
+
+$$\text{TSA}(Q_p, \{Q, B'_{t-1}\}) = \sum_{V \in \{Q, B'_{t-1}\}} \text{DeformAttn}(Q_p, p, V)$$
+
+
+其中 $B'_{t-1}$ 是根据自车运动对齐后的历史 BEV 特征。注意力偏移量 $\Delta p$ 由 $Q$ 和 $B'_{t-1}$ 的拼接输入预测，使网络能学习动态目标的运动补偿。序列首帧无历史 BEV 时，退化为普通自注意力 ${Q, Q}$。
+
+<p>训练时，从过去 2 秒序列中随机采样 3 帧 + 当前帧共 4 帧，前 3 帧无梯度递归生成 ${B_{t-3}, B_{t-2}, B_{t-1}}$，仅最后一帧计算 loss。推理时按时间序列在线递推，仅保存上一帧 BEV 特征，几乎无额外计算开销。</p>
+<p><strong>为什么更好</strong>：递归方式使时序信息理论上可无限传播，而堆叠方式的时序窗口固定。BEVFormer vs BEVFormer-S（无时序）：NDS 51.7 → 44.8（+6.9），速度估计 mAVE 从 0.802 降至 0.394，低可见度（0-40%）目标召回率提升 6.0% 以上。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>56.9% NDS</strong>：nuScenes test 集 SOTA，比 DETR3D 高 9.0 个点，逼近 LiDAR 基线</li>
+<li><strong>mAVE 0.378 m&#x2F;s</strong>：速度估计误差，时序融合使纯相机方法首次接近 LiDAR 水平</li>
+<li><strong>+6.9 NDS</strong>：BEVFormer vs BEVFormer-S（无时序），时序自注意力带来的最大增益</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>BEVFormer 的核心流程可概括为：</p>
+
+$$\{I_t^i\}_{i=1}^{N_{view}} \xrightarrow{\text{Backbone+FPN}} F_t \xrightarrow[\text{+ } B_{t-1}]{\text{BEV Encoder (×6)}} B_t \xrightarrow{\text{Task Head}} \text{3D Boxes / Seg Map}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2203.17270/assets/x2.png" alt="BEVFormer 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+6× Camera Images (900×1600)
+        │
+        ▼
+   ResNet-101-DCN (FCOS3D pretrained)
+        │
+        ▼
+   FPN (1/16, 1/32, 1/64), C=256
+        │
+        ▼                         ┌───────────────────┐
+BEV Queries Q ∈ R^{200×200×256}  │ Prev BEV B_{t-1}  │
+        │                         │  (ego-motion align)│
+        ▼                         └────────┬──────────┘
+┌───────────────────────────────────────────┤
+│         BEV Encoder Layer (×6)            │
+│  ┌─────────────────────────────────┐      │
+│  │  Temporal Self-Attention (TSA)  │◄─────┘
+│  │  Q_p attends {Q, B'_{t-1}}     │
+│  ├─────────────────────────────────┤
+│  │  LayerNorm                      │
+│  ├─────────────────────────────────┤
+│  │  Spatial Cross-Attention (SCA)  │◄── Multi-view Features F_t
+│  │  BEV → Pillar → 2D projection  │
+│  │  DeformAttn on V_hit only       │
+│  ├─────────────────────────────────┤
+│  │  LayerNorm + FFN + LayerNorm    │
+│  └─────────────────────────────────┘
+└───────────────────────────────────────────┘
+        │
+        ▼
+   BEV Features B_t ∈ R^{200×200×256}
+        │
+   ┌────┴────┐
+   ▼         ▼
+Det Head   Seg Head
+(Deformable (Panoptic
+ DETR)     SegFormer)
+   │         │
+   ▼         ▼
+3D Boxes   Semantic Map
++ Velocity
+</pre>
+</div>
+
+<ul>
+<li><strong>BEV Queries</strong>：$200 \times 200$ 栅格，每网格 $0.512$m，覆盖 $[-51.2, 51.2]\text{m}^2$，附加可学习位置编码</li>
+<li><strong>Spatial Cross-Attention</strong>：每个 query 对应 $N_{ref} &#x3D; 4$ 个高度锚点（$-5$m 到 $3$m），投影到 2D 后每个参考点用 4 个采样点</li>
+<li><strong>Temporal Self-Attention</strong>：$\text{num_bev_queue} &#x3D; 2$（当前 + 上一帧），利用自车运动对齐历史 BEV</li>
+<li><strong>Detection Head</strong>：基于 Deformable DETR，900 个 object queries，预测 $(l, w, h, x_o, y_o, z_o, \cos\theta, \sin\theta, v_x, v_y)$ 共 10 个参数，无 NMS</li>
+<li><strong>Segmentation Head</strong>：基于 Panoptic SegFormer 的 mask decoder，每个语义类别一个固定 query</li>
+</ul>
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th>模块</th>
+<th>输入</th>
+<th>输出</th>
+<th>功能</th>
+<th>关键参数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEV Queries</td>
+<td>—</td>
+<td>$(200, 200, 256)$</td>
+<td>可学习的 BEV 栅格</td>
+<td>$s &#x3D; 0.512$m</td>
+</tr>
+<tr>
+<td>Spatial Cross-Attention</td>
+<td>$Q_p$, $F_t$</td>
+<td>refined $Q_p$</td>
+<td>从多视图采样空间特征</td>
+<td>$N_{ref}&#x3D;4$, 4 sampling pts</td>
+</tr>
+<tr>
+<td>Temporal Self-Attention</td>
+<td>$Q_p$, $B’_{t-1}$</td>
+<td>refined $Q_p$</td>
+<td>融合历史时序信息</td>
+<td>ego-motion align</td>
+</tr>
+<tr>
+<td>FFN</td>
+<td>refined $Q_p$</td>
+<td>encoder output</td>
+<td>非线性变换</td>
+<td>2 层 FC</td>
+</tr>
+<tr>
+<td>Det Head (Deformable DETR)</td>
+<td>$B_t$</td>
+<td>3D boxes + vel</td>
+<td>端到端检测</td>
+<td>900 queries, $L_1$ loss</td>
+</tr>
+<tr>
+<td>Seg Head (Mask Decoder)</td>
+<td>$B_t$</td>
+<td>semantic map</td>
+<td>语义分割</td>
+<td>class-fixed queries</td>
+</tr>
+</tbody></table>
+<p><strong>损失函数</strong>：检测任务仅使用 $L_1$ loss 监督 3D 框回归（含速度），配合 Deformable DETR 的匈牙利匹配；分割任务使用标准 cross-entropy + dice loss。</p>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>核心代码涉及 3 个模块，均来自官方仓库 <code>projects/mmdet3d_plugin/bevformer/modules/</code>：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>类&#x2F;函数</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>encoder.py</code></td>
+<td><code>BEVFormerEncoder.get_reference_points</code></td>
+<td>生成 3D&#x2F;2D 参考点</td>
+</tr>
+<tr>
+<td><code>encoder.py</code></td>
+<td><code>BEVFormerEncoder.point_sampling</code></td>
+<td>3D 参考点投影到 2D 视图</td>
+</tr>
+<tr>
+<td><code>spatial_cross_attention.py</code></td>
+<td><code>SpatialCrossAttention.forward</code></td>
+<td>空间交叉注意力推理</td>
+</tr>
+<tr>
+<td><code>temporal_self_attention.py</code></td>
+<td><code>TemporalSelfAttention.forward</code></td>
+<td>时序自注意力推理</td>
+</tr>
+</tbody></table>
+<details>
+<summary>📄 点击展开 get_reference_points 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer/blob/master/projects/mmdet3d_plugin/bevformer/modules/encoder.py">encoder.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">@staticmethod</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_reference_points</span>(<span class="params">H, W, Z=<span class="number">8</span>, num_points_in_pillar=<span class="number">4</span>,</span></span><br><span class="line"><span class="params">                         dim=<span class="string">&#x27;3d&#x27;</span>, bs=<span class="number">1</span>, device=<span class="string">&#x27;cuda&#x27;</span>, dtype=torch.<span class="built_in">float</span></span>):</span><br><span class="line">    <span class="comment"># 3D 参考点：用于 Spatial Cross-Attention (SCA)</span></span><br><span class="line">    <span class="keyword">if</span> dim == <span class="string">&#x27;3d&#x27;</span>:</span><br><span class="line">        <span class="comment"># 沿高度轴均匀采样 num_points_in_pillar 个锚点</span></span><br><span class="line">        zs = torch.linspace(<span class="number">0.5</span>, Z - <span class="number">0.5</span>, num_points_in_pillar, dtype=dtype,</span><br><span class="line">                            device=device).view(-<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>).expand(</span><br><span class="line">                                num_points_in_pillar, H, W) / Z</span><br><span class="line">        xs = torch.linspace(<span class="number">0.5</span>, W - <span class="number">0.5</span>, W, dtype=dtype,</span><br><span class="line">                            device=device).view(<span class="number">1</span>, <span class="number">1</span>, W).expand(</span><br><span class="line">                                num_points_in_pillar, H, W) / W</span><br><span class="line">        ys = torch.linspace(<span class="number">0.5</span>, H - <span class="number">0.5</span>, H, dtype=dtype,</span><br><span class="line">                            device=device).view(<span class="number">1</span>, H, <span class="number">1</span>).expand(</span><br><span class="line">                                num_points_in_pillar, H, W) / H</span><br><span class="line">        ref_3d = torch.stack((xs, ys, zs), -<span class="number">1</span>)</span><br><span class="line">        ref_3d = ref_3d.permute(<span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">2</span>).flatten(<span class="number">2</span>).permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">1</span>)</span><br><span class="line">        ref_3d = ref_3d[<span class="literal">None</span>].repeat(bs, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>)</span><br><span class="line">        <span class="keyword">return</span> ref_3d  <span class="comment"># (bs, num_points_in_pillar, H*W, 3)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2D 参考点：用于 Temporal Self-Attention (TSA)</span></span><br><span class="line">    <span class="keyword">elif</span> dim == <span class="string">&#x27;2d&#x27;</span>:</span><br><span class="line">        ref_y, ref_x = torch.meshgrid(</span><br><span class="line">            torch.linspace(<span class="number">0.5</span>, H - <span class="number">0.5</span>, H, dtype=dtype, device=device),</span><br><span class="line">            torch.linspace(<span class="number">0.5</span>, W - <span class="number">0.5</span>, W, dtype=dtype, device=device))</span><br><span class="line">        ref_y = ref_y.reshape(-<span class="number">1</span>)[<span class="literal">None</span>] / H</span><br><span class="line">        ref_x = ref_x.reshape(-<span class="number">1</span>)[<span class="literal">None</span>] / W</span><br><span class="line">        ref_2d = torch.stack((ref_x, ref_y), -<span class="number">1</span>)</span><br><span class="line">        ref_2d = ref_2d.repeat(bs, <span class="number">1</span>, <span class="number">1</span>).unsqueeze(<span class="number">2</span>)</span><br><span class="line">        <span class="keyword">return</span> ref_2d  <span class="comment"># (bs, H*W, 1, 2)</span></span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details>
+<summary>📄 点击展开 SpatialCrossAttention.forward 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer/blob/master/projects/mmdet3d_plugin/bevformer/modules/spatial_cross_attention.py">spatial_cross_attention.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, query, key, value, residual=<span class="literal">None</span>, query_pos=<span class="literal">None</span>,</span></span><br><span class="line"><span class="params">            key_padding_mask=<span class="literal">None</span>, reference_points=<span class="literal">None</span>,</span></span><br><span class="line"><span class="params">            spatial_shapes=<span class="literal">None</span>, reference_points_cam=<span class="literal">None</span>,</span></span><br><span class="line"><span class="params">            bev_mask=<span class="literal">None</span>, level_start_index=<span class="literal">None</span>, flag=<span class="string">&#x27;encoder&#x27;</span>, **kwargs</span>):</span><br><span class="line">    <span class="keyword">if</span> residual <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        inp_residual = query</span><br><span class="line">        slots = torch.zeros_like(query)</span><br><span class="line">    <span class="keyword">if</span> query_pos <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        query = query + query_pos</span><br><span class="line"></span><br><span class="line">    bs, num_query, _ = query.size()</span><br><span class="line">    D = reference_points_cam.size(<span class="number">3</span>)  <span class="comment"># num_points_in_pillar (高度锚点数)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 计算每个相机命中的 BEV query 索引</span></span><br><span class="line">    indexes = []</span><br><span class="line">    <span class="keyword">for</span> i, mask_per_img <span class="keyword">in</span> <span class="built_in">enumerate</span>(bev_mask):</span><br><span class="line">        index_query_per_img = mask_per_img[<span class="number">0</span>].<span class="built_in">sum</span>(-<span class="number">1</span>).nonzero().squeeze(-<span class="number">1</span>)</span><br><span class="line">        indexes.append(index_query_per_img)</span><br><span class="line">    max_len = <span class="built_in">max</span>([<span class="built_in">len</span>(each) <span class="keyword">for</span> each <span class="keyword">in</span> indexes])</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 核心优化：只为命中的 query 分配显存，大幅节省 GPU 内存</span></span><br><span class="line">    queries_rebatch = query.new_zeros([bs, <span class="variable language_">self</span>.num_cams, max_len, <span class="variable language_">self</span>.embed_dims])</span><br><span class="line">    reference_points_rebatch = reference_points_cam.new_zeros(</span><br><span class="line">        [bs, <span class="variable language_">self</span>.num_cams, max_len, D, <span class="number">2</span>])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(bs):</span><br><span class="line">        <span class="keyword">for</span> i, reference_points_per_img <span class="keyword">in</span> <span class="built_in">enumerate</span>(reference_points_cam):</span><br><span class="line">            index_query_per_img = indexes[i]</span><br><span class="line">            queries_rebatch[j, i, :<span class="built_in">len</span>(index_query_per_img)] = query[j, index_query_per_img]</span><br><span class="line">            reference_points_rebatch[j, i, :<span class="built_in">len</span>(index_query_per_img)] = \</span><br><span class="line">                reference_points_per_img[j, index_query_per_img]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 调用可变形注意力：每个相机独立处理其命中的 queries</span></span><br><span class="line">    queries = <span class="variable language_">self</span>.deformable_attention(</span><br><span class="line">        query=queries_rebatch.view(bs * <span class="variable language_">self</span>.num_cams, max_len, <span class="variable language_">self</span>.embed_dims),</span><br><span class="line">        key=key, value=value,</span><br><span class="line">        reference_points=reference_points_rebatch.view(</span><br><span class="line">            bs * <span class="variable language_">self</span>.num_cams, max_len, D, <span class="number">2</span>),</span><br><span class="line">        spatial_shapes=spatial_shapes,</span><br><span class="line">        level_start_index=level_start_index</span><br><span class="line">    ).view(bs, <span class="variable language_">self</span>.num_cams, max_len, <span class="variable language_">self</span>.embed_dims)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 将各相机结果累加回原始 query 位置，并按命中相机数取平均</span></span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(bs):</span><br><span class="line">        <span class="keyword">for</span> i, index_query_per_img <span class="keyword">in</span> <span class="built_in">enumerate</span>(indexes):</span><br><span class="line">            slots[j, index_query_per_img] += queries[j, i, :<span class="built_in">len</span>(index_query_per_img)]</span><br><span class="line"></span><br><span class="line">    count = bev_mask.<span class="built_in">sum</span>(-<span class="number">1</span>) &gt; <span class="number">0</span></span><br><span class="line">    count = count.permute(<span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>).<span class="built_in">sum</span>(-<span class="number">1</span>)</span><br><span class="line">    count = torch.clamp(count, <span class="built_in">min</span>=<span class="number">1.0</span>)</span><br><span class="line">    slots = slots / count[..., <span class="literal">None</span>]  <span class="comment"># 按 |V_hit| 取平均</span></span><br><span class="line"></span><br><span class="line">    slots = <span class="variable language_">self</span>.output_proj(slots)</span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">self</span>.dropout(slots) + inp_residual</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details>
+<summary>📄 点击展开 TemporalSelfAttention.forward 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/BEVFormer/blob/master/projects/mmdet3d_plugin/bevformer/modules/temporal_self_attention.py">temporal_self_attention.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, query, key=<span class="literal">None</span>, value=<span class="literal">None</span>, identity=<span class="literal">None</span>,</span></span><br><span class="line"><span class="params">            query_pos=<span class="literal">None</span>, key_padding_mask=<span class="literal">None</span>, reference_points=<span class="literal">None</span>,</span></span><br><span class="line"><span class="params">            spatial_shapes=<span class="literal">None</span>, level_start_index=<span class="literal">None</span>, flag=<span class="string">&#x27;decoder&#x27;</span>, **kwargs</span>):</span><br><span class="line">    <span class="comment"># 序列首帧无历史 BEV 时，退化为自注意力 &#123;Q, Q&#125;</span></span><br><span class="line">    <span class="keyword">if</span> value <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        bs, len_bev, c = query.shape</span><br><span class="line">        value = torch.stack([query, query], <span class="number">1</span>).reshape(bs * <span class="number">2</span>, len_bev, c)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> identity <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        identity = query</span><br><span class="line">    <span class="keyword">if</span> query_pos <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        query = query + query_pos</span><br><span class="line"></span><br><span class="line">    bs, num_query, embed_dims = query.shape</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 关键：用当前 BEV + 历史 BEV 的拼接来预测偏移量和权重</span></span><br><span class="line">    query = torch.cat([value[:bs], query], -<span class="number">1</span>)  <span class="comment"># concat(B&#x27;_&#123;t-1&#125;, Q) → 2C</span></span><br><span class="line">    value = <span class="variable language_">self</span>.value_proj(value)</span><br><span class="line">    value = value.reshape(bs * <span class="variable language_">self</span>.num_bev_queue, num_value, <span class="variable language_">self</span>.num_heads, -<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 预测采样偏移量和注意力权重（对两个 BEV 队列分别预测）</span></span><br><span class="line">    sampling_offsets = <span class="variable language_">self</span>.sampling_offsets(query).view(</span><br><span class="line">        bs, num_query, <span class="variable language_">self</span>.num_heads, <span class="variable language_">self</span>.num_bev_queue,</span><br><span class="line">        <span class="variable language_">self</span>.num_levels, <span class="variable language_">self</span>.num_points, <span class="number">2</span>)</span><br><span class="line">    attention_weights = <span class="variable language_">self</span>.attention_weights(query).view(</span><br><span class="line">        bs, num_query, <span class="variable language_">self</span>.num_heads,</span><br><span class="line">        <span class="variable language_">self</span>.num_bev_queue, <span class="variable language_">self</span>.num_levels * <span class="variable language_">self</span>.num_points)</span><br><span class="line">    attention_weights = attention_weights.softmax(-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># reshape 并行处理两个 BEV 队列</span></span><br><span class="line">    attention_weights = attention_weights.permute(<span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>) \</span><br><span class="line">        .reshape(bs * <span class="variable language_">self</span>.num_bev_queue, num_query,</span><br><span class="line">                 <span class="variable language_">self</span>.num_heads, <span class="variable language_">self</span>.num_levels, <span class="variable language_">self</span>.num_points)</span><br><span class="line">    sampling_offsets = sampling_offsets.permute(<span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>) \</span><br><span class="line">        .reshape(bs * <span class="variable language_">self</span>.num_bev_queue, num_query,</span><br><span class="line">                 <span class="variable language_">self</span>.num_heads, <span class="variable language_">self</span>.num_levels, <span class="variable language_">self</span>.num_points, <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 可变形注意力（CUDA 加速）</span></span><br><span class="line">    output = MultiScaleDeformableAttnFunction.apply(</span><br><span class="line">        value, spatial_shapes, level_start_index,</span><br><span class="line">        sampling_locations, attention_weights, <span class="variable language_">self</span>.im2col_step)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 融合历史和当前：对 num_bev_queue 维度取平均</span></span><br><span class="line">    output = output.permute(<span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>)  <span class="comment"># (num_query, embed_dims, bs*2)</span></span><br><span class="line">    output = output.view(num_query, embed_dims, bs, <span class="variable language_">self</span>.num_bev_queue)</span><br><span class="line">    output = output.mean(-<span class="number">1</span>)  <span class="comment"># 历史 + 当前 取平均</span></span><br><span class="line">    output = output.permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)  <span class="comment"># → (bs, num_query, embed_dims)</span></span><br><span class="line"></span><br><span class="line">    output = <span class="variable language_">self</span>.output_proj(output)</span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">self</span>.dropout(output) + identity</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>nuScenes test 集 3D 检测（Table 1）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>模态</th>
+<th>Backbone</th>
+<th>NDS↑</th>
+<th>mAP↑</th>
+<th>mATE↓</th>
+<th>mAOE↓</th>
+<th>mAVE↓</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CenterPoint</td>
+<td>LiDAR</td>
+<td>—</td>
+<td>65.5</td>
+<td>58.0</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>FCOS3D</td>
+<td>Camera</td>
+<td>R101</td>
+<td>42.8</td>
+<td>35.8</td>
+<td>0.690</td>
+<td>0.452</td>
+<td>1.434</td>
+</tr>
+<tr>
+<td>DETR3D</td>
+<td>Camera</td>
+<td>V2-99</td>
+<td>47.9</td>
+<td>41.2</td>
+<td>0.641</td>
+<td>0.394</td>
+<td>0.845</td>
+</tr>
+<tr>
+<td>BEVFormer-S</td>
+<td>Camera</td>
+<td>R101</td>
+<td>46.2</td>
+<td>40.9</td>
+<td>0.650</td>
+<td>0.439</td>
+<td>0.925</td>
+</tr>
+<tr>
+<td><strong>BEVFormer</strong></td>
+<td>Camera</td>
+<td>R101</td>
+<td><strong>53.5</strong></td>
+<td><strong>44.5</strong></td>
+<td>0.631</td>
+<td>0.405</td>
+<td><strong>0.435</strong></td>
+</tr>
+<tr>
+<td><strong>BEVFormer</strong></td>
+<td>Camera</td>
+<td>V2-99</td>
+<td><strong>56.9</strong></td>
+<td><strong>48.1</strong></td>
+<td>0.582</td>
+<td>0.375</td>
+<td><strong>0.378</strong></td>
+</tr>
+</tbody></table>
+<p><strong>nuScenes val 集 3D 检测（Table 2）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>NDS</th>
+<th>mAP</th>
+<th>mAVE</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>FCOS3D</td>
+<td>R101</td>
+<td>41.5</td>
+<td>34.3</td>
+<td>1.292</td>
+</tr>
+<tr>
+<td>DETR3D</td>
+<td>R101</td>
+<td>42.5</td>
+<td>34.6</td>
+<td>0.842</td>
+</tr>
+<tr>
+<td>BEVFormer-S</td>
+<td>R101</td>
+<td>44.8</td>
+<td>37.5</td>
+<td>0.802</td>
+</tr>
+<tr>
+<td><strong>BEVFormer</strong></td>
+<td>R101</td>
+<td><strong>51.7</strong></td>
+<td><strong>41.6</strong></td>
+<td><strong>0.394</strong></td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ul>
+<li>BEVFormer (R101) 比 DETR3D (R101) 在 val 集高出 <strong>9.2 NDS</strong>（51.7 vs 42.5），在 test 集高出 <strong>9.0 NDS</strong></li>
+<li>时序融合对速度估计贡献最大：mAVE 从 0.925 降至 0.435（test, R101），改善幅度超 50%</li>
+<li>BEVFormer 的 56.9% NDS 逼近 LiDAR 方法 SSN（56.9%）和 PointPainting（58.1%）</li>
+</ul>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>空间注意力类型消融（验证洞察 1 &amp; 2，Table 5）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>注意力类型</th>
+<th>NDS</th>
+<th>mAP</th>
+<th>mATE</th>
+<th>显存</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VPN</td>
+<td>—</td>
+<td>33.4</td>
+<td>25.2</td>
+<td>0.926</td>
+<td>20G</td>
+</tr>
+<tr>
+<td>Lift-Splat</td>
+<td>—</td>
+<td>39.7</td>
+<td>34.8</td>
+<td>0.784</td>
+<td>20G</td>
+</tr>
+<tr>
+<td>BEVFormer-S</td>
+<td>Global</td>
+<td>40.4</td>
+<td>32.5</td>
+<td>0.837</td>
+<td>36G</td>
+</tr>
+<tr>
+<td>BEVFormer-S</td>
+<td>Points only</td>
+<td>42.3</td>
+<td>35.1</td>
+<td>0.753</td>
+<td>20G</td>
+</tr>
+<tr>
+<td><strong>BEVFormer-S</strong></td>
+<td><strong>Local (deformable)</strong></td>
+<td><strong>44.8</strong></td>
+<td><strong>37.5</strong></td>
+<td><strong>0.725</strong></td>
+<td><strong>20G</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li>可变形注意力（Local）同时优于全局注意力和纯参考点交互：NDS 44.8 vs 40.4 vs 42.3</li>
+<li>全局注意力虽不需要精确标定，但显存翻倍（36G vs 20G），且性能最差</li>
+<li>BEVFormer-S 已超越 Lift-Splat（44.8 vs 39.7 NDS），验证了 query-based BEV 生成的有效性</li>
+</ul>
+<p><strong>时序融合效果（验证洞察 3）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>时序</th>
+<th>NDS</th>
+<th>mAP</th>
+<th>mAVE</th>
+<th>低可见度召回率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEVFormer-S</td>
+<td>✗</td>
+<td>44.8</td>
+<td>37.5</td>
+<td>0.802</td>
+<td>baseline</td>
+</tr>
+<tr>
+<td>BEVFormer</td>
+<td>✓</td>
+<td>51.7</td>
+<td>41.6</td>
+<td>0.394</td>
+<td>+6.0% (0-40%)</td>
+</tr>
+</tbody></table>
+<p>训练帧数消融（Table 7）：</p>
+<table>
+<thead>
+<tr>
+<th>训练帧数</th>
+<th>NDS</th>
+<th>mAP</th>
+<th>mAVE</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>44.8</td>
+<td>37.5</td>
+<td>0.802</td>
+</tr>
+<tr>
+<td>2</td>
+<td>49.0</td>
+<td>38.8</td>
+<td>0.467</td>
+</tr>
+<tr>
+<td>3</td>
+<td>51.0</td>
+<td>41.0</td>
+<td>0.423</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td><strong>51.7</strong></td>
+<td><strong>41.6</strong></td>
+<td><strong>0.394</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>51.7</td>
+<td>41.2</td>
+<td>0.387</td>
+</tr>
+</tbody></table>
+<p>4 帧后性能饱和，更多帧不再有显著提升，论文默认使用 4 帧。</p>
+<p><strong>设计选择消融（Table 8）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>自车对齐(A)</th>
+<th>随机采样(R)</th>
+<th>双输入预测(B)</th>
+<th>NDS</th>
+<th>mAP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>#1</td>
+<td>✗</td>
+<td>✓</td>
+<td>✓</td>
+<td>51.0</td>
+<td>41.0</td>
+</tr>
+<tr>
+<td>#2</td>
+<td>✓</td>
+<td>✗</td>
+<td>✓</td>
+<td>51.3</td>
+<td>41.0</td>
+</tr>
+<tr>
+<td>#3</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>51.3</td>
+<td>40.4</td>
+</tr>
+<tr>
+<td><strong>#4</strong></td>
+<td><strong>✓</strong></td>
+<td><strong>✓</strong></td>
+<td><strong>✓</strong></td>
+<td><strong>51.7</strong></td>
+<td><strong>41.6</strong></td>
+</tr>
+</tbody></table>
+<p>自车运动对齐、随机帧采样增强、双输入（Q + B’_{t-1}）预测偏移量三者均有正向贡献。</p>
+<h3 id="5-3-性能瓶颈与失效场景"><a href="#5-3-性能瓶颈与失效场景" class="headerlink" title="5.3 性能瓶颈与失效场景"></a>5.3 性能瓶颈与失效场景</h3><p><strong>性能瓶颈</strong>：</p>
+<ul>
+<li><strong>Backbone 是推理延迟瓶颈</strong>：Table 6 显示 BEV Encoder 从 6 层减到 1 层（130ms→25ms），但 backbone 固定开销不变，整体加速受限</li>
+<li><strong>Camera-based 深度定位精度</strong>：mATE（0.631m）仍远高于 LiDAR 方法，准确推断 3D 位置仍是纯相机方法的长期挑战</li>
+<li><strong>小远目标检测</strong>：可视化结果（Fig. 4）显示 BEVFormer 在小型&#x2F;远距离目标上仍有漏检</li>
+</ul>
+<p><strong>失效场景</strong>：</p>
+<ul>
+<li><strong>严重标定偏差</strong>：Appendix B 实验显示，在 level 4 外参噪声下 NDS 下降 14.3%（BEVFormer）。虽然可变形注意力相比纯参考点交互更鲁棒（14.3% vs 17.3%），但对标定精度仍有依赖</li>
+<li><strong>序列首帧无时序信息</strong>：TSA 退化为自注意力，此时性能等价于 BEVFormer-S，速度估计能力完全丧失</li>
+<li><strong>负迁移（多任务联合训练）</strong>：Table 4 显示检测+分割联合训练时，道路分割 IoU 从 80.1% 降至 77.5%，车道线从 25.7% 降至 23.9%</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:         ResNet-101-DCN (FCOS3D pretrained) / VoVNet-99 (DD3D pretrained)</span><br><span class="line">FPN:              Multi-scale (1/16, 1/32, 1/64), C=256</span><br><span class="line">Input Resolution: 900 × 1600</span><br><span class="line">BEV Range:        [-51.2, 51.2] × [-51.2, 51.2] m</span><br><span class="line">BEV Resolution:   200 × 200, grid 0.512m</span><br><span class="line">BEV Encoder:      6 layers, embed_dims=256</span><br><span class="line">Height Anchors:   4 points, [-5m, 3m] uniform</span><br><span class="line">Temporal Frames:  4 (training), sequential (inference)</span><br><span class="line">Detection Head:   Deformable DETR, 900 queries, L1 loss only</span><br><span class="line">Optimizer:        AdamW, lr=2e-4, weight_decay=1e-2</span><br><span class="line">LR Schedule:      Cosine annealing, backbone lr_mult=0.1</span><br><span class="line">Batch Size:       1 per GPU (6 views)</span><br><span class="line">Training Epochs:  24</span><br><span class="line">Framework:        mmdetection3d (PyTorch)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>FCOS3D 预训练必要性</strong>：Backbone 从 FCOS3D checkpoint 初始化，直接 ImageNet 初始化会导致注意力发散</li>
+<li><strong>Deformable Attention CUDA 编译</strong>：<code>MultiScaleDeformableAttnFunction</code> 需要编译 CUDA 扩展（<code>ms_deform_attn_forward/backward</code>），FP16 不稳定需用 FP32</li>
+<li><strong>历史 BEV 无梯度</strong>：训练时前 3 帧递归生成 $B_{t-3}, B_{t-2}, B_{t-1}$ 需用 <code>torch.no_grad()</code>，仅当前帧 $B_t$ 参与反向传播</li>
+<li><strong>自车运动对齐</strong>：<code>prev_bev</code> 需根据相邻帧间的 ego-motion 变换矩阵做空间平移对齐，使同一网格位置对应同一真实世界位置</li>
+<li><strong>4 帧随机采样</strong>：从过去 2s 的连续序列中随机采样 3 帧 + 当前帧，这个随机采样策略本身是一种数据增强</li>
+<li><strong>shift_ref_2d 已知 bug</strong>：官方代码注释中标注了 <code>shift_ref_2d = ref_2d.clone()</code> 有 bug，但为了论文结果可复现保留了该实现</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li><strong>更大感受野的 Backbone</strong>：V2-99（DD3D 预训练）比 R101 提升 3.4 NDS（56.9 vs 53.5），更强的 backbone 直接提升图像特征质量</li>
+<li><strong>增加 BEV 分辨率</strong>：当前 200×200（0.512m&#x2F;格），提升到 0.25m&#x2F;格 可改善小目标检测精度，但计算量和显存二次增长</li>
+<li><strong>引入深度先验</strong>：BEVFormer 不使用显式深度，但 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 证明显式深度监督能显著改善 mATE，两种路线的融合（如在 SCA 中引入深度引导采样）是有潜力的方向</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li><strong>轻量化配置</strong>：Table 6 Config D（单尺度 + 1 层 encoder + 小 BEV）仅 7ms encoder 延迟，NDS 47.8%，但 backbone 仍是瓶颈</li>
+<li><strong>高效 Backbone</strong>：当前 R101-DCN 的推理时间远大于 BEV Encoder，替换为 EfficientNet &#x2F; SwinT 等轻量 backbone 收益更大</li>
+<li><strong>BEV Query 稀疏化</strong>：非关键区域的 BEV query 可跳过（如远距离&#x2F;背景区域），减少 SCA 的计算量</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>“查询驱动”的跨视图特征聚合</strong>：BEV Queries + Deformable Attention 的模式不限于 BEV 感知——任何多视图融合任务（如多传感器融合、多模态融合）都可以用可学习 queries 主动查询各输入源的兴趣区域，替代显式的几何投影或全局注意力</li>
+<li><strong>RNN 式递归时序融合</strong>：仅保存上一帧的”状态”即可实现理论上无限长时序依赖，远优于固定窗口堆叠。这一思路可迁移到视频理解、在线建图、轨迹预测等任务</li>
+<li><strong>柱体参考点投影</strong>：从 BEV 网格沿高度轴生成柱体 3D 参考点、再投影到 2D 获取感兴趣视图的方法，提供了一种通用的”3D → 2D 稀疏索引”范式，可用于任何需要从 3D 空间查询 2D 信息的场景</li>
+<li><strong>多任务共享 BEV 特征</strong>：统一的 BEV 表示可直接接检测头和分割头，避免为不同任务维护独立的特征管线</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li><strong>不使用显式深度，mATE 较高</strong>：BEVFormer 的翻译误差（mATE 0.631m）明显高于后续加入深度监督的方法（如 BEVDepth 的 mATE ~0.45m），纯注意力驱动的深度感知仍不如显式几何约束</li>
+<li><strong>BEV-grid-query 的计算瓶颈</strong>：200×200 &#x3D; 40K 个 BEV query 每个都需做多视图 deformable sampling，本质是 scatter-gather 型算子（随机访存、cache 不连续），GPU 利用率远低于 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 的 dense tensor 计算。这也是 BEV-grid-query 路线后续跟随者极少的根本原因——工程落地困难，TensorRT 导出复杂，延迟报动大</li>
+<li><strong>训练开销较大</strong>：6 层 encoder × 6 视图 × 多尺度特征 × 4 帧时序，R101-DCN base 版需 28.5G 显存，训练成本高于 LSS-based 方法</li>
+<li><strong>对 Backbone 预训练依赖强</strong>：必须从 FCOS3D&#x2F;DD3D 等 3D 感知任务的 checkpoint 初始化，若从 ImageNet 直接训练则收敛困难</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li><strong>开创 Transformer-based BEV 生成路线</strong>：BEVFormer 是首个用 Transformer 注意力（而非显式深度投影）生成 BEV 特征并达到 SOTA 的方法，与 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a>&#x2F;<a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a> 的显式深度路线形成两大技术流派。后续的 BEVFormerV2、<a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a>、<a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a>、SparseBEV 等均延续了 query-based 范式</li>
+<li><strong>确立”时序 BEV”的基本框架</strong>：RNN 式递归融合的设计被后续 SOLOFusion、VideoBEV 等大量工作采纳，成为时序 BEV 融合的标准范式之一</li>
+<li><strong>推动 BEV 感知统一架构</strong>：BEVFormer 首次在同一框架下同时处理检测和分割任务，启发了后续 UniAD、Planning-oriented AD 等端到端自动驾驶系统将感知、预测、规划统一在 BEV 空间中</li>
+<li><strong>Waymo Challenge 冠军方案基础</strong>：BEVFormer++ 基于 BEVFormer 改进，获得 CVPR 2022 Waymo 3D Camera-Only Detection Challenge 冠军，验证了该框架在工业级竞赛中的竞争力</li>
+</ul>
+<hr>
+<h2 id="BEVFormer-v2：透视视角监督解锁现代-Backbone"><a href="#BEVFormer-v2：透视视角监督解锁现代-Backbone" class="headerlink" title="BEVFormer v2：透视视角监督解锁现代 Backbone"></a>BEVFormer v2：透视视角监督解锁现代 Backbone</h2><blockquote>
+<p>论文：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2211.10439">BEVFormer v2: Adapting Modern Image Backbones to Bird’s-Eye-View Recognition via Perspective Supervision</a>（arXiv 2022，同一实验室：清华大学&#x2F;商汤，Jifeng Dai 等）</p>
+</blockquote>
+<p>BEVFormer v2 解决了 BEVFormer 的核心工程问题：<strong>BEV 监督对 Backbone 的梯度信号太稀疏、太间接</strong>，导致非深度预训练的现代 Backbone（如 ConvNeXt、InternImage）难以有效适配。</p>
+<h3 id="BEVFormerV2-核心改进"><a href="#BEVFormerV2-核心改进" class="headerlink" title="BEVFormerV2 核心改进"></a>BEVFormerV2 核心改进</h3><h4 id="改进-1：透视视角辅助监督"><a href="#改进-1：透视视角辅助监督" class="headerlink" title="改进 1：透视视角辅助监督"></a>改进 1：透视视角辅助监督</h4><p>BEV 检测头的损失经过多层 Transformer 传播到 Backbone，梯度稀疏且间接。BEVFormer v2 在 Backbone 上直接加一个 FCOS3D 风格的透视 3D 检测头，提供密集、直接的图像级监督。总损失：</p>
+
+$$\mathcal{L}_{total} = \lambda_{bev} \mathcal{L}_{bev} + \lambda_{pers} \mathcal{L}_{pers}$$
+
+
+<p>消融实验显示（R101, 48ep, val, 无时序）：</p>
+<ul>
+<li>BEV Only: 42.6% NDS &#x2F; 35.5% mAP</li>
+<li>Perspective &amp; BEV: <strong>45.1% NDS &#x2F; 37.4% mAP</strong>（+2.5% NDS）</li>
+<li>BEV &amp; BEV（两阶段但均用 BEV 头）: 42.8% NDS——证明提升来自透视监督而非两阶段结构</li>
+</ul>
+<p>透视监督对 R50&#x2F;DLA-34&#x2F;R101&#x2F;V2-99&#x2F;InternImage-B 等不同 Backbone 均稳定提升 ~3% NDS &#x2F; ~2% mAP。</p>
+<h4 id="改进-2：两阶段-BEV-检测器"><a href="#改进-2：两阶段-BEV-检测器" class="headerlink" title="改进 2：两阶段 BEV 检测器"></a>改进 2：两阶段 BEV 检测器</h4><p>透视头的预测结果经 NMS 后，将 3D 框中心投影到 BEV 平面作为 per-image reference points，与原始可学习 query 合并为“混合 object queries”，送入 Deformable DETR 解码器。这使第二阶段既能利用图像级概率先验，也保留原始 query 的全局搜索能力。</p>
+<h4 id="改进-3：重设计时序编码器"><a href="#改进-3：重设计时序编码器" class="headerlink" title="改进 3：重设计时序编码器"></a>改进 3：重设计时序编码器</h4><p>用 warp-and-concatenate 替代原始 RNN 式递归，并增大采样间隔（从 0.5s 到 2s）获取更长时距信息。离线模式还支持双向时序融合（未来帧）。</p>
+<h3 id="BEVFormerV2-主要结果"><a href="#BEVFormerV2-主要结果" class="headerlink" title="BEVFormerV2 主要结果"></a>BEVFormerV2 主要结果</h3><p><strong>nuScenes test 集</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>NDS</th>
+<th>mAP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEVFormer</td>
+<td>V2-99†</td>
+<td>0.569</td>
+<td>0.481</td>
+</tr>
+<tr>
+<td>PETRv2</td>
+<td>V2-99</td>
+<td>0.582</td>
+<td>0.490</td>
+</tr>
+<tr>
+<td>BEVDepth</td>
+<td>V2-99†</td>
+<td>0.600</td>
+<td>0.503</td>
+</tr>
+<tr>
+<td><strong>BEVFormer v2</strong></td>
+<td><strong>InternImage-B</strong></td>
+<td><strong>0.620</strong></td>
+<td><strong>0.540</strong></td>
+</tr>
+<tr>
+<td><strong>BEVFormer v2</strong></td>
+<td><strong>InternImage-XL</strong></td>
+<td><strong>0.634</strong></td>
+<td><strong>0.556</strong></td>
+</tr>
+</tbody></table>
+<p>† 表示 V2-99 经过深度估计预训练。BEVFormer v2 的 InternImage Backbone 仅用 COCO 预训练，无需任何 3D 深度预训练。</p>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>透视监督在 24ep 即可达到 BEV-only 48ep 的性能，收敛速度约快一倍</li>
+<li>InternImage-XL 仅用 COCO 预训练即创 63.4% NDS SOTA，超 BEVStereo（V2-99 + 深度预训练 + 90ep）+2.4% NDS</li>
+<li>透视监督贡献 +2.2% NDS &#x2F; +2.6% mAP（Tab.6 对比“All but Perspective” vs 全配置）</li>
+</ol>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9ABEV-Queries-%E4%BD%9C%E4%B8%BA%E5%8F%AF%E5%AD%A6%E4%B9%A0%E6%A0%85%E6%A0%BC%E2%80%94%E2%80%94%E7%94%A8%E6%B3%A8%E6%84%8F%E5%8A%9B%E6%9B%BF%E4%BB%A3%E6%98%BE%E5%BC%8F%E6%B7%B1%E5%BA%A6%E6%8A%95%E5%BD%B1"><span class="toc-text">洞察 1：BEV Queries 作为可学习栅格——用注意力替代显式深度投影</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E7%A9%BA%E9%97%B4%E4%BA%A4%E5%8F%89%E6%B3%A8%E6%84%8F%E5%8A%9B%E2%80%94%E2%80%94%E4%BB%8E-BEV-%E2%80%9C%E6%9F%B1%E4%BD%93%E2%80%9D%E5%88%B0-2D-%E5%9B%BE%E5%83%8F%E7%9A%84%E9%AB%98%E6%95%88%E9%87%87%E6%A0%B7"><span class="toc-text">洞察 2：空间交叉注意力——从 BEV “柱体”到 2D 图像的高效采样</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E6%97%B6%E5%BA%8F%E8%87%AA%E6%B3%A8%E6%84%8F%E5%8A%9B%E2%80%94%E2%80%94%E4%BB%A5-RNN-%E6%96%B9%E5%BC%8F%E9%80%92%E5%BD%92%E8%9E%8D%E5%90%88%E5%8E%86%E5%8F%B2-BEV"><span class="toc-text">洞察 3：时序自注意力——以 RNN 方式递归融合历史 BEV</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E4%B8%8E%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF"><span class="toc-text">5.3 性能瓶颈与失效场景</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#BEVFormer-v2%EF%BC%9A%E9%80%8F%E8%A7%86%E8%A7%86%E8%A7%92%E7%9B%91%E7%9D%A3%E8%A7%A3%E9%94%81%E7%8E%B0%E4%BB%A3-Backbone"><span class="toc-text">BEVFormer v2：透视视角监督解锁现代 Backbone</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#BEVFormerV2-%E6%A0%B8%E5%BF%83%E6%94%B9%E8%BF%9B"><span class="toc-text">BEVFormerV2 核心改进</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%94%B9%E8%BF%9B-1%EF%BC%9A%E9%80%8F%E8%A7%86%E8%A7%86%E8%A7%92%E8%BE%85%E5%8A%A9%E7%9B%91%E7%9D%A3"><span class="toc-text">改进 1：透视视角辅助监督</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%94%B9%E8%BF%9B-2%EF%BC%9A%E4%B8%A4%E9%98%B6%E6%AE%B5-BEV-%E6%A3%80%E6%B5%8B%E5%99%A8"><span class="toc-text">改进 2：两阶段 BEV 检测器</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%94%B9%E8%BF%9B-3%EF%BC%9A%E9%87%8D%E8%AE%BE%E8%AE%A1%E6%97%B6%E5%BA%8F%E7%BC%96%E7%A0%81%E5%99%A8"><span class="toc-text">改进 3：重设计时序编码器</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#BEVFormerV2-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">BEVFormerV2 主要结果</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B/" class="tag">#目标检测</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

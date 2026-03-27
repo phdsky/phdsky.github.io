@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Sparse4D 系列: 基于稀疏时空融合的多视图 3D 感知 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Sparse4D 系列: 基于稀疏时空融合的多视图 3D 感知</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2022年11月19日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Multi-Camera 3D Object Detection &#x2F; Multi-Object Tracking<br>Method: Sparse 4D Keypoint Sampling, Deformable Feature Aggregation, Recurrent Instance Propagation, Temporal Instance Denoising<br>Venue: arXiv<br>Year: 2022–2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2211.10581">https://arxiv.org/abs/2211.10581</a> (v1) &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2305.14018">https://arxiv.org/abs/2305.14018</a> (v2) &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2311.11722">https://arxiv.org/abs/2311.11722</a> (v3)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/HorizonRobotics/Sparse4D">https://github.com/HorizonRobotics/Sparse4D</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>BEV-based 方法（如 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a>、<a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>）通过构建 dense BEV 特征取得了显著进展，但 dense 视角变换计算量大、感知范围受限于 BEV 栅格尺寸、且高度信息被压缩。本文介绍 <strong>Sparse4D</strong> 系列（v1→v2→v3），采用完全不同的路线——以<strong>稀疏实例（anchor + instance feature）</strong>为核心，通过 <strong>4D 关键点采样</strong>（空间 + 时间）在多视图多尺度多时间戳图像特征上稀疏采样并层次化融合，迭代精炼 3D 框。v1 提出 Deformable 4D Aggregation 和 Depth Reweight Module；v2 将时序融合从 $O(T)$ 多帧采样改为 $O(1)$ 递归实例传播，并引入 Efficient Deformable Aggregation（EDA）和 Dense Depth Supervision；v3 进一步通过 Temporal Instance Denoising、Quality Estimation（centerness + yawness）和 Decoupled Attention 提升训练收敛性，并以极简方式将检测器扩展为端到端跟踪器。</p>
+<p>在 nuScenes test 集上，Sparse4Dv3（VoV-99）达到 <strong>65.6% NDS &#x2F; 57.0% mAP</strong>，刷新纯相机方法记录；最强配置（EVA02-Large + 未来帧）达到 <strong>71.9% NDS</strong>，甚至超越部分 LiDAR 方法的 NDS 和 mAVE。跟踪方面，v3 以 <strong>67.7% AMOTA</strong> 达到 SOTA。</p>
+<p><strong>核心论点</strong>：多视图 3D 感知不必依赖 dense BEV 表示——以稀疏实例为核心、用 4D 关键点做局部采样即可高效完成特征聚合和时序对齐；稀疏方法的检测头计算量与图像分辨率无关，天然适合高分辨率 &#x2F; 大感知范围场景，且实例级输出直接服务于端到端跟踪和规划。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2022 年底，多相机 3D 检测的主流方案可分为三类：</p>
+<table>
+<thead>
+<tr>
+<th>方法类型</th>
+<th>代表作</th>
+<th>特征融合方式</th>
+<th>核心问题</th>
+<th>nuScenes val NDS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LSS-based (Dense BEV)</td>
+<td><a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>, <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a></td>
+<td>像素级深度 → dense 视角变换</td>
+<td>计算量大、范围受限于 BEV 栅格、高度信息丢失</td>
+<td>~51.7</td>
+</tr>
+<tr>
+<td>Query-based (Dense Attn)</td>
+<td>PETR, PETRv2</td>
+<td>3D PE + 全局注意力</td>
+<td>计算量随图像分辨率二次增长</td>
+<td>~53.7</td>
+</tr>
+<tr>
+<td>Query-based (Sparse)</td>
+<td>DETR3D</td>
+<td>单参考点投影采样</td>
+<td>特征采样不充分，无时序融合</td>
+<td>~42.5</td>
+</tr>
+</tbody></table>
+<p>三类方案的根本矛盾：</p>
+<ol>
+<li><strong>Dense BEV 路线</strong>：视角变换需处理全部像素的 $H \times W \times D$ 个点（<a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a>），计算量固定且与感知范围&#x2F;分辨率强耦合；BEV 栅格压缩了高度信息，不适合路牌、红绿灯等需要高度区分的任务</li>
+<li><strong>全局注意力路线</strong>：PETR 的计算量为 $O(N_{query} \times N_{pixel})$，无法处理高分辨率（如 4K）输入</li>
+<li><strong>已有稀疏方法</strong>：DETR3D 每个 anchor 仅用单个参考点采样，特征表达能力严重不足；且所有稀疏方法均缺乏时序融合</li>
+</ol>
+<p><strong>核心痛点</strong>：如何设计一种检测头计算量与图像分辨率无关的稀疏方案，同时在特征采样充分度、时序融合效率和训练收敛性上全面追赶 dense 方法。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：4D-关键点稀疏采样——用多关键点替代单参考点和-dense-BEV"><a href="#洞察-1：4D-关键点稀疏采样——用多关键点替代单参考点和-dense-BEV" class="headerlink" title="洞察 1：4D 关键点稀疏采样——用多关键点替代单参考点和 dense BEV"></a>洞察 1：4D 关键点稀疏采样——用多关键点替代单参考点和 dense BEV</h3><p><strong>传统做法</strong>：DETR3D 每个 anchor 仅用 1 个 3D 参考点投影到图像上采样，信息极度稀疏；BEV-based 方法为获取丰富特征不得不构建完整的 dense 表示。</p>
+<p><strong>本文做法</strong>：为每个 3D anchor 分配 $K$ 个关键点（$K_F$ 个固定点 + $K_L$ 个可学习点），分布在 anchor 框的中心和六面中心（固定）以及由实例特征预测的自适应位置（可学习）。这些关键点进一步沿时间轴扩展为 <strong>4D 关键点</strong> $P_m \in \mathbb{R}^{K \times T \times 3}$，通过速度补偿和 ego motion 对齐投影到各历史帧的图像坐标系：</p>
+
+$$P_{m,t}' = P_{m,t_0} - dt \cdot (t_0 - t) \cdot [v_x, v_y, v_z]_m$$
+$$P_{m,t} = R_{t_0 \to t} \cdot P_{m,t}' + T_{t_0 \to t}$$
+
+
+<p>采样后的多维特征 $f_m \in \mathbb{R}^{K \times T \times N \times S \times C}$ 通过<strong>层次化融合</strong>（先按 view&#x2F;scale 加权求和，再沿时间轴顺序融合，最后多关键点求和）生成高质量实例特征。</p>
+<p><strong>为什么更好</strong>：</p>
+<ul>
+<li>多关键点采样提取 anchor 内部丰富的上下文（vs. DETR3D 的单点）</li>
+<li>关键点天然扩展到时间维度，实现特征级的时序对齐（vs. BEV-based 的帧级对齐）</li>
+<li>采样点数量仅与 anchor 数（900）和关键点数（13）相关，与图像分辨率无关</li>
+</ul>
+<h3 id="洞察-2：递归实例传播——从-O-T-多帧采样到-O-1-递归传播"><a href="#洞察-2：递归实例传播——从-O-T-多帧采样到-O-1-递归传播" class="headerlink" title="洞察 2：递归实例传播——从 $O(T)$ 多帧采样到 $O(1)$ 递归传播"></a>洞察 2：递归实例传播——从 $O(T)$ 多帧采样到 $O(1)$ 递归传播</h3><p><strong>传统做法</strong>（Sparse4D v1）：时序融合需在每帧推理时对所有历史帧重复做关键点投影 + 图像特征采样，计算量和显存随历史帧数 $T$ 线性增长。$T&#x3D;9$ 时 FPS 从 21.5 降至 6.1，显存从 424M 涨至 1149M。</p>
+<p><strong>本文做法</strong>（v2）：将实例解耦为<strong>结构化 anchor</strong>（3D 框参数，有物理意义）和<strong>隐式 instance feature</strong>（高阶语义特征）。跨帧传播时，只需对 anchor 做 ego motion 投影并重新编码位置嵌入，instance feature 直接复用：</p>
+
+$$A_t = \text{Project}_{t-1 \to t}(A_{t-1}), \quad E_t = \Psi(A_t), \quad F_t = F_{t-1}$$
+
+
+<p>Instance Bank 在每帧结束时缓存 top-$k$ 高置信度实例，下一帧将其与新初始化实例合并输入 decoder。Temporal Cross-Attention 在 decoder 中融合当前实例与历史传播实例。</p>
+<p><strong>为什么更好</strong>：</p>
+<ul>
+<li>时序融合复杂度从 $O(T)$ 降至 $O(1)$，推理速度几乎不受历史帧数影响</li>
+<li>递归传播理论上可累积无限长时序信息（vs. v1 受 GPU 显存限制最多 9 帧）</li>
+<li>实例级传播直接产出跨帧关联关系，是后续端到端跟踪（v3）的基础</li>
+</ul>
+<h3 id="洞察-3：Temporal-Instance-Denoising-Quality-Estimation——解决稀疏方法的训练收敛难题"><a href="#洞察-3：Temporal-Instance-Denoising-Quality-Estimation——解决稀疏方法的训练收敛难题" class="headerlink" title="洞察 3：Temporal Instance Denoising + Quality Estimation——解决稀疏方法的训练收敛难题"></a>洞察 3：Temporal Instance Denoising + Quality Estimation——解决稀疏方法的训练收敛难题</h3><p><strong>传统做法</strong>：稀疏检测器使用 one-to-one 匈牙利匹配，正样本数量极少且早期匹配不稳定，导致 decoder 训练效率低、收敛慢。dense-BEV 方法天然拥有大量 BEV 栅格像素参与训练，无此问题。</p>
+<p><strong>本文做法</strong>（v3）：</p>
+<ol>
+<li><strong>Temporal Instance Denoising</strong>：对 GT 添加随机噪声生成 $M$ 组 noisy anchors，通过二分图匹配分配正负样本，提供稳定且充足的训练信号。关键创新是将 noisy instances 沿时间轴传播（ego motion + 速度补偿），使 decoder 在时序场景下也获得足够多的正样本</li>
+<li><strong>Quality Estimation</strong>：引入 centerness（位置质量）和 yawness（朝向质量）作为辅助监督。推理时用 centerness × cls_confidence 作为最终得分排序依据，使检测结果排序更准确</li>
+</ol>
+
+$$C = \exp(-\|[x,y,z]_{pred} - [x,y,z]_{gt}\|_2)$$
+$$Y = [\sin\theta, \cos\theta]_{pred} \cdot [\sin\theta, \cos\theta]_{gt}$$
+
+
+<p><strong>为什么更好</strong>：</p>
+<ul>
+<li>Denoising 使正样本数增加数倍，训练收敛显著加速（Figure 6(a) 所示 loss 曲线和 metric 曲线均快速下降）</li>
+<li>Quality Estimation 改善高置信度但低质量预测的排序问题，mATE 降低 2.8%</li>
+<li>两者结合使 v3 在 R50 上比 v2 提升 3.0% mAP &#x2F; 2.2% NDS &#x2F; 7.6% AMOTA</li>
+</ul>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>71.9% NDS</strong>：nuScenes test 集最强配置（EVA02-Large + 未来帧），超越部分 LiDAR 方法</li>
+<li>**$O(T) \to O(1)$**：v2 递归时序融合将计算复杂度从线性降至常数</li>
+<li><strong>+7.6% AMOTA</strong>：v3 训练改进对跟踪的提升幅度（R50, 41.4→49.0），证明检测收敛性直接影响跟踪质量</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3>
+$$\{I_t^i\}_{i=1}^{N} \xrightarrow{\text{Backbone+FPN}} F_t \xrightarrow[\text{+ Instance Bank}]{\text{Decoder (×6)}} \{(B_m, F_m, \text{cls}_m)\} \xrightarrow{\text{ID Assignment}} \text{3D Boxes + Tracks}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2211.10581/assets/images/framework.png" alt="Sparse4D 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+Multi-view Images (6 cams, multi-timestamp)
+          │
+          ▼
+  Image Encoder (ResNet/VoV + FPN)
+  → Multi-scale Feature Maps I = {I_{t,n,s}}
+          │
+          ▼                          ┌─────────────────────┐
+  Instance Bank                      │ Temporal Instances   │
+  ├─ Learnable Anchors (300)         │ (top-600 from prev) │
+  └─ Learnable Features (300)        └──────────┬──────────┘
+          │                                      │
+          ▼                                      ▼
+  ┌──────────────────────────────────────────────────────┐
+  │         Decoder Layer (×1 single-frame + ×5 multi)   │
+  │   ┌──────────────────────────────────────────┐       │
+  │   │ Temporal Cross-Attention (temp_gnn)      │◄──────┘
+  │   │ Q=instance, K/V=temporal instances       │
+  │   ├──────────────────────────────────────────┤
+  │   │ Instance Self-Attention (gnn)            │
+  │   │ Decoupled: concat(F, E) instead of F+E  │
+  │   ├──────────────────────────────────────────┤
+  │   │ Deformable 4D Aggregation (deformable)   │
+  │   │ Keypoints → project → sample → fuse      │
+  │   ├──────────────────────────────────────────┤
+  │   │ FFN + Refine Layer                       │
+  │   │ → Δ(x,y,z,w,l,h,yaw,vx,vy) + cls + qt  │
+  │   └──────────────────────────────────────────┘
+  └──────────────────────────────────────────────────────┘
+          │
+          ▼
+  3D Boxes (10-dim) + Classification + Quality
+          │
+  ┌───────┴───────┐
+  │ Instance Bank │  cache top-k → next frame
+  │ ID Assignment │  confidence > T → assign ID
+  └───────────────┘
+          │
+          ▼
+  Detection Results + Tracking Trajectories
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th>模块</th>
+<th>输入</th>
+<th>输出</th>
+<th>功能</th>
+<th>关键参数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Deformable 4D Aggregation</td>
+<td>anchor, instance_feature, feature_maps</td>
+<td>更新的 instance_feature</td>
+<td>4D 关键点稀疏采样 + 层次化融合</td>
+<td>$K_F$&#x3D;7, $K_L$&#x3D;6, $S$&#x3D;4</td>
+</tr>
+<tr>
+<td>Instance Bank</td>
+<td>上帧 top-k instances + 当前初始化 instances</td>
+<td>合并后的 instances</td>
+<td>递归传播 + top-k 选择</td>
+<td>600 temporal + 300 new</td>
+</tr>
+<tr>
+<td>Anchor Encoder</td>
+<td>anchor (11-dim)</td>
+<td>anchor_embed (256-dim)</td>
+<td>结构化位置编码</td>
+<td>MLP</td>
+</tr>
+<tr>
+<td>Refine Layer</td>
+<td>instance_feature, anchor</td>
+<td>精炼 anchor + cls + quality</td>
+<td>逐层迭代精炼</td>
+<td>6 层 cascade</td>
+</tr>
+<tr>
+<td>Temporal Cross-Attention</td>
+<td>current queries, temporal instances</td>
+<td>融合后 queries</td>
+<td>时序特征融合</td>
+<td>Decoupled Attention (v3)</td>
+</tr>
+<tr>
+<td>Denoising Sampler</td>
+<td>GT + noise</td>
+<td>noisy anchors + targets</td>
+<td>训练时辅助正样本生成</td>
+<td>$M$&#x3D;5 groups, 3 temporal</td>
+</tr>
+</tbody></table>
+<p><strong>损失函数</strong>：</p>
+
+$$\mathcal{L} = \lambda_1 \mathcal{L}_{cls} + \lambda_2 \mathcal{L}_{box} + \lambda_3 \mathcal{L}_{depth} + \lambda_4 (\text{CE}(Y_{pred}, Y) + \text{Focal}(C_{pred}, C))$$
+
+
+其中 $\mathcal{L}_{cls}$ 为 Focal Loss，$\mathcal{L}_{box}$ 为 $L_1$ Loss，$\mathcal{L}_{depth}$ 为 dense depth 辅助监督（$L_1$，仅训练时），最后一项为 Quality Estimation 损失（v3）。
+
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>核心代码来自 <a target="_blank" rel="noopener" href="https://github.com/HorizonRobotics/Sparse4D">HorizonRobotics&#x2F;Sparse4D</a> 仓库 <code>projects/mmdet3d_plugin/models/</code>：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>类&#x2F;函数</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>blocks.py</code></td>
+<td><code>DeformableFeatureAggregation.forward</code></td>
+<td>关键点生成→投影→采样→融合</td>
+</tr>
+<tr>
+<td><code>blocks.py</code></td>
+<td><code>DeformableFeatureAggregation.feature_sampling</code></td>
+<td>多视图多尺度 grid_sample</td>
+</tr>
+<tr>
+<td><code>instance_bank.py</code></td>
+<td><code>InstanceBank.get</code></td>
+<td>获取当前帧实例（合并 temporal + new）</td>
+</tr>
+<tr>
+<td><code>instance_bank.py</code></td>
+<td><code>InstanceBank.cache</code></td>
+<td>缓存 top-k 实例供下帧使用</td>
+</tr>
+<tr>
+<td><code>sparse4d_head.py</code></td>
+<td><code>Sparse4DHead.forward</code></td>
+<td>Decoder 主循环</td>
+</tr>
+</tbody></table>
+<details><summary>📄 点击展开 DeformableFeatureAggregation.forward 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/HorizonRobotics/Sparse4D/blob/main/projects/mmdet3d_plugin/models/blocks.py">blocks.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params"></span></span><br><span class="line"><span class="params">    self,</span></span><br><span class="line"><span class="params">    instance_feature: torch.Tensor,</span></span><br><span class="line"><span class="params">    anchor: torch.Tensor,</span></span><br><span class="line"><span class="params">    anchor_embed: torch.Tensor,</span></span><br><span class="line"><span class="params">    feature_maps: <span class="type">List</span>[torch.Tensor],</span></span><br><span class="line"><span class="params">    metas: <span class="built_in">dict</span>,</span></span><br><span class="line"><span class="params">    **kwargs: <span class="built_in">dict</span>,</span></span><br><span class="line"><span class="params"></span>):</span><br><span class="line">    bs, num_anchor = instance_feature.shape[:<span class="number">2</span>]</span><br><span class="line">    <span class="comment"># 1. 生成 3D 关键点（固定 + 可学习）</span></span><br><span class="line">    key_points = <span class="variable language_">self</span>.kps_generator(anchor, instance_feature)</span><br><span class="line">    <span class="comment"># 2. 预测多维融合权重 (bs, num_anchor, num_cams, num_levels, num_pts, num_groups)</span></span><br><span class="line">    weights = <span class="variable language_">self</span>._get_weights(instance_feature, anchor_embed, metas)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.use_deformable_func:</span><br><span class="line">        <span class="comment"># 高效 CUDA 实现：投影 + 采样 + 加权融合一步完成</span></span><br><span class="line">        points_2d = (</span><br><span class="line">            <span class="variable language_">self</span>.project_points(</span><br><span class="line">                key_points, metas[<span class="string">&quot;projection_mat&quot;</span>], metas.get(<span class="string">&quot;image_wh&quot;</span>),</span><br><span class="line">            )</span><br><span class="line">            .permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">4</span>)</span><br><span class="line">            .reshape(bs, num_anchor, <span class="variable language_">self</span>.num_pts, <span class="variable language_">self</span>.num_cams, <span class="number">2</span>)</span><br><span class="line">        )</span><br><span class="line">        weights = (</span><br><span class="line">            weights.permute(<span class="number">0</span>, <span class="number">1</span>, <span class="number">4</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">5</span>).contiguous()</span><br><span class="line">            .reshape(bs, num_anchor, <span class="variable language_">self</span>.num_pts,</span><br><span class="line">                     <span class="variable language_">self</span>.num_cams, <span class="variable language_">self</span>.num_levels, <span class="variable language_">self</span>.num_groups)</span><br><span class="line">        )</span><br><span class="line">        features = DAF(*feature_maps, points_2d, weights).reshape(</span><br><span class="line">            bs, num_anchor, <span class="variable language_">self</span>.embed_dims</span><br><span class="line">        )</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="comment"># PyTorch 实现：分步采样 + 融合</span></span><br><span class="line">        features = <span class="variable language_">self</span>.feature_sampling(</span><br><span class="line">            feature_maps, key_points,</span><br><span class="line">            metas[<span class="string">&quot;projection_mat&quot;</span>], metas.get(<span class="string">&quot;image_wh&quot;</span>),</span><br><span class="line">        )</span><br><span class="line">        features = <span class="variable language_">self</span>.multi_view_level_fusion(features, weights)</span><br><span class="line">        features = features.<span class="built_in">sum</span>(dim=<span class="number">2</span>)  <span class="comment"># 多关键点求和</span></span><br><span class="line"></span><br><span class="line">    output = <span class="variable language_">self</span>.proj_drop(<span class="variable language_">self</span>.output_proj(features))</span><br><span class="line">    output = output + instance_feature  <span class="comment"># 残差连接</span></span><br><span class="line">    <span class="keyword">return</span> output</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details><summary>📄 点击展开 feature_sampling（PyTorch 实现）代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/HorizonRobotics/Sparse4D/blob/main/projects/mmdet3d_plugin/models/blocks.py">blocks.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">@staticmethod</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">feature_sampling</span>(<span class="params"></span></span><br><span class="line"><span class="params">    feature_maps: <span class="type">List</span>[torch.Tensor],</span></span><br><span class="line"><span class="params">    key_points: torch.Tensor,</span></span><br><span class="line"><span class="params">    projection_mat: torch.Tensor,</span></span><br><span class="line"><span class="params">    image_wh: <span class="type">Optional</span>[torch.Tensor] = <span class="literal">None</span>,</span></span><br><span class="line"><span class="params"></span>) -&gt; torch.Tensor:</span><br><span class="line">    num_levels = <span class="built_in">len</span>(feature_maps)</span><br><span class="line">    num_cams = feature_maps[<span class="number">0</span>].shape[<span class="number">1</span>]</span><br><span class="line">    bs, num_anchor, num_pts = key_points.shape[:<span class="number">3</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 3D 关键点 → 2D 图像坐标（多视图投影）</span></span><br><span class="line">    points_2d = DeformableFeatureAggregation.project_points(</span><br><span class="line">        key_points, projection_mat, image_wh</span><br><span class="line">    )</span><br><span class="line">    points_2d = points_2d * <span class="number">2</span> - <span class="number">1</span>  <span class="comment"># 归一化到 [-1, 1]</span></span><br><span class="line">    points_2d = points_2d.flatten(end_dim=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 逐尺度 grid_sample 采样</span></span><br><span class="line">    features = []</span><br><span class="line">    <span class="keyword">for</span> fm <span class="keyword">in</span> feature_maps:</span><br><span class="line">        features.append(</span><br><span class="line">            torch.nn.functional.grid_sample(</span><br><span class="line">                fm.flatten(end_dim=<span class="number">1</span>), points_2d</span><br><span class="line">            )</span><br><span class="line">        )</span><br><span class="line">    features = torch.stack(features, dim=<span class="number">1</span>)</span><br><span class="line">    <span class="comment"># → (bs, num_anchor, num_cams, num_levels, num_pts, embed_dims)</span></span><br><span class="line">    features = features.reshape(</span><br><span class="line">        bs, num_cams, num_levels, -<span class="number">1</span>, num_anchor, num_pts</span><br><span class="line">    ).permute(<span class="number">0</span>, <span class="number">4</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">5</span>, <span class="number">3</span>)</span><br><span class="line">    <span class="keyword">return</span> features</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details><summary>📄 点击展开 InstanceBank.get / cache 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/HorizonRobotics/Sparse4D/blob/main/projects/mmdet3d_plugin/models/instance_bank.py">instance_bank.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get</span>(<span class="params">self, batch_size, metas=<span class="literal">None</span>, dn_metas=<span class="literal">None</span></span>):</span><br><span class="line">    <span class="comment"># 可学习的 300 个新实例</span></span><br><span class="line">    instance_feature = torch.tile(<span class="variable language_">self</span>.instance_feature[<span class="literal">None</span>], (batch_size, <span class="number">1</span>, <span class="number">1</span>))</span><br><span class="line">    anchor = torch.tile(<span class="variable language_">self</span>.anchor[<span class="literal">None</span>], (batch_size, <span class="number">1</span>, <span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.cached_anchor <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span> <span class="keyword">and</span> batch_size == <span class="variable language_">self</span>.cached_anchor.shape[<span class="number">0</span>]:</span><br><span class="line">        <span class="comment"># 计算时间间隔</span></span><br><span class="line">        time_interval = metas[<span class="string">&quot;timestamp&quot;</span>] - <span class="variable language_">self</span>.metas[<span class="string">&quot;timestamp&quot;</span>]</span><br><span class="line">        <span class="variable language_">self</span>.mask = torch.<span class="built_in">abs</span>(time_interval) &lt;= <span class="variable language_">self</span>.max_time_interval</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 用 ego motion 将上帧 anchor 投影到当前帧坐标系</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.anchor_handler <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            T_temp2cur = ...  <span class="comment"># 从 metas 构建变换矩阵</span></span><br><span class="line">            <span class="variable language_">self</span>.cached_anchor = <span class="variable language_">self</span>.anchor_handler.anchor_projection(</span><br><span class="line">                <span class="variable language_">self</span>.cached_anchor, [T_temp2cur],</span><br><span class="line">                time_intervals=[-time_interval],</span><br><span class="line">            )[<span class="number">0</span>]</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="variable language_">self</span>.reset()</span><br><span class="line">        time_interval = ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (instance_feature, anchor,</span><br><span class="line">            <span class="variable language_">self</span>.cached_feature, <span class="variable language_">self</span>.cached_anchor, time_interval)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">cache</span>(<span class="params">self, instance_feature, anchor, confidence, metas=<span class="literal">None</span>, ...</span>):</span><br><span class="line">    <span class="comment"># detach 断梯度（递归无梯度）</span></span><br><span class="line">    instance_feature = instance_feature.detach()</span><br><span class="line">    anchor = anchor.detach()</span><br><span class="line">    confidence = confidence.detach().<span class="built_in">max</span>(dim=-<span class="number">1</span>).values.sigmoid()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 指数衰减历史置信度</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.confidence <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        confidence[:, :<span class="variable language_">self</span>.num_temp_instances] = torch.maximum(</span><br><span class="line">            <span class="variable language_">self</span>.confidence * <span class="variable language_">self</span>.confidence_decay,</span><br><span class="line">            confidence[:, :<span class="variable language_">self</span>.num_temp_instances],</span><br><span class="line">        )</span><br><span class="line">    <span class="comment"># 选择 top-k 高置信度实例缓存</span></span><br><span class="line">    <span class="variable language_">self</span>.confidence, (<span class="variable language_">self</span>.cached_feature, <span class="variable language_">self</span>.cached_anchor) = topk(</span><br><span class="line">        confidence, <span class="variable language_">self</span>.num_temp_instances, instance_feature, anchor</span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>nuScenes val 集 3D 检测</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>版本</th>
+<th>Backbone</th>
+<th>Image Size</th>
+<th>mAP↑</th>
+<th>NDS↑</th>
+<th>mAVE↓</th>
+<th>FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEVFormer-S</td>
+<td>—</td>
+<td>R101</td>
+<td>900×1600</td>
+<td>0.375</td>
+<td>0.448</td>
+<td>0.802</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a></td>
+<td>—</td>
+<td>R101</td>
+<td>900×1600</td>
+<td>0.416</td>
+<td>0.517</td>
+<td>0.394</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a></td>
+<td>—</td>
+<td>R50</td>
+<td>256×704</td>
+<td>0.432</td>
+<td>0.537</td>
+<td>0.279</td>
+<td>26.7</td>
+</tr>
+<tr>
+<td>Sparse4D</td>
+<td>v1</td>
+<td>R101-DCN</td>
+<td>640×1600</td>
+<td>0.444</td>
+<td>0.550</td>
+<td>0.309</td>
+<td>2.9</td>
+</tr>
+<tr>
+<td>Sparse4Dv2</td>
+<td>v2</td>
+<td>R50</td>
+<td>256×704</td>
+<td>0.439</td>
+<td>0.539</td>
+<td>0.282</td>
+<td>20.3</td>
+</tr>
+<tr>
+<td>Sparse4Dv2</td>
+<td>v2</td>
+<td>R101†</td>
+<td>512×1408</td>
+<td>0.505</td>
+<td>0.594</td>
+<td>0.239</td>
+<td>8.4</td>
+</tr>
+<tr>
+<td><strong>Sparse4Dv3</strong></td>
+<td><strong>v3</strong></td>
+<td><strong>R50</strong></td>
+<td><strong>256×704</strong></td>
+<td><strong>0.469</strong></td>
+<td><strong>0.561</strong></td>
+<td><strong>0.227</strong></td>
+<td><strong>19.8</strong></td>
+</tr>
+<tr>
+<td><strong>Sparse4Dv3</strong></td>
+<td><strong>v3</strong></td>
+<td><strong>R101†</strong></td>
+<td><strong>512×1408</strong></td>
+<td><strong>0.537</strong></td>
+<td><strong>0.623</strong></td>
+<td><strong>0.194</strong></td>
+<td><strong>8.2</strong></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>† 表示使用 nuImage 预训练权重。</p>
+</blockquote>
+<p><strong>nuScenes test 集 3D 检测</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>mAP↑</th>
+<th>NDS↑</th>
+<th>mATE↓</th>
+<th>mAVE↓</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a></td>
+<td>V2-99</td>
+<td>0.481</td>
+<td>0.569</td>
+<td>0.582</td>
+<td>0.378</td>
+</tr>
+<tr>
+<td><a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a></td>
+<td>V2-99</td>
+<td>0.550</td>
+<td>0.636</td>
+<td>0.479</td>
+<td>0.241</td>
+</tr>
+<tr>
+<td>Sparse4D v1</td>
+<td>V2-99</td>
+<td>0.511</td>
+<td>0.595</td>
+<td>0.533</td>
+<td>0.317</td>
+</tr>
+<tr>
+<td>Sparse4Dv2</td>
+<td>V2-99</td>
+<td>0.557</td>
+<td>0.638</td>
+<td>0.462</td>
+<td>0.264</td>
+</tr>
+<tr>
+<td><strong>Sparse4Dv3</strong></td>
+<td><strong>V2-99</strong></td>
+<td><strong>0.570</strong></td>
+<td><strong>0.656</strong></td>
+<td><strong>0.412</strong></td>
+<td><strong>0.210</strong></td>
+</tr>
+<tr>
+<td>Sparse4Dv3-offline</td>
+<td>EVA02-L</td>
+<td>0.668</td>
+<td>0.719</td>
+<td>0.346</td>
+<td>0.142</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>v1→v2 提升主要来自递归时序融合（NDS 0.550→0.594），同时推理速度从 2.9 FPS 跃升至 8.4 FPS</li>
+<li>v3 三项改进带来 +3.0% mAP &#x2F; +2.2% NDS（R50），且速度几乎无损（20.3→19.8 FPS）</li>
+<li>稀疏方法在高分辨率输入下速度优势明显：R101 512×1408 时 Sparse4Dv2（8.4 FPS）超过 StreamPETR（6.4 FPS），因为检测头计算量与分辨率无关</li>
+</ol>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>v1 消融——4D 关键点（验证洞察 1）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>mAP</th>
+<th>mAOE</th>
+<th>NDS</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无 Depth Reweight，无 Learnable KP</td>
+<td>0.432</td>
+<td>0.408</td>
+<td>0.533</td>
+<td>baseline</td>
+</tr>
+<tr>
+<td>+ Depth Reweight</td>
+<td>0.431</td>
+<td>0.381</td>
+<td>0.537</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>+ Learnable Keypoints</td>
+<td>0.432</td>
+<td>0.379</td>
+<td>0.537</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>+ 两者</td>
+<td><strong>0.436</strong></td>
+<td><strong>0.363</strong></td>
+<td><strong>0.541</strong></td>
+<td>洞察 1</td>
+</tr>
+</tbody></table>
+<p><strong>v2 消融——递归传播（验证洞察 2）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>Multi-Frame</th>
+<th>Single-Frame Layer</th>
+<th>mAP</th>
+<th>NDS</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>非时序模型</td>
+<td>✗</td>
+<td>—</td>
+<td>0.341</td>
+<td>0.414</td>
+<td>baseline</td>
+</tr>
+<tr>
+<td>全 multi-frame layers</td>
+<td>✓</td>
+<td>✗</td>
+<td>0.384</td>
+<td>0.504</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>+ Single-Frame Layer</td>
+<td>✓</td>
+<td>✓</td>
+<td>0.419</td>
+<td>0.524</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>+ Camera Param Encoding + Dense Depth</td>
+<td>✓</td>
+<td>✓</td>
+<td><strong>0.439</strong></td>
+<td><strong>0.539</strong></td>
+<td>洞察 2</td>
+</tr>
+</tbody></table>
+<p>时序融合带来 +9.8 mAP &#x2F; +12.5 NDS（0.341→0.439），是最大提升来源。</p>
+<p><strong>v3 消融——训练改进（验证洞察 3）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>mAP</th>
+<th>mATE</th>
+<th>mAVE</th>
+<th>NDS</th>
+<th>AMOTA</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Sparse4Dv2 baseline</td>
+<td>0.439</td>
+<td>0.598</td>
+<td>0.282</td>
+<td>0.539</td>
+<td>0.414</td>
+<td>—</td>
+</tr>
+<tr>
+<td>+ Single-frame Denoising</td>
+<td>0.447</td>
+<td>0.586</td>
+<td>0.257</td>
+<td>0.548</td>
+<td>0.445</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>+ Decoupled Attention</td>
+<td>0.458</td>
+<td>0.599</td>
+<td>0.238</td>
+<td>0.551</td>
+<td>0.472</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>+ Temporal Denoising</td>
+<td>0.462</td>
+<td>0.581</td>
+<td>0.246</td>
+<td>0.557</td>
+<td>0.457</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>+ Centerness</td>
+<td>0.463</td>
+<td><strong>0.563</strong></td>
+<td>0.221</td>
+<td>0.554</td>
+<td>0.466</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>+ Yawness (Sparse4Dv3)</td>
+<td><strong>0.469</strong></td>
+<td>0.553</td>
+<td><strong>0.227</strong></td>
+<td><strong>0.561</strong></td>
+<td><strong>0.490</strong></td>
+<td>洞察 3</td>
+</tr>
+</tbody></table>
+<p>Denoising 贡献最大（+0.9% NDS），Decoupled Attention 主要改善 mAVE（-1.9%），Quality Estimation 主要改善 mATE（-2.8%）。</p>
+<h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
+<li><strong>Backbone 仍是瓶颈</strong>：Sparse4D 检测头 FLOPs（165G, $T$&#x3D;1）远低于 backbone（854G, R101），高分辨率场景下 backbone 开销主导总延迟</li>
+<li><strong>深度定位精度</strong>：mATE（0.412m, test, V2-99）虽优于 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>（0.582m），但仍是纯相机方法的主要误差来源</li>
+<li><strong>训练资源需求</strong>：100 epoch 训练（R50, 256×704）需 22 小时 &#x2F; 8×RTX3090，比 BEVDet 等 24 epoch 方案更耗时</li>
+</ul>
+<h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
+<li><strong>严重遮挡目标</strong>：稀疏关键点投影到图像上可能完全被遮挡，采样到的特征无意义</li>
+<li><strong>高密度小目标区域</strong>：900 个 anchor 数量固定，在行人密集的城区场景中可能欠分配</li>
+<li><strong>首帧无时序信息</strong>：第一帧没有 temporal instances 输入，等价于单帧 Sparse4D（性能比时序版低约 12.5% NDS）</li>
+<li><strong>极端自车运动</strong>：速度补偿基于匀速假设（Eq. 3），急刹&#x2F;急转场景下关键点投影偏差会增大</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:           ResNet50/101 (ImageNet/nuImage) 或 VoVNet-99 (DD3D)</span><br><span class="line">Neck:               FPN (4 scales)</span><br><span class="line">Input Size:         256×704 (R50) / 512×1408 (R101) / 640×1600 (V2-99)</span><br><span class="line">Num Instances:      900 (600 temporal + 300 new)</span><br><span class="line">Num Keypoints:      13 (7 fixed + 6 learnable)</span><br><span class="line">Decoder Layers:     6 (1 single-frame + 5 multi-frame)</span><br><span class="line">Embed Dims:         256</span><br><span class="line">Optimizer:          AdamW, backbone lr=2e-5, head lr=2e-4</span><br><span class="line">LR Schedule:        Cosine annealing</span><br><span class="line">Training Epochs:    100 (v2/v3) / 24 (v1)</span><br><span class="line">Denoising Groups:   5 (3 temporal)</span><br><span class="line">Batch Size:         depends on GPU</span><br><span class="line">Framework:          mmdetection3d (PyTorch)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>Anchor 初始化</strong>：3D anchor 的位置参数 $(x,y,z)$ 由 K-Means 在训练集上聚类得到（<code>nuscenes_kmeans900.npy</code>），其他参数固定初始化 ${1,1,1,0,1,0,0,0}$</li>
+<li><strong>历史特征 detach</strong>：所有 temporal instances 的 feature 和 anchor 在 cache 时断梯度（<code>detach()</code>），避免跨帧反向传播导致显存爆炸</li>
+<li><strong>Efficient Deformable Aggregation（EDA）</strong>：v2 的定制 CUDA kernel 将 grid_sample + weighted sum 融合为单一操作，训练显存降 51%（6328M→3100M），推理速度提升 42%（13.7→20.3 FPS）</li>
+<li><strong>Dense Depth Supervision</strong>：训练时对多尺度特征图预测 dense depth，LiDAR 点云投影作为 GT，$L_1$ loss。推理时该分支不激活。移除此监督会导致训练梯度坍缩</li>
+<li><strong>Denoising 训练不改变推理</strong>：所有 noisy instances 仅用于训练辅助，推理时完全去除，不增加推理开销</li>
+<li><strong>端到端跟踪零成本</strong>：v3 跟踪功能无需修改训练流程或 loss，仅在推理时对 confidence &gt; threshold 的 temporal instances 分配 ID</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li><strong>更强 Backbone</strong>：从 R50 换到 EVA02-Large 带来 +5.98% mAP（test），Backbone 特征质量直接决定检测精度上限</li>
+<li><strong>未来帧融合</strong>：利用后续 8 帧图像特征（离线场景），mAVE 降低 5.67%、NDS 提升 3.23%</li>
+<li><strong>增加 Anchor 数量</strong>：当前 900 个 anchor 在高密度场景可能不足，增加至 1200+ 可改善小目标召回</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li><strong>轻量化 Backbone</strong>：稀疏检测头计算量已极低（~165G），优化 Backbone（如 EfficientNet、MobileNet）收益最大</li>
+<li><strong>EDA CUDA Kernel</strong>：v2 的 EDA 已证明可将训练时间从 23.5h 降至 14.5h，进一步的 kernel 融合仍有空间</li>
+<li><strong>高分辨率优势</strong>：稀疏方法在 512×1408 分辨率下仍保持 8.4 FPS（vs. StreamPETR 6.4 FPS），适合部署在高分辨率需求场景</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>“实例为中心”的感知范式</strong>：以 anchor + instance feature 为原子单元，所有操作（采样、融合、时序、跟踪）围绕实例展开，取代 BEV 栅格作为中间表示。这一范式直接催生了后续 SparseDrive 等端到端规划方法</li>
+<li><strong>递归实例传播</strong>：将跨帧特征传播解耦为”结构化投影 + 隐式特征复用”，$O(1)$ 时间复杂度实现无限长时序融合。该思路可迁移到在线建图、占据预测等需要长时序信息的任务</li>
+<li><strong>训练阶段去噪增强</strong>：通过向 GT 添加噪声生成大量辅助正样本，在不改变推理流程的情况下显著加速收敛。DN-DETR 在 2D 检测中提出此思想，Sparse4Dv3 将其扩展到 3D 时序场景</li>
+<li><strong>检测器即跟踪器</strong>：利用 query-based 方法的实例级输出天然包含跨帧关联关系，仅需在推理时添加 ID 分配即可实现端到端跟踪，无需数据关联或轨迹滤波等后处理</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li><strong>训练成本高于 dense 方法</strong>：100 epoch 训练（v2&#x2F;v3）比 BEVDet 的 24 epoch 更耗时，训练收敛性仍弱于 dense BEV 路线</li>
+<li><strong>采样依赖标定精度</strong>：关键点投影到图像的准确性依赖相机内外参质量，虽然 Camera Parameter Encoding（v2）部分缓解，但极端标定偏差仍会导致特征失配</li>
+<li><strong>固定 anchor 数量</strong>：900 个 anchor 是超参数，在高密度场景可能不足、在空旷场景则有冗余，缺乏自适应机制</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li><strong>确立稀疏感知路线的竞争力</strong>：Sparse4D 系列首次证明稀疏方法可以在 nuScenes 上与 dense BEV 方法持平甚至超越（v3 65.6% NDS vs. BEVFormer 56.9%），扭转了”稀疏不如 dense”的普遍认知</li>
+<li><strong>检测头复杂度与分辨率解耦</strong>：稀疏方法的检测头 FLOPs 与图像分辨率无关，这对自动驾驶中日益增长的高分辨率需求（远距离检测、4K 相机）具有关键意义，与 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 系列的 dense 方案形成互补</li>
+<li><strong>推动端到端自动驾驶</strong>：SparseDrive 直接基于 Sparse4D 框架实现端到端规划，证明了”稀疏实例→跟踪→预测→规划”全链路的可行性</li>
+<li><strong>Horizon Robotics 量产方案基础</strong>：Sparse4D 由地平线机器人提出，其稀疏架构对边缘设备部署友好（无 dense BEV 计算），是该公司自动驾驶芯片的重要适配方案</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A4D-%E5%85%B3%E9%94%AE%E7%82%B9%E7%A8%80%E7%96%8F%E9%87%87%E6%A0%B7%E2%80%94%E2%80%94%E7%94%A8%E5%A4%9A%E5%85%B3%E9%94%AE%E7%82%B9%E6%9B%BF%E4%BB%A3%E5%8D%95%E5%8F%82%E8%80%83%E7%82%B9%E5%92%8C-dense-BEV"><span class="toc-text">洞察 1：4D 关键点稀疏采样——用多关键点替代单参考点和 dense BEV</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E9%80%92%E5%BD%92%E5%AE%9E%E4%BE%8B%E4%BC%A0%E6%92%AD%E2%80%94%E2%80%94%E4%BB%8E-O-T-%E5%A4%9A%E5%B8%A7%E9%87%87%E6%A0%B7%E5%88%B0-O-1-%E9%80%92%E5%BD%92%E4%BC%A0%E6%92%AD"><span class="toc-text">洞察 2：递归实例传播——从 $O(T)$ 多帧采样到 $O(1)$ 递归传播</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9ATemporal-Instance-Denoising-Quality-Estimation%E2%80%94%E2%80%94%E8%A7%A3%E5%86%B3%E7%A8%80%E7%96%8F%E6%96%B9%E6%B3%95%E7%9A%84%E8%AE%AD%E7%BB%83%E6%94%B6%E6%95%9B%E9%9A%BE%E9%A2%98"><span class="toc-text">洞察 3：Temporal Instance Denoising + Quality Estimation——解决稀疏方法的训练收敛难题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.3 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.4 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B/" class="tag">#目标检测</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

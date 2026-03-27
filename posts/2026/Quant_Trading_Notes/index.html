@@ -31,6 +31,8 @@
             
                 <li><a href="/blog/">博客</a></li>
             
+                <li><a href="/papers/">论文</a></li>
+            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -415,7 +417,8 @@
 <h2 id="第八章：因子研究"><a href="#第八章：因子研究" class="headerlink" title="第八章：因子研究"></a>第八章：因子研究</h2><h3 id="8-1-什么是因子"><a href="#8-1-什么是因子" class="headerlink" title="8.1 什么是因子"></a>8.1 什么是因子</h3><p>因子是指<strong>能够预测未来价格变动的某个可计算的特征</strong>。比如：”过去 24 小时成交量是否异常放大”、”RSI 是否低于 30”、”价格是否突破 20 日新高”都可以是因子。</p>
 <p>因子研究的目的是：在花时间写完整策略之前，先用统计方法快速<strong>筛选出真正有预测力的信号</strong>，过滤掉无效想法。</p>
 <h3 id="8-2-IC（信息系数）"><a href="#8-2-IC（信息系数）" class="headerlink" title="8.2 IC（信息系数）"></a>8.2 IC（信息系数）</h3><p>IC（Information Coefficient，信息系数）衡量因子值和未来收益之间的相关性，是判断因子有效性最核心的指标：</p>
-<p>$$\text{IC} &#x3D; \text{Corr}(\text{因子值}<em>t,\ \text{未来收益}</em>{t+1})$$</p>
+$$\text{IC} = \text{Corr}(\text{因子值}_t,\ \text{未来收益}_{t+1})$$
+
 <table>
 <thead>
 <tr>
@@ -432,11 +435,11 @@
 <td>因子与未来收益负相关</td>
 </tr>
 <tr>
-<td>$|IC| &gt; 0.05$</td>
+<td>$\lvert IC \rvert > 0.05$</td>
 <td>因子有一定预测意义</td>
 </tr>
 <tr>
-<td>$|IC| &gt; 0.10$</td>
+<td>$\lvert IC \rvert > 0.10$</td>
 <td>因子预测力较强，值得重点研究</td>
 </tr>
 </tbody></table>

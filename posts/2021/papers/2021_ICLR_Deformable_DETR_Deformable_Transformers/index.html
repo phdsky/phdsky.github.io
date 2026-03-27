@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Deformable DETR Deformable Transformers for End-to-End Object Detection - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Deformable DETR Deformable Transformers for End-to-End Object Detection</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2021年01月12日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Object Detection<br>Method: Deformable Attention, Multi-Scale Feature, Transformer<br>Venue: ICLR<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2010.04159">https://arxiv.org/abs/2010.04159</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/Deformable-DETR">https://github.com/fundamentalvision/Deformable-DETR</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>DETR 通过 Transformer 实现了端到端目标检测，消除了 NMS、anchor 等手工设计组件，但存在两大缺陷：收敛速度极慢（需 500 epochs）和小物体检测性能差。根本原因在于 Transformer 注意力模块处理图像特征图时的固有限制——初始化时注意力近乎均匀分布在所有像素上，需要长时间训练才能聚焦到有意义的稀疏位置；同时全局注意力的二次计算复杂度使其难以处理高分辨率多尺度特征。本文提出 Deformable DETR，其核心是<strong>多尺度可变形注意力模块</strong>，仅关注参考点周围的少量采样位置，将可变形卷积的稀疏空间采样优势与 Transformer 的关系建模能力相结合。Deformable DETR 以<strong>仅 1&#x2F;10 的训练 epochs</strong> 即可超越 DETR 的性能（尤其在小物体上），并在此基础上进一步探索了迭代边界框精化和两阶段检测方案。在 COCO 基准上，该方法使用 ResNeXt-101+DCN 达到 50.1 AP。</p>
+<p><strong>核心论点</strong>：通过将 Transformer 中的全局密集注意力替换为数据依赖的稀疏可变形注意力，同时原生支持多尺度特征聚合，从根本上解决了 DETR 收敛慢和高分辨率特征处理代价高的问题，使端到端检测器在实用性上迈出关键一步。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>DETR 开创了端到端检测范式，但其实用性受限于两个核心问题：</p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>表现</th>
+<th>根本原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>收敛慢</strong></td>
+<td>500 epochs（传统检测器 12-36 epochs）</td>
+<td>初始化时注意力均匀分布于所有像素，需极长时间学习聚焦到稀疏有意义位置</td>
+</tr>
+<tr>
+<td><strong>小物体差</strong></td>
+<td>$AP_S$ 20.5，比 Faster R-CNN 低 6.1</td>
+<td>自注意力 $O(H^2W^2C)$ 复杂度使高分辨率特征图不可行；缺乏多尺度特征</td>
+</tr>
+</tbody></table>
+<p>同时，在图像领域已有一种高效的稀疏空间采样机制——可变形卷积（Deformable Convolution），它能有效聚焦于稀疏空间位置，但缺乏 Transformer 的元素间关系建模能力。</p>
+<p><strong>核心痛点</strong>：DETR 的 Transformer 注意力在图像特征图上计算代价与空间尺寸的平方成正比，且初始化时的均匀注意力导致收敛极其缓慢，亟需一种既保留关系建模能力又具备稀疏高效采样的注意力机制。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：数据依赖的稀疏采样替代全局密集注意力"><a href="#洞察-1：数据依赖的稀疏采样替代全局密集注意力" class="headerlink" title="洞察 1：数据依赖的稀疏采样替代全局密集注意力"></a>洞察 1：数据依赖的稀疏采样替代全局密集注意力</h3><p>Transformer 的标准多头注意力对所有空间位置计算注意力权重，复杂度为 $O(N_q N_k C)$。但实际上检测任务中每个 query 只需关注少数几个关键位置。</p>
+<p><strong>传统做法（DETR）</strong>：全局自注意力扫描所有 $H \times W$ 个像素 → 初始化均匀 → 需要非常长的训练才能学到稀疏模式<br><strong>本文做法</strong>：每个 query 仅在参考点周围采样 $K$ 个位置（$K&#x3D;4$），采样偏移和注意力权重均由数据驱动预测</p>
+<p>可变形注意力公式：</p>
+
+$$\text{DeformAttn}(\boldsymbol{z}_q, \boldsymbol{p}_q, \boldsymbol{x}) = \sum_{m=1}^{M} \boldsymbol{W}_m \left[ \sum_{k=1}^{K} A_{mqk} \cdot \boldsymbol{W}'_m \boldsymbol{x}(\boldsymbol{p}_q + \Delta\boldsymbol{p}_{mqk}) \right]$$
+
+
+其中 $\Delta\boldsymbol{p}_{mqk}$ 是学习的采样偏移，$A_{mqk}$ 是预测的注意力权重。复杂度在编码器中降为 $O(HWC^2)$（线性于空间尺寸），在解码器交叉注意力中降为 $O(NKC^2)$（与空间尺寸无关）。
+
+<p><strong>为什么更优</strong>：稀疏采样的预过滤机制使模型从初始化时就聚焦于参考点附近的局部区域，不再需要从均匀分布中缓慢学习聚焦模式，训练收敛速度提升至 10 倍。</p>
+<h3 id="洞察-2：注意力机制原生聚合多尺度特征"><a href="#洞察-2：注意力机制原生聚合多尺度特征" class="headerlink" title="洞察 2：注意力机制原生聚合多尺度特征"></a>洞察 2：注意力机制原生聚合多尺度特征</h3><p>现代检测器依赖 FPN 等手工设计的特征金字塔来处理多尺度问题。DETR 由于自注意力的二次复杂度，只能使用单尺度特征（stride 32），导致小物体信息严重丢失。</p>
+<p><strong>传统做法（DETR + FPN）</strong>：先用 FPN 独立构建多尺度特征 → 再在单尺度上做注意力<br><strong>本文做法</strong>：将可变形注意力自然扩展为多尺度版本，每个 query 直接从 $L$ 个尺度的特征图上采样</p>
+<p>多尺度可变形注意力公式：</p>
+
+$$\text{MSDeformAttn}(\boldsymbol{z}_q, \hat{\boldsymbol{p}}_q, \{\boldsymbol{x}^l\}_{l=1}^{L}) = \sum_{m=1}^{M} \boldsymbol{W}_m \left[ \sum_{l=1}^{L} \sum_{k=1}^{K} A_{mlqk} \cdot \boldsymbol{W}'_m \boldsymbol{x}^l(\phi_l(\hat{\boldsymbol{p}}_q) + \Delta\boldsymbol{p}_{mlqk}) \right]$$
+
+
+<p>从 $L$ 个尺度共采样 $LK$ 个点（默认 $L&#x3D;4$，$K&#x3D;4$，共 16 个点），注意力权重在所有尺度和采样点上归一化：$\sum_{l&#x3D;1}^{L}\sum_{k&#x3D;1}^{K} A_{mlqk} &#x3D; 1$。</p>
+<p><strong>为什么更优</strong>：多尺度注意力本身即实现了跨尺度信息交换，使 FPN 变得多余（实验证实加 FPN 或 BiFPN 均不提升性能），同时大幅提升小物体检测精度（$AP_S$ 从单尺度 21.2 提升至 26.4）。</p>
+<h3 id="洞察-3：快速收敛使迭代精化和两阶段方案成为可能"><a href="#洞察-3：快速收敛使迭代精化和两阶段方案成为可能" class="headerlink" title="洞察 3：快速收敛使迭代精化和两阶段方案成为可能"></a>洞察 3：快速收敛使迭代精化和两阶段方案成为可能</h3><p>DETR 收敛慢的根本障碍使得探索更复杂的检测方案变得不现实。Deformable DETR 的快速收敛打开了新的可能性。</p>
+<p><strong>传统做法（DETR）</strong>：单次预测，500 epochs 才勉强收敛，无法承受额外模块带来的优化负担<br><strong>本文做法</strong>：利用快速收敛的优势，在 50 epochs 内探索两种增强方案——</p>
+<ol>
+<li><strong>迭代边界框精化</strong>：受光流估计启发，每个解码器层基于上一层预测的边界框进一步精化</li>
+<li><strong>两阶段方案</strong>：编码器先生成区域候选（每个像素作为 query），再由解码器精化 top-$k$ 候选</li>
+</ol>
+<p><strong>为什么更优</strong>：迭代精化使每层解码器都能做增量修正而非从零预测；两阶段方案让 object queries 从图像相关的候选初始化（而非图像无关的可学习嵌入），两者共同将 COCO test-dev AP 从 43.8 提升至 46.9（R50）。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>10×</strong>：Deformable DETR 仅需 DETR 1&#x2F;10 的训练 epochs（50 vs 500）即可达到更好性能</li>
+<li><strong>43.8 AP</strong>：Deformable DETR（R50，50 epochs）在 COCO val 上超越 DETR-DC5（43.3 AP，500 epochs）</li>
+<li><strong>50.1 AP</strong>：Two-stage Deformable DETR（ResNeXt-101+DCN）在 COCO test-dev 上的最佳结果</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>$$\text{Deformable DETR} &#x3D; \text{CNN Backbone} + \text{Multi-scale Feature Maps} + \text{Deformable Transformer Encoder-Decoder} + \text{Detection Head}$$</p>
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2010.04159/assets/x1.png" alt="Deformable DETR 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+                              输入图像
+                                 ↓
+                            [3, H₀, W₀]
+                                 ↓
+                   ┌──────────────────────────┐
+                   │     CNN Backbone          │
+                   │     ResNet-50             │
+                   └──────────────────────────┘
+                    ↓           ↓           ↓           ↓
+                   C₃          C₄          C₅    3×3 Conv s2
+                 [H/8,W/8]  [H/16,W/16] [H/32,W/32]  [H/64,W/64]
+                    ↓           ↓           ↓           ↓
+              ┌────────────────────────────────────────────┐
+              │  1×1 Conv → 256-d + Scale-level Embedding  │
+              │  展平并拼接为统一序列                         │
+              │  [Σ(Hₗ×Wₗ), 256]                           │
+              └────────────────────────────────────────────┘
+                                 ↓
+              ┌────────────────────────────────────────────┐
+              │    Deformable Transformer Encoder          │
+              │    6 层 × (MSDeformAttn + FFN)             │
+              │    每层参数跨尺度共享                         │
+              │    自注意力：每个像素在 4 个尺度上各采样 4 点   │
+              │    参考点 = 像素自身坐标                      │
+              │    d=256, M=8 heads, K=4, L=4               │
+              └────────────────────────────────────────────┘
+                                 ↓
+                    编码器记忆 [Σ(Hₗ×Wₗ), 256]
+                                 ↓
+        Object Queries  ──→ ┌──────────────────────────────┐
+        [300, 512]          │  Deformable Transformer      │
+        (embedding →        │  Decoder                     │
+         256 content +      │  6 层 × (Self-Attn +         │
+         256 position)      │  MSDeformAttn cross + FFN)   │
+                            │  交叉注意力：从多尺度记忆采样   │
+                            │  参考点由 query 学习预测       │
+                            └──────────────────────────────┘
+                                 ↓
+                          [300, 256] 解码器输出
+                                 ↓
+           ┌──────────────────────┼──────────────────────┐
+           │                                             │
+           ↓                                             ↓
+    ┌─────────────┐                               ┌─────────────┐
+    │ Class Head  │                               │ BBox Head   │
+    │ Linear      │                               │ 3-layer MLP │
+    │ 256 → 91    │                               │ 256→256→4   │
+    │ Focal Loss  │                               │ + sigmoid   │
+    └─────────────┘                               └─────────────┘
+           ↓                                             ↓
+     [300, 91] logits                             [300, 4] boxes
+           └──────────────────────┼──────────────────────┘
+                                  ↓
+                  ┌────────────────────────────┐
+                  │  二分图匹配（匈牙利算法）      │
+                  │  预测 ↔ GT 一对一匹配        │
+                  └────────────────────────────┘
+                                  ↓
+                            输出检测框
+</pre>
+</div>
+
+<h3 id="关键组件"><a href="#关键组件" class="headerlink" title="关键组件"></a>关键组件</h3><p><strong>多尺度特征图构建</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>特征层</th>
+<th>来源</th>
+<th>分辨率</th>
+<th>变换</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>$\boldsymbol{x}^1$</td>
+<td>ResNet C₃</td>
+<td>$H&#x2F;8 \times W&#x2F;8$</td>
+<td>1×1 Conv → 256-d</td>
+</tr>
+<tr>
+<td>$\boldsymbol{x}^2$</td>
+<td>ResNet C₄</td>
+<td>$H&#x2F;16 \times W&#x2F;16$</td>
+<td>1×1 Conv → 256-d</td>
+</tr>
+<tr>
+<td>$\boldsymbol{x}^3$</td>
+<td>ResNet C₅</td>
+<td>$H&#x2F;32 \times W&#x2F;32$</td>
+<td>1×1 Conv → 256-d</td>
+</tr>
+<tr>
+<td>$\boldsymbol{x}^4$</td>
+<td>C₅ output</td>
+<td>$H&#x2F;64 \times W&#x2F;64$</td>
+<td>3×3 Conv stride 2</td>
+</tr>
+</tbody></table>
+<p>注意：<strong>不使用 FPN 的自顶向下结构</strong>，多尺度可变形注意力本身即实现跨尺度信息交换。</p>
+<p><strong>编码器 vs 解码器注意力设计差异</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>编码器自注意力</th>
+<th>解码器交叉注意力</th>
+<th>解码器自注意力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>类型</td>
+<td>MSDeformAttn</td>
+<td>MSDeformAttn</td>
+<td>标准多头注意力</td>
+</tr>
+<tr>
+<td>Query</td>
+<td>各像素</td>
+<td>Object queries</td>
+<td>Object queries</td>
+</tr>
+<tr>
+<td>Key</td>
+<td>多尺度像素</td>
+<td>编码器输出</td>
+<td>Object queries</td>
+</tr>
+<tr>
+<td>参考点</td>
+<td>像素自身坐标</td>
+<td>由 query embedding 学习预测</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><strong>预测头设计</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>预测头</th>
+<th>结构</th>
+<th>输出尺寸</th>
+<th>损失</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>分类头</strong></td>
+<td>Linear(256, 91)</td>
+<td>$300 \times 91$</td>
+<td>Focal Loss（权重 2）</td>
+</tr>
+<tr>
+<td><strong>边界框头</strong></td>
+<td>3 层 MLP + Sigmoid</td>
+<td>$300 \times 4$</td>
+<td>$\ell_1$ + GIoU</td>
+</tr>
+</tbody></table>
+<p><strong>损失函数</strong>与 DETR 类似，采用匈牙利匹配 + 集合预测损失，但分类损失从交叉熵改为 Focal Loss（权重 2），object queries 从 100 增加到 300。</p>
+<p><strong>迭代边界框精化</strong>：第 $d$ 层解码器基于第 $d-1$ 层预测的边界框 $\hat{\boldsymbol{b}}_q^{d-1}$ 做增量修正：</p>
+
+$$\hat{\boldsymbol{b}}_q^d = \left\{ \sigma\left(\Delta b_{qx}^d + \sigma^{-1}(\hat{b}_{qx}^{d-1})\right),\ \sigma\left(\Delta b_{qy}^d + \sigma^{-1}(\hat{b}_{qy}^{d-1})\right),\ \ldots \right\}$$
+
+
+<p>梯度仅通过 $\Delta \boldsymbol{b}$ 反向传播，阻断于上一层预测 $\hat{\boldsymbol{b}}^{d-1}$，以稳定训练。</p>
+<h3 id="关键代码"><a href="#关键代码" class="headerlink" title="关键代码"></a>关键代码</h3><p>核心模块分布在以下文件中：</p>
+<table>
+<thead>
+<tr>
+<th>函数&#x2F;类</th>
+<th>文件</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>MSDeformAttn</code></td>
+<td>models&#x2F;ops&#x2F;modules&#x2F;ms_deform_attn.py</td>
+<td>多尺度可变形注意力（核心）</td>
+</tr>
+<tr>
+<td><code>DeformableTransformer</code></td>
+<td>models&#x2F;deformable_transformer.py</td>
+<td>编码器-解码器 Transformer</td>
+</tr>
+<tr>
+<td><code>DeformableDETR</code></td>
+<td>models&#x2F;deformable_detr.py</td>
+<td>主模型：backbone + transformer + 检测头</td>
+</tr>
+</tbody></table>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/Deformable-DETR/blob/main/models/ops/modules/ms_deform_attn.py">models&#x2F;ops&#x2F;modules&#x2F;ms_deform_attn.py</a>）</p>
+<details>
+<summary>📄 点击展开 MSDeformAttn 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">MSDeformAttn</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, d_model=<span class="number">256</span>, n_levels=<span class="number">4</span>, n_heads=<span class="number">8</span>, n_points=<span class="number">4</span></span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        Multi-Scale Deformable Attention Module</span></span><br><span class="line"><span class="string">        :param d_model      hidden dimension</span></span><br><span class="line"><span class="string">        :param n_levels     number of feature levels</span></span><br><span class="line"><span class="string">        :param n_heads      number of attention heads</span></span><br><span class="line"><span class="string">        :param n_points     number of sampling points per attention head per feature level</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.d_model = d_model</span><br><span class="line">        <span class="variable language_">self</span>.n_levels = n_levels</span><br><span class="line">        <span class="variable language_">self</span>.n_heads = n_heads</span><br><span class="line">        <span class="variable language_">self</span>.n_points = n_points</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 采样偏移：每个 head 在每个 level 上预测 n_points 个 2D 偏移</span></span><br><span class="line">        <span class="variable language_">self</span>.sampling_offsets = nn.Linear(d_model, n_heads * n_levels * n_points * <span class="number">2</span>)</span><br><span class="line">        <span class="comment"># 注意力权重：跨所有 level 和 point 归一化</span></span><br><span class="line">        <span class="variable language_">self</span>.attention_weights = nn.Linear(d_model, n_heads * n_levels * n_points)</span><br><span class="line">        <span class="variable language_">self</span>.value_proj = nn.Linear(d_model, d_model)</span><br><span class="line">        <span class="variable language_">self</span>.output_proj = nn.Linear(d_model, d_model)</span><br><span class="line">        <span class="variable language_">self</span>._reset_parameters()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_reset_parameters</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="comment"># 关键初始化：采样偏移初始化为围绕参考点的网格模式</span></span><br><span class="line">        constant_(<span class="variable language_">self</span>.sampling_offsets.weight.data, <span class="number">0.</span>)</span><br><span class="line">        thetas = torch.arange(<span class="variable language_">self</span>.n_heads, dtype=torch.float32) * (<span class="number">2.0</span> * math.pi / <span class="variable language_">self</span>.n_heads)</span><br><span class="line">        grid_init = torch.stack([thetas.cos(), thetas.sin()], -<span class="number">1</span>)</span><br><span class="line">        grid_init = (grid_init / grid_init.<span class="built_in">abs</span>().<span class="built_in">max</span>(-<span class="number">1</span>, keepdim=<span class="literal">True</span>)[<span class="number">0</span>])</span><br><span class="line">                     .view(<span class="variable language_">self</span>.n_heads, <span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>)</span><br><span class="line">                     .repeat(<span class="number">1</span>, <span class="variable language_">self</span>.n_levels, <span class="variable language_">self</span>.n_points, <span class="number">1</span>)</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="variable language_">self</span>.n_points):</span><br><span class="line">            grid_init[:, :, i, :] *= i + <span class="number">1</span>  <span class="comment"># 不同采样点距离递增</span></span><br><span class="line">        <span class="keyword">with</span> torch.no_grad():</span><br><span class="line">            <span class="variable language_">self</span>.sampling_offsets.bias = nn.Parameter(grid_init.view(-<span class="number">1</span>))</span><br><span class="line">        constant_(<span class="variable language_">self</span>.attention_weights.weight.data, <span class="number">0.</span>)</span><br><span class="line">        constant_(<span class="variable language_">self</span>.attention_weights.bias.data, <span class="number">0.</span>)</span><br><span class="line">        xavier_uniform_(<span class="variable language_">self</span>.value_proj.weight.data)</span><br><span class="line">        xavier_uniform_(<span class="variable language_">self</span>.output_proj.weight.data)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, query, reference_points, input_flatten,</span></span><br><span class="line"><span class="params">                input_spatial_shapes, input_level_start_index,</span></span><br><span class="line"><span class="params">                input_padding_mask=<span class="literal">None</span></span>):</span><br><span class="line">        N, Len_q, _ = query.shape</span><br><span class="line">        N, Len_in, _ = input_flatten.shape</span><br><span class="line"></span><br><span class="line">        value = <span class="variable language_">self</span>.value_proj(input_flatten)</span><br><span class="line">        <span class="keyword">if</span> input_padding_mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">            value = value.masked_fill(input_padding_mask[..., <span class="literal">None</span>], <span class="built_in">float</span>(<span class="number">0</span>))</span><br><span class="line">        value = value.view(N, Len_in, <span class="variable language_">self</span>.n_heads, <span class="variable language_">self</span>.d_model // <span class="variable language_">self</span>.n_heads)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 预测采样偏移和注意力权重</span></span><br><span class="line">        sampling_offsets = <span class="variable language_">self</span>.sampling_offsets(query).view(</span><br><span class="line">            N, Len_q, <span class="variable language_">self</span>.n_heads, <span class="variable language_">self</span>.n_levels, <span class="variable language_">self</span>.n_points, <span class="number">2</span>)</span><br><span class="line">        attention_weights = <span class="variable language_">self</span>.attention_weights(query).view(</span><br><span class="line">            N, Len_q, <span class="variable language_">self</span>.n_heads, <span class="variable language_">self</span>.n_levels * <span class="variable language_">self</span>.n_points)</span><br><span class="line">        attention_weights = F.softmax(attention_weights, -<span class="number">1</span>).view(</span><br><span class="line">            N, Len_q, <span class="variable language_">self</span>.n_heads, <span class="variable language_">self</span>.n_levels, <span class="variable language_">self</span>.n_points)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 计算采样位置 = 参考点 + 归一化偏移</span></span><br><span class="line">        <span class="keyword">if</span> reference_points.shape[-<span class="number">1</span>] == <span class="number">2</span>:</span><br><span class="line">            offset_normalizer = torch.stack(</span><br><span class="line">                [input_spatial_shapes[..., <span class="number">1</span>], input_spatial_shapes[..., <span class="number">0</span>]], -<span class="number">1</span>)</span><br><span class="line">            sampling_locations = reference_points[:, :, <span class="literal">None</span>, :, <span class="literal">None</span>, :] \</span><br><span class="line">                + sampling_offsets / offset_normalizer[<span class="literal">None</span>, <span class="literal">None</span>, <span class="literal">None</span>, :, <span class="literal">None</span>, :]</span><br><span class="line">        <span class="keyword">elif</span> reference_points.shape[-<span class="number">1</span>] == <span class="number">4</span>:</span><br><span class="line">            <span class="comment"># 迭代精化模式：偏移相对于预测框尺寸</span></span><br><span class="line">            sampling_locations = reference_points[:, :, <span class="literal">None</span>, :, <span class="literal">None</span>, :<span class="number">2</span>] \</span><br><span class="line">                + sampling_offsets / <span class="variable language_">self</span>.n_points \</span><br><span class="line">                * reference_points[:, :, <span class="literal">None</span>, :, <span class="literal">None</span>, <span class="number">2</span>:] * <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># CUDA 自定义算子：双线性插值采样 + 加权求和</span></span><br><span class="line">        output = MSDeformAttnFunction.apply(</span><br><span class="line">            value, input_spatial_shapes, input_level_start_index,</span><br><span class="line">            sampling_locations, attention_weights, <span class="variable language_">self</span>.im2col_step)</span><br><span class="line">        output = <span class="variable language_">self</span>.output_proj(output)</span><br><span class="line">        <span class="keyword">return</span> output</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/Deformable-DETR/blob/main/models/deformable_transformer.py">models&#x2F;deformable_transformer.py</a>）</p>
+<details>
+<summary>📄 点击展开 DeformableTransformerEncoderLayer 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DeformableTransformerEncoderLayer</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, d_model=<span class="number">256</span>, d_ffn=<span class="number">1024</span>, dropout=<span class="number">0.1</span>,</span></span><br><span class="line"><span class="params">                 activation=<span class="string">&quot;relu&quot;</span>, n_levels=<span class="number">4</span>, n_heads=<span class="number">8</span>, n_points=<span class="number">4</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="comment"># 自注意力：多尺度可变形注意力</span></span><br><span class="line">        <span class="variable language_">self</span>.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)</span><br><span class="line">        <span class="variable language_">self</span>.dropout1 = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.norm1 = nn.LayerNorm(d_model)</span><br><span class="line">        <span class="comment"># FFN</span></span><br><span class="line">        <span class="variable language_">self</span>.linear1 = nn.Linear(d_model, d_ffn)</span><br><span class="line">        <span class="variable language_">self</span>.activation = _get_activation_fn(activation)</span><br><span class="line">        <span class="variable language_">self</span>.dropout2 = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.linear2 = nn.Linear(d_ffn, d_model)</span><br><span class="line">        <span class="variable language_">self</span>.dropout3 = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.norm2 = nn.LayerNorm(d_model)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, src, pos, reference_points, spatial_shapes,</span></span><br><span class="line"><span class="params">                level_start_index, padding_mask=<span class="literal">None</span></span>):</span><br><span class="line">        <span class="comment"># 多尺度可变形自注意力</span></span><br><span class="line">        src2 = <span class="variable language_">self</span>.self_attn(<span class="variable language_">self</span>.with_pos_embed(src, pos),</span><br><span class="line">                              reference_points, src,</span><br><span class="line">                              spatial_shapes, level_start_index, padding_mask)</span><br><span class="line">        src = src + <span class="variable language_">self</span>.dropout1(src2)</span><br><span class="line">        src = <span class="variable language_">self</span>.norm1(src)</span><br><span class="line">        <span class="comment"># FFN</span></span><br><span class="line">        src = <span class="variable language_">self</span>.forward_ffn(src)</span><br><span class="line">        <span class="keyword">return</span> src</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/fundamentalvision/Deformable-DETR/blob/main/models/deformable_transformer.py">models&#x2F;deformable_transformer.py</a>）</p>
+<details>
+<summary>📄 点击展开 DeformableTransformerDecoderLayer 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DeformableTransformerDecoderLayer</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, d_model=<span class="number">256</span>, d_ffn=<span class="number">1024</span>, dropout=<span class="number">0.1</span>,</span></span><br><span class="line"><span class="params">                 activation=<span class="string">&quot;relu&quot;</span>, n_levels=<span class="number">4</span>, n_heads=<span class="number">8</span>, n_points=<span class="number">4</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="comment"># 交叉注意力：多尺度可变形注意力（从编码器记忆中采样）</span></span><br><span class="line">        <span class="variable language_">self</span>.cross_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)</span><br><span class="line">        <span class="variable language_">self</span>.dropout1 = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.norm1 = nn.LayerNorm(d_model)</span><br><span class="line">        <span class="comment"># 自注意力：标准多头注意力（query 之间交互）</span></span><br><span class="line">        <span class="variable language_">self</span>.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)</span><br><span class="line">        <span class="variable language_">self</span>.dropout2 = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.norm2 = nn.LayerNorm(d_model)</span><br><span class="line">        <span class="comment"># FFN</span></span><br><span class="line">        <span class="variable language_">self</span>.linear1 = nn.Linear(d_model, d_ffn)</span><br><span class="line">        <span class="variable language_">self</span>.activation = _get_activation_fn(activation)</span><br><span class="line">        <span class="variable language_">self</span>.dropout3 = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.linear2 = nn.Linear(d_ffn, d_model)</span><br><span class="line">        <span class="variable language_">self</span>.dropout4 = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.norm3 = nn.LayerNorm(d_model)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, tgt, query_pos, reference_points, src,</span></span><br><span class="line"><span class="params">                src_spatial_shapes, level_start_index, src_padding_mask=<span class="literal">None</span></span>):</span><br><span class="line">        <span class="comment"># 自注意力：query 之间交互（仍用标准注意力）</span></span><br><span class="line">        q = k = <span class="variable language_">self</span>.with_pos_embed(tgt, query_pos)</span><br><span class="line">        tgt2 = <span class="variable language_">self</span>.self_attn(q.transpose(<span class="number">0</span>, <span class="number">1</span>), k.transpose(<span class="number">0</span>, <span class="number">1</span>),</span><br><span class="line">                              tgt.transpose(<span class="number">0</span>, <span class="number">1</span>))[<span class="number">0</span>].transpose(<span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line">        tgt = tgt + <span class="variable language_">self</span>.dropout2(tgt2)</span><br><span class="line">        tgt = <span class="variable language_">self</span>.norm2(tgt)</span><br><span class="line">        <span class="comment"># 交叉注意力：从编码器多尺度特征中采样</span></span><br><span class="line">        tgt2 = <span class="variable language_">self</span>.cross_attn(<span class="variable language_">self</span>.with_pos_embed(tgt, query_pos),</span><br><span class="line">                               reference_points, src,</span><br><span class="line">                               src_spatial_shapes, level_start_index,</span><br><span class="line">                               src_padding_mask)</span><br><span class="line">        tgt = tgt + <span class="variable language_">self</span>.dropout1(tgt2)</span><br><span class="line">        tgt = <span class="variable language_">self</span>.norm1(tgt)</span><br><span class="line">        <span class="comment"># FFN</span></span><br><span class="line">        tgt = <span class="variable language_">self</span>.forward_ffn(tgt)</span><br><span class="line">        <span class="keyword">return</span> tgt</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="主要结果"><a href="#主要结果" class="headerlink" title="主要结果"></a>主要结果</h3><p><strong>与 DETR 对比（COCO 2017 val）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>Epochs</th>
+<th>AP</th>
+<th>AP$_{50}$</th>
+<th>AP$_{75}$</th>
+<th>AP$_S$</th>
+<th>AP$_M$</th>
+<th>AP$_L$</th>
+<th>FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Faster R-CNN + FPN</td>
+<td>R50</td>
+<td>109</td>
+<td>42.0</td>
+<td>62.1</td>
+<td>45.5</td>
+<td>26.6</td>
+<td>45.4</td>
+<td>53.4</td>
+<td>26</td>
+</tr>
+<tr>
+<td>DETR-DC5</td>
+<td>R50</td>
+<td>500</td>
+<td>43.3</td>
+<td>63.1</td>
+<td>45.9</td>
+<td>22.5</td>
+<td>47.3</td>
+<td>61.1</td>
+<td>12</td>
+</tr>
+<tr>
+<td>DETR-DC5</td>
+<td>R50</td>
+<td>50</td>
+<td>35.3</td>
+<td>55.7</td>
+<td>36.8</td>
+<td>15.2</td>
+<td>37.5</td>
+<td>53.6</td>
+<td>12</td>
+</tr>
+<tr>
+<td><strong>Deformable DETR</strong></td>
+<td>R50</td>
+<td><strong>50</strong></td>
+<td><strong>43.8</strong></td>
+<td>62.6</td>
+<td>47.7</td>
+<td><strong>26.4</strong></td>
+<td><strong>47.1</strong></td>
+<td><strong>58.0</strong></td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ul>
+<li>仅用 50 epochs，Deformable DETR 即超越 500 epochs 的 DETR-DC5（43.8 vs 43.3 AP）</li>
+<li>$AP_S$ 从 DETR 的 22.5 大幅提升至 26.4，接近 Faster R-CNN 水平（26.6），多尺度特征功不可没</li>
+<li>在相同 50 epochs 下，Deformable DETR 领先 DETR-DC5 达 8.5 AP（43.8 vs 35.3）</li>
+</ul>
+<p><strong>COCO test-dev SOTA 对比</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>TTA</th>
+<th>AP</th>
+<th>AP$_{50}$</th>
+<th>AP$_{75}$</th>
+<th>AP$_S$</th>
+<th>AP$_M$</th>
+<th>AP$_L$</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>FCOS</td>
+<td>ResNeXt-101</td>
+<td>—</td>
+<td>44.7</td>
+<td>64.1</td>
+<td>48.4</td>
+<td>27.6</td>
+<td>47.5</td>
+<td>55.6</td>
+</tr>
+<tr>
+<td>ATSS</td>
+<td>ResNeXt-101+DCN</td>
+<td>✓</td>
+<td>50.7</td>
+<td>68.9</td>
+<td>56.3</td>
+<td>33.2</td>
+<td>52.9</td>
+<td>62.4</td>
+</tr>
+<tr>
+<td>EfficientDet-D7</td>
+<td>EfficientNet-B6</td>
+<td>—</td>
+<td>52.2</td>
+<td>71.4</td>
+<td>56.3</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Deformable DETR</strong></td>
+<td>R50</td>
+<td>—</td>
+<td>46.9</td>
+<td>66.4</td>
+<td>50.8</td>
+<td>27.7</td>
+<td>49.7</td>
+<td>59.9</td>
+</tr>
+<tr>
+<td><strong>Deformable DETR</strong></td>
+<td>R101</td>
+<td>—</td>
+<td>48.7</td>
+<td>68.1</td>
+<td>52.9</td>
+<td>29.1</td>
+<td>51.5</td>
+<td>62.0</td>
+</tr>
+<tr>
+<td><strong>Deformable DETR</strong></td>
+<td>ResNeXt-101</td>
+<td>—</td>
+<td>49.0</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Deformable DETR</strong></td>
+<td>ResNeXt-101+DCN</td>
+<td>—</td>
+<td><strong>50.1</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Deformable DETR</strong></td>
+<td>ResNeXt-101+DCN</td>
+<td>✓</td>
+<td><strong>52.3</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<h3 id="消融实验：验证三个洞察"><a href="#消融实验：验证三个洞察" class="headerlink" title="消融实验：验证三个洞察"></a>消融实验：验证三个洞察</h3><p><strong>可变形注意力设计消融（COCO val）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th align="center">多尺度输入</th>
+<th align="center">多尺度注意力</th>
+<th align="center">$K$</th>
+<th align="center">FPN</th>
+<th>AP</th>
+<th>AP$_S$</th>
+<th>AP$_M$</th>
+<th>AP$_L$</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">✗</td>
+<td align="center">✗</td>
+<td align="center">1</td>
+<td align="center">✗</td>
+<td>39.7</td>
+<td>21.2</td>
+<td>44.3</td>
+<td>56.0</td>
+<td>洞察 #1</td>
+</tr>
+<tr>
+<td align="center">✓</td>
+<td align="center">✗</td>
+<td align="center">1</td>
+<td align="center">✗</td>
+<td>41.4</td>
+<td>24.1</td>
+<td>44.6</td>
+<td>56.1</td>
+<td>洞察 #2</td>
+</tr>
+<tr>
+<td align="center">✓</td>
+<td align="center">✗</td>
+<td align="center">4</td>
+<td align="center">✗</td>
+<td>42.3</td>
+<td>24.8</td>
+<td>45.1</td>
+<td>56.3</td>
+<td>洞察 #1</td>
+</tr>
+<tr>
+<td align="center">✓</td>
+<td align="center">✓</td>
+<td align="center">4</td>
+<td align="center">✗</td>
+<td><strong>43.8</strong></td>
+<td><strong>26.4</strong></td>
+<td><strong>47.1</strong></td>
+<td><strong>58.0</strong></td>
+<td>洞察 #2</td>
+</tr>
+<tr>
+<td align="center">✓</td>
+<td align="center">✓</td>
+<td align="center">4</td>
+<td align="center">FPN</td>
+<td>43.8</td>
+<td>26.5</td>
+<td>47.3</td>
+<td>58.1</td>
+<td>洞察 #2</td>
+</tr>
+<tr>
+<td align="center">✓</td>
+<td align="center">✓</td>
+<td align="center">4</td>
+<td align="center">BiFPN</td>
+<td>43.9</td>
+<td>25.6</td>
+<td>47.4</td>
+<td>57.7</td>
+<td>洞察 #2</td>
+</tr>
+</tbody></table>
+<p>消融实验的关键结论：</p>
+<ul>
+<li><strong>洞察 #1 验证</strong>：单尺度 $K&#x3D;1$（退化为可变形卷积）仅 39.7 AP；增加 $K$ 至 4 提升 +0.9 AP，证实多点采样的价值</li>
+<li><strong>洞察 #2 验证</strong>：从单尺度（42.3）到多尺度注意力（43.8）提升 +1.5 AP，$AP_S$ 提升 +1.6；加 FPN&#x2F;BiFPN 不再带来提升，证实多尺度注意力已充分交换跨尺度信息</li>
+<li>从单尺度 $K&#x3D;1$ 到完整模型，$AP_S$ 累计提升 +5.2（21.2→26.4），验证多尺度特征对小物体的关键作用</li>
+</ul>
+<h3 id="性能瓶颈分析"><a href="#性能瓶颈分析" class="headerlink" title="性能瓶颈分析"></a>性能瓶颈分析</h3><p>Deformable DETR 大幅缓解了 DETR 的两大瓶颈，但仍存在一些限制：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>Deformable DETR（R50）</th>
+<th>Faster R-CNN+FPN（R50）</th>
+<th>差距</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AP$_S$</td>
+<td>26.4</td>
+<td>26.6</td>
+<td>-0.2（几乎持平）</td>
+</tr>
+<tr>
+<td>AP$_L$</td>
+<td>58.0</td>
+<td>53.4</td>
+<td><strong>+4.6</strong></td>
+</tr>
+<tr>
+<td>训练 epochs</td>
+<td>50</td>
+<td>109</td>
+<td>更少</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>编码器计算量</strong>：虽然注意力降为线性复杂度，但 4 个尺度的特征图总像素数仍较大，编码器 6 层仍有不小的开销</li>
+<li><strong>CUDA 自定义算子依赖</strong>：<code>MSDeformAttnFunction</code> 需要编译 CUDA 扩展，跨平台部署不如纯 PyTorch 实现方便</li>
+<li><strong>两阶段方案的候选数量</strong>：两阶段版本中第一阶段每个像素都作为 query 预测候选框，增加了第一阶段的计算负担</li>
+</ul>
+<h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><ul>
+<li><strong>极端密集场景</strong>：300 个 object queries 虽比 DETR 的 100 个更多，但在极端密集场景（如数百个物体）下仍可能不足</li>
+<li><strong>采样点覆盖不足</strong>：每个 head 每个 level 仅 $K&#x3D;4$ 个采样点，对极大尺度目标或复杂形状物体可能覆盖不够，需要更多层迭代来补偿</li>
+<li><strong>小物体仍有差距</strong>：虽然 $AP_S$ 大幅提升至 26.4，但与标准注意力模型相比最高分辨率仅为 stride 8（对比 FPN 可到 stride 4），对极小物体的分辨能力仍有限</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone: ResNet-50（ImageNet 预训练）</span><br><span class="line">Input: 短边 480-800，长边最大 1333</span><br><span class="line">Optimizer: Adam (lr=2e-4, β₁=0.9, β₂=0.999, weight_decay=1e-4)</span><br><span class="line">  采样偏移/参考点线性层 lr 乘以 0.1</span><br><span class="line">Epochs: 50（在第 40 epoch 处 lr 衰减 10 倍）</span><br><span class="line">Object Queries: 300</span><br><span class="line">Classification: Focal Loss (weight=2)</span><br><span class="line">Feature Levels: L=4 (C₃, C₄, C₅, C₆)</span><br><span class="line">Deformable Attention: M=8 heads, K=4 points</span><br><span class="line">Transformer: d_model=256, FFN dim=1024</span><br><span class="line">Encoder/Decoder: 各 6 层</span><br></pre></td></tr></table></figure>
+
+<h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
+<li><p><strong>CUDA 扩展编译</strong>：<code>MSDeformAttn</code> 核心算子需要编译 CUDA 扩展（<code>cd models/ops &amp;&amp; python setup.py build install</code>），这是性能的关键——纯 PyTorch 版本（<code>ms_deform_attn_core_pytorch</code>）仅用于调试，速度远慢于 CUDA 版本。</p>
+</li>
+<li><p><strong>采样偏移初始化至关重要</strong>：采样偏移 bias 初始化为围绕参考点的均匀网格模式（按极角 $2\pi&#x2F;M$ 分布），不同采样点距离递增。随机初始化会显著降低性能。</p>
+</li>
+<li><p><strong>参考点预测的学习率</strong>：预测采样偏移和参考点的线性层学习率需乘以 0.1（相对于基础 lr），防止训练初期参考点漂移过大。</p>
+</li>
+<li><p><strong>迭代精化的梯度阻断</strong>：迭代边界框精化中，梯度不通过 $\sigma^{-1}(\hat{b}^{d-1})$ 反向传播，仅通过当前层的增量 $\Delta b^d$ 传播，这对训练稳定性至关重要。</p>
+</li>
+<li><p><strong>scale-level embedding</strong>：为区分不同尺度的特征，添加了可学习的 scale-level embedding $\boldsymbol{e}_l$，与位置编码拼加后输入编码器。该嵌入随机初始化、端到端训练。</p>
+</li>
+<li><p><strong>Focal Loss 替代交叉熵</strong>：分类损失从 DETR 的交叉熵改为 Focal Loss（loss weight&#x3D;2），配合 300 个 queries（比 DETR 多 200 个），更好地处理正负样本不平衡。</p>
+</li>
+</ol>
+<h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>更好的 query 初始化策略：如 DAB-DETR 使用 anchor 坐标代替可学习嵌入，进一步加速收敛</li>
+<li>去噪训练（DN-DETR&#x2F;DINO）：在训练时注入加噪 GT 作为额外 query，显著提升匹配质量和收敛速度</li>
+<li>更强的 backbone：使用 Swin Transformer 等视觉 backbone 替代 ResNet，可显著提升检测性能</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>减少编码器层数：编码器参数跨尺度共享，实验表明可适当减少层数以节省计算</li>
+<li>简化两阶段方案：两阶段中第一阶段候选生成可以用更轻量的方式实现</li>
+<li>算子优化：将 CUDA 自定义算子替换为 PyTorch 2.0+ 原生的高效注意力实现，降低部署复杂度</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ol>
+<li><p><strong>可变形注意力作为通用视觉特征聚合模块</strong><br>多尺度可变形注意力提供了一种在视觉任务中替代标准 Transformer 注意力的高效范式。该模块已被广泛应用于 BEV 感知（BEVFormer）、视频理解、点云处理等领域，成为 3D 检测和自动驾驶感知的核心组件。</p>
+</li>
+<li><p><strong>稀疏注意力解决视觉 Transformer 的效率瓶颈</strong><br>通过将注意力从 $O(N^2)$ 降至 $O(NK)$，Deformable DETR 证明了视觉 Transformer 不必在全局感受野和效率之间二选一。类似的稀疏注意力思想后续被 Swin Transformer 的 window attention、Neighborhood Attention 等工作各自发展。</p>
+</li>
+<li><p><strong>迭代精化是端到端检测的有效增强范式</strong><br>每层解码器逐步精化预测的思想后续被 DINO、Co-DETR 等 SOTA 检测器广泛采用，成为 DETR 系列的标准组件。</p>
+</li>
+<li><p><strong>注意力机制可原生替代特征金字塔</strong><br>Deformable DETR 证明通过合适的注意力设计可以让多尺度信息交换在注意力计算中自然发生，不再需要手工设计的 FPN 结构，简化了检测器的整体架构。</p>
+</li>
+</ol>
+<h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
+<li><strong>CUDA 自定义算子依赖</strong>：核心可变形注意力需要编译 CUDA 扩展，增加了部署和跨平台移植的复杂度</li>
+<li><strong>采样点数固定</strong>：$K$ 和 $L$ 为固定超参数，无法根据目标尺度自适应调整采样密度</li>
+<li><strong>解码器自注意力仍为标准注意力</strong>：object queries 之间的交互仍使用 $O(N^2)$ 的标准多头注意力，未充分利用可变形注意力的效率优势</li>
+</ul>
+<h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
+<li><strong>DETR 系列实用化的关键一步</strong>：将端到端检测器从”学术新范式”推向”实用可训练”，后续 DAB-DETR、DN-DETR、DINO 均以此为基础</li>
+<li><strong>BEV 感知的核心组件</strong>：多尺度可变形注意力被 BEVFormer 直接采用为 BEV → 图像特征的空间交叉注意力机制，成为自动驾驶 3D 感知的标准模块</li>
+<li><strong>开源影响力</strong>：代码被 MMDetection、Detectron2 等主流检测框架集成，推动了 Transformer 检测器在工业界的落地</li>
+<li><strong>学术引用量极高</strong>：作为 DETR 到现代 DETR 变体（DINO 等 COCO SOTA）之间的关键桥梁，在目标检测、实例分割、全景分割等方向产生了广泛的后续工作</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E6%95%B0%E6%8D%AE%E4%BE%9D%E8%B5%96%E7%9A%84%E7%A8%80%E7%96%8F%E9%87%87%E6%A0%B7%E6%9B%BF%E4%BB%A3%E5%85%A8%E5%B1%80%E5%AF%86%E9%9B%86%E6%B3%A8%E6%84%8F%E5%8A%9B"><span class="toc-text">洞察 1：数据依赖的稀疏采样替代全局密集注意力</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E6%B3%A8%E6%84%8F%E5%8A%9B%E6%9C%BA%E5%88%B6%E5%8E%9F%E7%94%9F%E8%81%9A%E5%90%88%E5%A4%9A%E5%B0%BA%E5%BA%A6%E7%89%B9%E5%BE%81"><span class="toc-text">洞察 2：注意力机制原生聚合多尺度特征</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E5%BF%AB%E9%80%9F%E6%94%B6%E6%95%9B%E4%BD%BF%E8%BF%AD%E4%BB%A3%E7%B2%BE%E5%8C%96%E5%92%8C%E4%B8%A4%E9%98%B6%E6%AE%B5%E6%96%B9%E6%A1%88%E6%88%90%E4%B8%BA%E5%8F%AF%E8%83%BD"><span class="toc-text">洞察 3：快速收敛使迭代精化和两阶段方案成为可能</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B/" class="tag">#目标检测</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            自动驾驶感知论文知识图谱 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">自动驾驶感知论文知识图谱</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年03月27日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>本文将博客中已有的自动驾驶感知论文笔记组织为一张可交互的知识图谱，标注了各论文之间的技术传承与对比关系。本文会随新笔记的加入持续更新。</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="交互式知识图谱"><a href="#交互式知识图谱" class="headerlink" title="交互式知识图谱"></a>交互式知识图谱</h2>
+<div id="paper-graph-wrapper" style="position:relative;width:100%;margin:1.5rem 0;">
+  <div id="paper-graph" style="width:100%;height:600px;border:1px solid #e0e0e0;border-radius:8px;background:#fafbfc;"></div>
+  <div id="paper-graph-toolbar" style="position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10;">
+    <button onclick="graphZoom(1.3)" title="放大" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">＋</button>
+    <button onclick="graphZoom(0.7)" title="缩小" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">－</button>
+    <button onclick="graphFit()" title="适应窗口" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">⊙</button>
+    <button onclick="graphFullscreen()" title="全屏" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">⛶</button>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+<script>
+(function(){
+  var defined_nodes = [
+    // 2D检测基础 → 跟踪 → 3D (顶部)
+    {id:'centernet',   label:'CenterNet\n(CVPR 2019)',       color:'#ff9f43', url:'/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/', x:0, y:-180},
+    {id:'centertrack', label:'CenterTrack\n(ECCV 2020)',     color:'#ff9f43', url:'/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/', x:-140, y:-120},
+    {id:'centerpoint', label:'CenterPoint\n(CVPR 2021)',     color:'#ff9f43', url:'/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/', x:-140, y:-40},
+    {id:'detr',        label:'DETR\n(ECCV 2020)',            color:'#ff9f43', url:'/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/', x:0, y:-60},
+    {id:'defdetr',     label:'Deformable DETR\n(ICLR 2021)', color:'#ff9f43', url:'/posts/2021/papers/2021_ICLR_Deformable_DETR_Deformable_Transformers/', x:0, y:60},
+    // LSS系 显式BEV投影 (左侧)
+    {id:'lss',        label:'LSS\n(ECCV 2020)',             color:'#54a0ff', url:'/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/', x:-170, y:-60},
+    {id:'bevdet',     label:'BEVDet\n(arXiv 2021)',         color:'#54a0ff', url:'/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/', x:-185, y:60},
+    {id:'bevdepth',   label:'BEVDepth\n(AAAI 2022)',        color:'#54a0ff', url:'/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/', x:-170, y:175},
+    {id:'bevfusion',  label:'BEVFusion\n(ICRA 2022)',       color:'#ee5a24', url:'/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/', x:-90, y:280},
+    // Transformer Query系 (右侧)
+    {id:'petr',       label:'PETR\n(ECCV 2022)',            color:'#1dd1a1', url:'/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/', x:175, y:60},
+    {id:'bevformer',  label:'BEVFormer\n(ECCV 2022)',       color:'#1dd1a1', url:'/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/', x:30, y:175},
+    {id:'sparse4d',   label:'Sparse4D\n(arXiv 2022)',       color:'#1dd1a1', url:'/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/', x:190, y:175},
+    {id:'streampetr', label:'StreamPETR\n(ICCV 2023)',      color:'#1dd1a1', url:'/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/', x:130, y:280},
+    // 车道线检测 (右上方独立)
+    {id:'laneaf',     label:'LaneAF\n(arXiv 2021)',         color:'#5f27cd', font:{color:'#fff'}, url:'/posts/2021/papers/2021_arXiv_LaneAF_Robust_Multi_Lane_Detection_with_Affinity_Fields/', x:310, y:-60}
+  ];
+  var defined_edges = [
+    {from:'centernet', to:'centertrack', label:'检测→跟踪扩展',            arrows:'to'},
+    {from:'centernet', to:'centerpoint', label:'中心点→3D 点云',           arrows:'to'},
+    {from:'centertrack',to:'centerpoint',label:'速度匹配→3D 跟踪',         arrows:'to'},
+    {from:'centernet', to:'detr',       label:'anchor-free 启发',        arrows:'to'},
+    {from:'detr',      to:'defdetr',    label:'可变形注意力改进',        arrows:'to'},
+    {from:'defdetr',   to:'petr',       label:'Transformer 检测范式',    arrows:'to'},
+    {from:'defdetr',   to:'bevformer',  label:'可变形注意力核心组件',    arrows:'to'},
+    {from:'defdetr',   to:'sparse4d',   label:'稀疏查询继承',            arrows:'to'},
+    {from:'lss',       to:'bevdet',     label:'View Transformer 基础',  arrows:'to'},
+    {from:'bevdet',    to:'bevdepth',   label:'深度估计改进',            arrows:'to'},
+    {from:'lss',       to:'bevdepth',   label:'深度分布监督',            arrows:'to'},
+    {from:'lss',       to:'bevfusion',  label:'BEV 池化加速',           arrows:'to'},
+    {from:'bevdepth',  to:'bevfusion',  label:'深度增强融合',            arrows:'to'},
+    {from:'petr',      to:'streampetr', label:'物体级时序扩展',          arrows:'to'},
+    {from:'petr',      to:'sparse4d',   label:'稀疏采样替代全局注意力',  arrows:'to'},
+    {from:'sparse4d',  to:'streampetr', label:'时序传播思路',            arrows:'to', dashes:true},
+    {from:'bevformer', to:'streampetr', label:'时序建模思路对比',        arrows:'to', dashes:true},
+    {from:'lss',       to:'bevformer',  label:'BEV 范式对比',           arrows:'to', dashes:true}
+  ];
+  var nodes = new vis.DataSet(defined_nodes.map(function(n){
+    return {
+      id: n.id, label: n.label, url: n.url, x: n.x, y: n.y, fixed: false,
+      color: {background: n.color, border: n.color, highlight: {background: n.color, border: '#333'}},
+      font: n.font || {color: '#fff', size: 13, face: 'system-ui'},
+      shape: 'box', borderWidth: 0, margin: 10,
+      shadow: {enabled: true, size: 6, x: 2, y: 2}
+    };
+  }));
+  var edges = new vis.DataSet(defined_edges.map(function(e){
+    return {
+      from: e.from, to: e.to, label: e.label, arrows: e.arrows,
+      dashes: e.dashes || false,
+      color: {color: '#aaa', highlight: '#667eea'},
+      font: {size: 11, color: '#666', strokeWidth: 2, strokeColor: '#fff', background: '#fafbfc'},
+      smooth: {type: 'dynamic'}
+    };
+  }));
+  var container = document.getElementById('paper-graph');
+  var network = new vis.Network(container, {nodes: nodes, edges: edges}, {
+    physics: {
+      solver: 'forceAtlas2Based',
+      forceAtlas2Based: {gravitationalConstant: -40, centralGravity: 0.005, springLength: 140, springConstant: 0.06, avoidOverlap: 0.8},
+      stabilization: {iterations: 300, fit: true}
+    },
+    interaction: {hover: true, tooltipDelay: 200, zoomView: true, dragView: true, dragNodes: true}
+  });
+  network.on('stabilizationIterationsDone', function(){ network.setOptions({physics: false}); });
+  network.on('click', function(params){
+    if (params.nodes.length > 0) {
+      var nodeId = params.nodes[0];
+      var node = nodes.get(nodeId);
+      if (node && node.url) window.location.href = node.url;
+    }
+  });
+  network.on('hoverNode', function(){ container.style.cursor = 'pointer'; });
+  network.on('blurNode',  function(){ container.style.cursor = 'default'; });
+  // 暴露控制函数到全局
+  window._graphNetwork = network;
+  window._graphContainer = container;
+  window._graphWrapper = document.getElementById('paper-graph-wrapper');
+})();
+function graphZoom(factor){
+  var s = window._graphNetwork.getScale();
+  window._graphNetwork.moveTo({scale: s * factor, animation: {duration: 300, easingFunction: 'easeInOutQuad'}});
+}
+function graphFit(){
+  window._graphNetwork.fit({animation: {duration: 400, easingFunction: 'easeInOutQuad'}});
+}
+function graphFullscreen(){
+  var wrapper = window._graphWrapper;
+  var graph = document.getElementById('paper-graph');
+  if (!document.fullscreenElement) {
+    wrapper.requestFullscreen().then(function(){
+      wrapper.style.background = '#fafbfc';
+      graph.style.height = '100vh';
+      window._graphNetwork.redraw();
+      window._graphNetwork.fit({animation: {duration: 300}});
+    });
+  } else {
+    document.exitFullscreen();
+  }
+}
+document.addEventListener('fullscreenchange', function(){
+  if (!document.fullscreenElement) {
+    var graph = document.getElementById('paper-graph');
+    graph.style.height = '600px';
+    window._graphNetwork.redraw();
+    window._graphNetwork.fit({animation: {duration: 300}});
+  }
+});
+</script>
+
+
+<blockquote>
+<p>点击节点跳转到对应笔记，拖拽&#x2F;滚轮缩放调整视角。工具栏按钮：＋放大、－缩小、⊙适应窗口、⛶全屏。</p>
+</blockquote>
+<p><strong>图例说明</strong>：</p>
+<ul>
+<li>🟠 <strong>橙色</strong>：2D&#x2F;3D 检测与跟踪基础（CenterNet → CenterTrack → CenterPoint；DETR → Deformable DETR）</li>
+<li>🔵 <strong>蓝色</strong>：LSS 系 BEV 显式投影路线（LSS → BEVDet → BEVDepth → BEVFusion）</li>
+<li>🟢 <strong>绿色</strong>：Transformer Query 系隐式路线（BEVFormer &#x2F; PETR → StreamPETR）</li>
+<li>🟣 <strong>紫色</strong>：车道线检测分支（LaneAF）</li>
+<li>🔴 <strong>红色</strong>：多传感器融合（BEVFusion）</li>
+<li><strong>实线</strong>：直接继承&#x2F;改进关系  |  <strong>虚线</strong>：对比&#x2F;互补关系</li>
+</ul>
+<h2 id="技术路线总览"><a href="#技术路线总览" class="headerlink" title="技术路线总览"></a>技术路线总览</h2><p>自动驾驶纯视觉感知经历了三条并行演进的技术路线，最终在 2023 年趋于收敛：</p>
+<h3 id="路线一：显式-BEV-投影（LSS-系）"><a href="#路线一：显式-BEV-投影（LSS-系）" class="headerlink" title="路线一：显式 BEV 投影（LSS 系）"></a>路线一：显式 BEV 投影（LSS 系）</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">LSS (2020) → BEVDet (2021) → BEVDepth (2022) → BEVFusion (2022)</span><br></pre></td></tr></table></figure>
+
+<p>这条路线的核心思想是<strong>显式构建深度分布</strong>，将 2D 图像特征”抬升”到 3D 空间再”拍扁”到 BEV 平面。</p>
+<table>
+<thead>
+<tr>
+<th align="center">阶段</th>
+<th align="center">论文</th>
+<th align="left">关键突破</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">奠基</td>
+<td align="center"><strong>LSS</strong></td>
+<td align="left">隐式深度外积 + Pillar Pooling，建立 2D→BEV 的基本管线</td>
+</tr>
+<tr>
+<td align="center">工程化</td>
+<td align="center"><strong>BEVDet</strong></td>
+<td align="left">模块化四段式架构，解耦图像&#x2F;BEV 数据增强</td>
+</tr>
+<tr>
+<td align="center">深度强化</td>
+<td align="center"><strong>BEVDepth</strong></td>
+<td align="left">LiDAR 显式深度监督，突破 60% NDS 天花板</td>
+</tr>
+<tr>
+<td align="center">多模态融合</td>
+<td align="center"><strong>BEVFusion</strong></td>
+<td align="left">BEV 级融合统一 Camera + LiDAR，70.2% mAP</td>
+</tr>
+</tbody></table>
+<h3 id="路线二：隐式-Transformer-Query（PETR-系）"><a href="#路线二：隐式-Transformer-Query（PETR-系）" class="headerlink" title="路线二：隐式 Transformer Query（PETR 系）"></a>路线二：隐式 Transformer Query（PETR 系）</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">DETR (2020) → Deformable DETR (2021) → PETR (2022) → StreamPETR (2023)</span><br><span class="line">                                           ↓               ↑</span><br><span class="line">                                      Sparse4D (2022) ─────┘</span><br><span class="line">                                                          ↑</span><br><span class="line">                                                    BEVFormer (2022) [时序思路]</span><br></pre></td></tr></table></figure>
+
+<p>这条路线<strong>完全不需要显式深度估计</strong>，用 3D 位置编码和 Transformer 注意力实现 2D→3D 的映射。</p>
+<table>
+<thead>
+<tr>
+<th align="center">阶段</th>
+<th align="center">论文</th>
+<th align="left">关键突破</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">起源</td>
+<td align="center"><strong>DETR</strong></td>
+<td align="left">集合预测 + 匈牙利匹配，消除 anchor&#x2F;NMS</td>
+</tr>
+<tr>
+<td align="center">高效化</td>
+<td align="center"><strong>Deformable DETR</strong></td>
+<td align="left">多尺度可变形注意力，10× 加速收敛，解决小物体检测</td>
+</tr>
+<tr>
+<td align="center">3D 扩展</td>
+<td align="center"><strong>PETR</strong></td>
+<td align="left">3D 位置编码注入 2D 特征，无需 3D→2D 投影</td>
+</tr>
+<tr>
+<td align="center">稀疏采样</td>
+<td align="center"><strong>Sparse4D</strong></td>
+<td align="left">4D 关键点稀疏采样替代全局注意力，时序实例传播</td>
+</tr>
+<tr>
+<td align="center">时序融合</td>
+<td align="center"><strong>StreamPETR</strong></td>
+<td align="left">物体级时序传播 + 记忆队列，67.6% NDS</td>
+</tr>
+</tbody></table>
+<h3 id="路线三：BEV-Transformer（BEVFormer）"><a href="#路线三：BEV-Transformer（BEVFormer）" class="headerlink" title="路线三：BEV Transformer（BEVFormer）"></a>路线三：BEV Transformer（BEVFormer）</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">DETR (2020) → Deformable DETR (2021) + LSS (2020) → BEVFormer (2022)</span><br></pre></td></tr></table></figure>
+
+<p>BEVFormer 是两条路线的<strong>混合体</strong>：用 Deformable DETR 的多尺度可变形注意力机制去查询生成 BEV 特征（类似 LSS 系的输出），同时引入时序自注意力。Deformable DETR 的可变形注意力是 BEVFormer 空间交叉注意力（SCA）的核心组件。</p>
+<h3 id="独立分支：车道线检测"><a href="#独立分支：车道线检测" class="headerlink" title="独立分支：车道线检测"></a>独立分支：车道线检测</h3><p><strong>LaneAF (2021)</strong> 是独立于 BEV 范式的车道线检测方法，用亲和场将像素关联问题转化为高效的序列解码，不依赖上述任何技术路线。</p>
+<h2 id="论文间核心关系详解"><a href="#论文间核心关系详解" class="headerlink" title="论文间核心关系详解"></a>论文间核心关系详解</h2><h3 id="CenterNet-→-CenterTrack-→-CenterPoint：从-2D-检测到-3D-跟踪的演化链"><a href="#CenterNet-→-CenterTrack-→-CenterPoint：从-2D-检测到-3D-跟踪的演化链" class="headerlink" title="CenterNet → CenterTrack → CenterPoint：从 2D 检测到 3D 跟踪的演化链"></a>CenterNet → CenterTrack → CenterPoint：从 2D 检测到 3D 跟踪的演化链</h3><ul>
+<li><strong>CenterNet (2019)</strong> 建立”物体 &#x3D; 中心点”的核心范式，用关键点检测替代 anchor-based 方法</li>
+<li><strong>CenterTrack (2020)</strong> 将中心点扩展到跟踪：前一帧图像 + 跟踪 heatmap 作为额外输入，预测帧间 2D offset，贪心匹配即可关联身份，无需 Kalman Filter 或 ReID</li>
+<li><strong>CenterPoint (2021)</strong> 将中心点范式推广到 3D LiDAR 检测：BEV map-view 上的 heatmap 检测 + 速度预测跟踪，两阶段 face-center 特征 refinement。在 nuScenes 和 Waymo 上均为 SOTA，NeurIPS 2020 挑战赛 Top-4 中 3 家采用</li>
+</ul>
+<p>三篇论文共同验证了<strong>中心点表示的普适性</strong>——从 2D 图像到视频跟踪再到 3D 点云，同一范式在不同维度和模态上均有效。</p>
+<h3 id="CenterNet-→-DETR：从-Anchor-Free-到-Set-Prediction"><a href="#CenterNet-→-DETR：从-Anchor-Free-到-Set-Prediction" class="headerlink" title="CenterNet → DETR：从 Anchor-Free 到 Set Prediction"></a>CenterNet → DETR：从 Anchor-Free 到 Set Prediction</h3><p>CenterNet 证明了<strong>物体可以用单个点表示</strong>，彻底摆脱了 anchor box 的束缚。DETR 更进一步，将检测建模为<strong>集合预测问题</strong>，用匈牙利匹配替代 NMS 后处理。两者共同奠定了”无需手工设计先验”的检测新范式。</p>
+<h3 id="LSS-→-BEVDet-→-BEVDepth：深度估计的三级跳"><a href="#LSS-→-BEVDet-→-BEVDepth：深度估计的三级跳" class="headerlink" title="LSS → BEVDet → BEVDepth：深度估计的三级跳"></a>LSS → BEVDet → BEVDepth：深度估计的三级跳</h3><ul>
+<li><strong>LSS</strong> 提出视锥体特征 + Pillar Pooling 的基本框架，但深度靠网络隐式学习，误差较大</li>
+<li><strong>BEVDet</strong> 将 LSS 工程化，拆分为四个独立模块，并引入 BEV 空间的数据增强</li>
+<li><strong>BEVDepth</strong> 直接用 LiDAR 点云做深度的显式监督（BCE Loss），将 GT 深度与预测深度的 <strong>18.8% mAP 差距</strong>大幅缩小</li>
+</ul>
+<h3 id="DETR-→-Deformable-DETR-→-PETR-→-StreamPETR：从-2D-到高效-3D-再到时序"><a href="#DETR-→-Deformable-DETR-→-PETR-→-StreamPETR：从-2D-到高效-3D-再到时序" class="headerlink" title="DETR → Deformable DETR → PETR → StreamPETR：从 2D 到高效 3D 再到时序"></a>DETR → Deformable DETR → PETR → StreamPETR：从 2D 到高效 3D 再到时序</h3><ul>
+<li><strong>DETR</strong> 在 2D 检测中验证了 Transformer + 匈牙利匹配的可行性</li>
+<li><strong>Deformable DETR</strong> 用多尺度可变形注意力解决 DETR 的收敛慢和小物体差问题，将训练从 500 epochs 缩短至 50 epochs，成为后续 3D 检测的基础模块</li>
+<li><strong>PETR</strong> 将 3D 坐标通过 MLP 编码为位置嵌入，注入 2D 特征，让 query 直接在 3D 空间中推理</li>
+<li><strong>StreamPETR</strong> 将 PETR 的 query 变成<strong>时序载体</strong>：上一帧的检测 query 直接传递到下一帧，用记忆队列 + 运动感知归一化实现高效时序建模</li>
+</ul>
+<h3 id="LSS-vs-BEVFormer：两种-BEV-构建方式"><a href="#LSS-vs-BEVFormer：两种-BEV-构建方式" class="headerlink" title="LSS vs BEVFormer：两种 BEV 构建方式"></a>LSS vs BEVFormer：两种 BEV 构建方式</h3><table>
+<thead>
+<tr>
+<th align="center">维度</th>
+<th align="center">LSS 系</th>
+<th align="center">BEVFormer</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">BEV 构建方式</td>
+<td align="center">显式深度投影</td>
+<td align="center">可变形注意力查询</td>
+</tr>
+<tr>
+<td align="center">深度依赖</td>
+<td align="center">强（深度越准越好）</td>
+<td align="center">弱（注意力隐式学习）</td>
+</tr>
+<tr>
+<td align="center">时序融合</td>
+<td align="center">需额外模块</td>
+<td align="center">原生 RNN 式自注意力</td>
+</tr>
+<tr>
+<td align="center">速度</td>
+<td align="center">快（规则投影）</td>
+<td align="center">慢（注意力计算）</td>
+</tr>
+<tr>
+<td align="center">代表性能</td>
+<td align="center">BEVDepth 60.0% NDS</td>
+<td align="center">BEVFormer 56.9% NDS</td>
+</tr>
+</tbody></table>
+<h3 id="BEVFusion：两条路线的终极融合"><a href="#BEVFusion：两条路线的终极融合" class="headerlink" title="BEVFusion：两条路线的终极融合"></a>BEVFusion：两条路线的终极融合</h3><p>BEVFusion 证明了 <strong>BEV 空间是最优的多传感器融合空间</strong>——Camera 分支用 LSS 管线生成 BEV 特征，LiDAR 分支用体素化生成 BEV 特征，两者在 BEV 空间用简单卷积融合即可达到 72.9% NDS。其中 Efficient BEV Pooling 将 LSS 的瓶颈操作从 500ms 加速到 12ms（<strong>40×</strong> 加速）。</p>
+<h2 id="推荐阅读顺序"><a href="#推荐阅读顺序" class="headerlink" title="推荐阅读顺序"></a>推荐阅读顺序</h2><p>如果你想系统学习这个领域，建议按以下顺序阅读：</p>
+<ol>
+<li><strong>CenterNet</strong> — 理解 anchor-free 检测的核心思想</li>
+<li><strong>CenterTrack</strong> → <strong>CenterPoint</strong> — 理解中心点范式如何从 2D 检测扩展到跟踪和 3D 点云</li>
+<li><strong>DETR</strong> — 理解 Transformer 在检测中的应用</li>
+<li><strong>Deformable DETR</strong> — 理解可变形注意力如何解决 DETR 的实用性问题（BEVFormer 的核心组件）</li>
+<li><strong>LSS</strong> — 理解 2D→BEV 的基本框架（<strong>最关键的一篇</strong>）</li>
+<li><strong>BEVDet</strong> → <strong>BEVDepth</strong> — 理解 LSS 管线的工程化与深度改进</li>
+<li><strong>PETR</strong> → <strong>Sparse4D</strong> → <strong>StreamPETR</strong> — 理解无深度依赖的 Query 方案、稀疏采样及时序建模</li>
+<li><strong>BEVFormer</strong> — 理解 Transformer 的另一种 BEV 构建方式</li>
+<li><strong>BEVFusion</strong> — 理解多传感器融合的终极方案</li>
+<li><strong>LaneAF</strong> — 了解车道线检测的不同思路</li>
+</ol>
+<blockquote>
+<p>更多自动驾驶技术演进的宏观视角，请参阅 <a href="/posts/2026/Autonomous_Driving_Evolution_From_Perception_to_World_Model/">自动驾驶的觉醒：从感知像素到重构世界的五次跃迁</a>。</p>
+</blockquote>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%A4%E4%BA%92%E5%BC%8F%E7%9F%A5%E8%AF%86%E5%9B%BE%E8%B0%B1"><span class="toc-text">交互式知识图谱</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E8%B7%AF%E7%BA%BF%E6%80%BB%E8%A7%88"><span class="toc-text">技术路线总览</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%B7%AF%E7%BA%BF%E4%B8%80%EF%BC%9A%E6%98%BE%E5%BC%8F-BEV-%E6%8A%95%E5%BD%B1%EF%BC%88LSS-%E7%B3%BB%EF%BC%89"><span class="toc-text">路线一：显式 BEV 投影（LSS 系）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%B7%AF%E7%BA%BF%E4%BA%8C%EF%BC%9A%E9%9A%90%E5%BC%8F-Transformer-Query%EF%BC%88PETR-%E7%B3%BB%EF%BC%89"><span class="toc-text">路线二：隐式 Transformer Query（PETR 系）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%B7%AF%E7%BA%BF%E4%B8%89%EF%BC%9ABEV-Transformer%EF%BC%88BEVFormer%EF%BC%89"><span class="toc-text">路线三：BEV Transformer（BEVFormer）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%8B%AC%E7%AB%8B%E5%88%86%E6%94%AF%EF%BC%9A%E8%BD%A6%E9%81%93%E7%BA%BF%E6%A3%80%E6%B5%8B"><span class="toc-text">独立分支：车道线检测</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%BA%E6%96%87%E9%97%B4%E6%A0%B8%E5%BF%83%E5%85%B3%E7%B3%BB%E8%AF%A6%E8%A7%A3"><span class="toc-text">论文间核心关系详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#CenterNet-%E2%86%92-CenterTrack-%E2%86%92-CenterPoint%EF%BC%9A%E4%BB%8E-2D-%E6%A3%80%E6%B5%8B%E5%88%B0-3D-%E8%B7%9F%E8%B8%AA%E7%9A%84%E6%BC%94%E5%8C%96%E9%93%BE"><span class="toc-text">CenterNet → CenterTrack → CenterPoint：从 2D 检测到 3D 跟踪的演化链</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CenterNet-%E2%86%92-DETR%EF%BC%9A%E4%BB%8E-Anchor-Free-%E5%88%B0-Set-Prediction"><span class="toc-text">CenterNet → DETR：从 Anchor-Free 到 Set Prediction</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#LSS-%E2%86%92-BEVDet-%E2%86%92-BEVDepth%EF%BC%9A%E6%B7%B1%E5%BA%A6%E4%BC%B0%E8%AE%A1%E7%9A%84%E4%B8%89%E7%BA%A7%E8%B7%B3"><span class="toc-text">LSS → BEVDet → BEVDepth：深度估计的三级跳</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DETR-%E2%86%92-Deformable-DETR-%E2%86%92-PETR-%E2%86%92-StreamPETR%EF%BC%9A%E4%BB%8E-2D-%E5%88%B0%E9%AB%98%E6%95%88-3D-%E5%86%8D%E5%88%B0%E6%97%B6%E5%BA%8F"><span class="toc-text">DETR → Deformable DETR → PETR → StreamPETR：从 2D 到高效 3D 再到时序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#LSS-vs-BEVFormer%EF%BC%9A%E4%B8%A4%E7%A7%8D-BEV-%E6%9E%84%E5%BB%BA%E6%96%B9%E5%BC%8F"><span class="toc-text">LSS vs BEVFormer：两种 BEV 构建方式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#BEVFusion%EF%BC%9A%E4%B8%A4%E6%9D%A1%E8%B7%AF%E7%BA%BF%E7%9A%84%E7%BB%88%E6%9E%81%E8%9E%8D%E5%90%88"><span class="toc-text">BEVFusion：两条路线的终极融合</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8E%A8%E8%8D%90%E9%98%85%E8%AF%BB%E9%A1%BA%E5%BA%8F"><span class="toc-text">推荐阅读顺序</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

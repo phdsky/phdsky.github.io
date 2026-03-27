@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         
-            PETR Position Embedding Transformation for Multi-View 3D Object Detection - 
+            PETR / PETRv2 Position Embedding Transformation for Multi-View 3D Perception - 
                     phdsky
     </title>
     <meta name="description" content="">
@@ -31,6 +31,8 @@
             
                 <li><a href="/blog/">博客</a></li>
             
+                <li><a href="/papers/">论文</a></li>
+            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -42,7 +44,7 @@
                 <article class="post-detail">
     <div class="container">
         <header class="post-header">
-            <h1 class="post-title">PETR Position Embedding Transformation for Multi-View 3D Object Detection</h1>
+            <h1 class="post-title">PETR / PETRv2 Position Embedding Transformation for Multi-View 3D Perception</h1>
             <div class="post-meta">
                 <span class="post-date">
                     2022年03月10日
@@ -53,7 +55,7 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Multi-View 3D Object Detection<br>Method: 3D Position Embedding, Transformer, Set Prediction<br>Venue: ECCV<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.05625">https://arxiv.org/abs/2203.05625</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/megvii-research/PETR">https://github.com/megvii-research/PETR</a></p>
+                <p>Task: Multi-View 3D Object Detection &#x2F; BEV Segmentation &#x2F; 3D Lane Detection<br>Method: 3D Position Embedding, Transformer, Set Prediction, Temporal Alignment, Feature-guided PE<br>Venue: ECCV 2022 (PETR) &#x2F; ICCV 2023 (PETRv2)<br>Year: 2022 &#x2F; 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.05625">https://arxiv.org/abs/2203.05625</a> (PETR) &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2206.01256">https://arxiv.org/abs/2206.01256</a> (PETRv2)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/megvii-research/PETR">https://github.com/megvii-research/PETR</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -820,6 +822,238 @@ $$x_{i,j} = \frac{x_{i,j} - x_{min}}{x_{max} - x_{min}}, \quad y_{i,j} = \frac{y
 <li><p><strong>Sparse query 表征相比 BEV 方法的优势是什么？</strong><br>Sparse query 的计算复杂度通常更可控，尤其在远距离检测时不直接随 BEV 网格范围线性膨胀；对 3D 目标检测、3D 车道线等稀疏目标建模更自然，也更容易为车道线等任务提供大感受野。其不足是：在预定义类别上的时序建模效率较高，但面向 open-world 任务时，时序建模与类别外泛化仍更具挑战。</p>
 </li>
 </ol>
+<hr>
+<h2 id="PETRv2：统一多任务-3D-感知框架"><a href="#PETRv2：统一多任务-3D-感知框架" class="headerlink" title="PETRv2：统一多任务 3D 感知框架"></a>PETRv2：统一多任务 3D 感知框架</h2><blockquote>
+<p>论文：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2206.01256">PETRv2: A Unified Framework for 3D Perception from Multi-Camera Images</a>（ICCV 2023，同一 Megvii 团队：刘英飞、严俊杰等）</p>
+</blockquote>
+<p>PETRv2 在 PETR 基础上进行三项关键扩展：<strong>时序建模</strong>（通过 3D PE 坐标对齐实现跨帧融合）、<strong>Feature-guided Position Encoder</strong>（数据驱动的自适应 3D PE）、以及<strong>多任务统一框架</strong>（引入任务特定 query 支持 BEV 分割和 3D 车道线检测）。</p>
+<h3 id="PETRv2-核心改进"><a href="#PETRv2-核心改进" class="headerlink" title="PETRv2 核心改进"></a>PETRv2 核心改进</h3><h4 id="改进-1：3D-坐标对齐实现时序融合"><a href="#改进-1：3D-坐标对齐实现时序融合" class="headerlink" title="改进 1：3D 坐标对齐实现时序融合"></a>改进 1：3D 坐标对齐实现时序融合</h4><p>PETR 的一个关键局限是仅使用单帧信息，导致速度估计能力几乎为零（mAVE 0.808 m&#x2F;s）。PETRv2 通过一种极其简洁的方式引入时序信息——直接对齐不同帧的 3D 坐标。</p>
+<p><strong>传统做法</strong>（<a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet4D</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>）：在 BEV 特征空间中做显式特征对齐（插值变换），受 BEV 分辨率限制<br><strong>PETRv2 做法</strong>：对前一帧的 3D 坐标做 pose 变换到当前帧坐标系，再将两帧的 2D 特征和 3D 坐标沿 batch 维拼接</p>
+<p>时序对齐公式：</p>
+
+$$P_i^{l(t)}(t-1) = T_{l(t-1)}^{l(t)} P_i^{l(t-1)}(t-1)$$
+
+
+<p>其中变换矩阵通过全局坐标系桥接：</p>
+
+$$T_{l(t-1)}^{l(t)} = T_{e(t)}^{l(t)} T_g^{e(t)} (T_g^{e(t-1)})^{-1} (T_{e(t-1)}^{l(t-1)})^{-1}$$
+
+
+<p><strong>为什么更优</strong>：PETR 的 3D PE 本质上编码了点的世界坐标位置——只需对坐标做刚体变换，3D PE 就自然携带了时序对齐信息，无需任何特征插值操作。这比 BEVDet4D 的 BEV 特征对齐更简洁（无插值误差），也比 BEVFormer 的 deformable attention 更轻量。训练时随机采样 $[3T, 27T]$ 的时间间隔（$T \approx 0.083$s），推理时使用 $15T$ 的固定间隔。</p>
+<h4 id="改进-2：Feature-guided-Position-Encoder（FPE）"><a href="#改进-2：Feature-guided-Position-Encoder（FPE）" class="headerlink" title="改进 2：Feature-guided Position Encoder（FPE）"></a>改进 2：Feature-guided Position Encoder（FPE）</h4><p>PETR 的 3D PE 完全由 3D 坐标生成，与输入图像内容无关——同一相机的所有帧共享完全相同的 3D PE。这限制了 3D PE 的数据自适应能力。</p>
+<p>PETRv2 引入 Feature-guided Position Encoder，用图像特征重标定 3D PE：</p>
+
+$$PE_i^{3d}(t) = \xi(F_i(t)) * \psi(P_i^{l(t)}(t))$$
+
+
+<p>其中 $\xi$ 是小型 MLP + Sigmoid，生成逐像素注意力权重；$\psi$ 是原始 3D PE MLP。两者逐元素相乘后得到 data-dependent 的 3D PE。</p>
+<p><strong>为什么更优</strong>：图像特征隐含了深度线索（如纹理梯度、物体尺度等），FPE 使 3D PE 能根据图像内容自适应调整，相当于隐式引入了视觉深度先验。消融实验显示 FPE 在 PETR 基线上提升 1.5% NDS，在 PETRv2（含时序）上提升 0.8% mAP。此外 FPE 改善了对外参噪声的鲁棒性——$R_{max}&#x3D;8$ 时 PETRv2 仅降 4.12% mAP，PETR 降 6.33%。</p>
+<h4 id="改进-3：任务特定-Query-实现多任务统一"><a href="#改进-3：任务特定-Query-实现多任务统一" class="headerlink" title="改进 3：任务特定 Query 实现多任务统一"></a>改进 3：任务特定 Query 实现多任务统一</h4><p>BEVFormer 通过 BEV 栅格 query 支持多任务，但 60,000+ 个 dense query 与 PETR 的 global attention 不兼容。PETRv2 采用<strong>稀疏任务特定 query</strong>：</p>
+<ul>
+<li><strong>Det Query</strong>（900~1500 个）：可学习 3D 锚点，沿用 PETR 设计</li>
+<li><strong>Seg Query</strong>（625 个）：BEV 空间 patch 锚点，每个对应 25×25 的 BEV 区域</li>
+<li><strong>Lane Query</strong>（100 个）：3D 锚点线，每条由沿 Y 轴均匀采样的 $n$ 个 3D 坐标组成</li>
+</ul>
+<p>三类 query 共享同一个 Transformer Decoder，通过相同的 cross-attention 与 3D position-aware 特征交互，更新后分别送入各自任务头。</p>
+<h3 id="PETRv2-主要结果"><a href="#PETRv2-主要结果" class="headerlink" title="PETRv2 主要结果"></a>PETRv2 主要结果</h3><p><strong>nuScenes test 集 3D 检测</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>NDS</th>
+<th>mAP</th>
+<th>mAVE</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PETR</td>
+<td>V2-99</td>
+<td>0.504</td>
+<td>0.441</td>
+<td>0.808</td>
+</tr>
+<tr>
+<td>BEVDet4D</td>
+<td>Swin-B</td>
+<td>0.569</td>
+<td>0.451</td>
+<td>0.301</td>
+</tr>
+<tr>
+<td>BEVFormer</td>
+<td>V2-99</td>
+<td>0.569</td>
+<td>0.481</td>
+<td>0.378</td>
+</tr>
+<tr>
+<td><strong>PETRv2</strong></td>
+<td><strong>V2-99</strong></td>
+<td><strong>0.582</strong></td>
+<td><strong>0.490</strong></td>
+<td><strong>0.343</strong></td>
+</tr>
+<tr>
+<td>PETRv2 ms</td>
+<td>V2-99</td>
+<td>0.591</td>
+<td>0.508</td>
+<td>0.367</td>
+</tr>
+</tbody></table>
+<p><strong>nuScenes val 集 3D 检测</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>Input</th>
+<th>NDS</th>
+<th>mAP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PETRv2</td>
+<td>R50</td>
+<td>800×320</td>
+<td>0.456</td>
+<td>0.350</td>
+</tr>
+<tr>
+<td>PETRv2</td>
+<td>R50</td>
+<td>1600×640</td>
+<td>0.494</td>
+<td>0.398</td>
+</tr>
+<tr>
+<td>PETRv2</td>
+<td>R101</td>
+<td>1600×640</td>
+<td>0.524</td>
+<td>0.421</td>
+</tr>
+</tbody></table>
+<p><strong>BEV 分割（nuScenes val）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>Drive</th>
+<th>Lane</th>
+<th>Vehicle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LSS</td>
+<td>R101</td>
+<td>0.729</td>
+<td>0.200</td>
+<td>0.321</td>
+</tr>
+<tr>
+<td>BEVFormer</td>
+<td>R101</td>
+<td>0.801</td>
+<td>0.257</td>
+<td>0.448</td>
+</tr>
+<tr>
+<td><strong>PETRv2</strong></td>
+<td><strong>R101</strong></td>
+<td><strong>0.833</strong></td>
+<td><strong>0.448</strong></td>
+<td><strong>0.434</strong></td>
+</tr>
+</tbody></table>
+<p><strong>3D 车道线检测（OpenLane）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>F-score</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PersFormer</td>
+<td>EfficientNet</td>
+<td>50.5%</td>
+</tr>
+<tr>
+<td>PETRv2-E</td>
+<td>EfficientNet</td>
+<td>51.9%</td>
+</tr>
+<tr>
+<td>PETRv2-V</td>
+<td>V2-99</td>
+<td>57.8%</td>
+</tr>
+<tr>
+<td>PETRv2-V*</td>
+<td>V2-99 (400pts)</td>
+<td>61.2%</td>
+</tr>
+</tbody></table>
+<h3 id="PETRv2-消融（V2-99-800×320-val）"><a href="#PETRv2-消融（V2-99-800×320-val）" class="headerlink" title="PETRv2 消融（V2-99, 800×320, val）"></a>PETRv2 消融（V2-99, 800×320, val）</h3><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>CA</th>
+<th>FPE</th>
+<th>NDS</th>
+<th>mAP</th>
+<th>mAVE</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PETR baseline</td>
+<td></td>
+<td></td>
+<td>0.434</td>
+<td>0.379</td>
+<td>0.838</td>
+</tr>
+<tr>
+<td>+ FPE only</td>
+<td></td>
+<td>✓</td>
+<td>0.449</td>
+<td>0.381</td>
+<td>0.736</td>
+</tr>
+<tr>
+<td>+ CA only</td>
+<td>✓</td>
+<td></td>
+<td>0.482</td>
+<td>0.393</td>
+<td>0.429</td>
+</tr>
+<tr>
+<td>+ CA + FPE (PETRv2)</td>
+<td>✓</td>
+<td>✓</td>
+<td><strong>0.496</strong></td>
+<td><strong>0.401</strong></td>
+<td><strong>0.394</strong></td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>3D 坐标对齐（CA）贡献最大：+4.8% NDS &#x2F; +1.4% mAP，mAVE 从 0.838 降至 0.429（-48.8%）</li>
+<li>FPE 在时序场景下提升更明显：单独使用 +1.5% NDS，与 CA 结合后额外 +1.4% NDS</li>
+<li>PETRv2（V2-99, test）超越同期 BEVDet4D 和 BEVFormer 各 2.2% NDS，证明 3D PE 时序对齐与 BEV 特征对齐同样有效</li>
+</ol>
+<h3 id="PETRv2-鲁棒性分析"><a href="#PETRv2-鲁棒性分析" class="headerlink" title="PETRv2 鲁棒性分析"></a>PETRv2 鲁棒性分析</h3><p>PETRv2 对三类传感器故障进行了系统测试：</p>
+<ul>
+<li><strong>外参噪声</strong>（$R_{max}&#x3D;8°$）：PETRv2 降 4.12% mAP，PETR 降 6.33%——FPE 和时序融合均提升鲁棒性</li>
+<li><strong>相机缺失</strong>：后视相机缺失影响最大（-13.19% mAP，因 120° FOV），前视 -5.05%，其余 -2.93%</li>
+<li><strong>时间延迟</strong>（0.083s）：降 3.19% mAP &#x2F; 8.4% NDS；延迟超 0.3s 时性能急剧下降至 26.08% mAP</li>
+</ul>
 
             </div>
 
@@ -829,7 +1063,7 @@ $$x_{i,j} = \frac{x_{i,j} - x_{min}}{x_{max} - x_{min}}, \quad y_{i,j} = \frac{y
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A3D-%E4%BD%8D%E7%BD%AE%E7%BC%96%E7%A0%81%E6%9B%BF%E4%BB%A3-3D-to-2D-%E6%8A%95%E5%BD%B1"><span class="toc-text">洞察 1：3D 位置编码替代 3D-to-2D 投影</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E9%9A%90%E5%BC%8F%E7%A5%9E%E7%BB%8F%E8%A1%A8%E7%A4%BA%E6%80%9D%E6%83%B3%E8%B5%8B%E4%BA%88-2D-%E7%89%B9%E5%BE%81-3D-%E6%84%9F%E7%9F%A5%E8%83%BD%E5%8A%9B"><span class="toc-text">洞察 2：隐式神经表示思想赋予 2D 特征 3D 感知能力</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A3D-%E5%8F%AF%E5%AD%A6%E4%B9%A0%E9%94%9A%E7%82%B9%E6%9B%BF%E4%BB%A3%E5%8E%9F%E5%A7%8B-object-query"><span class="toc-text">洞察 3：3D 可学习锚点替代原始 object query</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">技术影响</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PETR-%E7%B3%BB%E5%88%97%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E8%A7%A3%E7%AD%94"><span class="toc-text">PETR 系列常见问题解答</span></a></li></ol></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A3D-%E4%BD%8D%E7%BD%AE%E7%BC%96%E7%A0%81%E6%9B%BF%E4%BB%A3-3D-to-2D-%E6%8A%95%E5%BD%B1"><span class="toc-text">洞察 1：3D 位置编码替代 3D-to-2D 投影</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E9%9A%90%E5%BC%8F%E7%A5%9E%E7%BB%8F%E8%A1%A8%E7%A4%BA%E6%80%9D%E6%83%B3%E8%B5%8B%E4%BA%88-2D-%E7%89%B9%E5%BE%81-3D-%E6%84%9F%E7%9F%A5%E8%83%BD%E5%8A%9B"><span class="toc-text">洞察 2：隐式神经表示思想赋予 2D 特征 3D 感知能力</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A3D-%E5%8F%AF%E5%AD%A6%E4%B9%A0%E9%94%9A%E7%82%B9%E6%9B%BF%E4%BB%A3%E5%8E%9F%E5%A7%8B-object-query"><span class="toc-text">洞察 3：3D 可学习锚点替代原始 object query</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">技术影响</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PETR-%E7%B3%BB%E5%88%97%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E8%A7%A3%E7%AD%94"><span class="toc-text">PETR 系列常见问题解答</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#PETRv2%EF%BC%9A%E7%BB%9F%E4%B8%80%E5%A4%9A%E4%BB%BB%E5%8A%A1-3D-%E6%84%9F%E7%9F%A5%E6%A1%86%E6%9E%B6"><span class="toc-text">PETRv2：统一多任务 3D 感知框架</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#PETRv2-%E6%A0%B8%E5%BF%83%E6%94%B9%E8%BF%9B"><span class="toc-text">PETRv2 核心改进</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%94%B9%E8%BF%9B-1%EF%BC%9A3D-%E5%9D%90%E6%A0%87%E5%AF%B9%E9%BD%90%E5%AE%9E%E7%8E%B0%E6%97%B6%E5%BA%8F%E8%9E%8D%E5%90%88"><span class="toc-text">改进 1：3D 坐标对齐实现时序融合</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%94%B9%E8%BF%9B-2%EF%BC%9AFeature-guided-Position-Encoder%EF%BC%88FPE%EF%BC%89"><span class="toc-text">改进 2：Feature-guided Position Encoder（FPE）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%94%B9%E8%BF%9B-3%EF%BC%9A%E4%BB%BB%E5%8A%A1%E7%89%B9%E5%AE%9A-Query-%E5%AE%9E%E7%8E%B0%E5%A4%9A%E4%BB%BB%E5%8A%A1%E7%BB%9F%E4%B8%80"><span class="toc-text">改进 3：任务特定 Query 实现多任务统一</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PETRv2-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">PETRv2 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PETRv2-%E6%B6%88%E8%9E%8D%EF%BC%88V2-99-800%C3%97320-val%EF%BC%89"><span class="toc-text">PETRv2 消融（V2-99, 800×320, val）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PETRv2-%E9%B2%81%E6%A3%92%E6%80%A7%E5%88%86%E6%9E%90"><span class="toc-text">PETRv2 鲁棒性分析</span></a></li></ol></li></ol>
                         </div>
                     </aside>
                 
