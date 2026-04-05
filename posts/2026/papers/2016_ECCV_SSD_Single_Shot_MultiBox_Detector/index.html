@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            SSD: Single Shot MultiBox Detector - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">SSD: Single Shot MultiBox Detector</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年01月16日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: 2D 目标检测<br>Method: Multi-scale Default Boxes + VGG-16<br>Venue: ECCV<br>Year: 2016<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1512.02325">https://arxiv.org/abs/1512.02325</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/weiliu89/caffe/tree/ssd">https://github.com/weiliu89/caffe/tree/ssd</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>SSD 提出了一种基于单个深度网络的目标检测方法。该方法将输出空间离散化为一组不同宽高比和尺度的默认框（default boxes），在多个不同分辨率的特征图上同时预测每个默认框的类别得分和位置偏移量，最终通过非极大值抑制生成检测结果。与需要区域提议的方法不同，SSD 完全去除了提议生成和后续特征重采样步骤，所有计算封装在单一网络中。在 300×300 输入下，SSD 在 VOC2007 test 上达到 74.3% mAP、59 FPS；在 512×512 输入下达到 76.8% mAP，超过同期 Faster R-CNN（73.2% mAP, 7 FPS）。</p>
+<p><strong>核心论点</strong>：通过在不同分辨率的特征图上密铺多尺度默认框并同时预测类别与位置，SSD 首次证明单阶段检测器可以在速度和精度上同时超越两阶段方法。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2016 年目标检测的主流范式是两阶段方法：先生成区域提议，再对每个提议进行分类和回归。这种流程精度高但速度慢。</p>
+<table>
+<thead>
+<tr>
+<th>方法类型</th>
+<th>代表作</th>
+<th>核心问题</th>
+<th>VOC07 mAP</th>
+<th>速度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>两阶段</td>
+<td>Faster R-CNN</td>
+<td>提议生成+特征重采样，7 FPS</td>
+<td>73.2%</td>
+<td>慢</td>
+</tr>
+<tr>
+<td>单阶段（粗粒度）</td>
+<td>YOLO</td>
+<td>仅用最顶层特征图，空间分辨率低</td>
+<td>63.4%</td>
+<td>45 FPS</td>
+</tr>
+</tbody></table>
+<p><strong>核心痛点</strong>：单阶段检测器虽快但精度差 10+ 个点，关键瓶颈在于缺乏多尺度表示和系统化的默认框设计。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：多尺度特征图联合预测"><a href="#洞察-1：多尺度特征图联合预测" class="headerlink" title="洞察 1：多尺度特征图联合预测"></a>洞察 1：多尺度特征图联合预测</h3><p>传统做法：YOLO 仅在最顶层特征图（7×7）上做预测，小目标信息严重丢失。Faster R-CNN 虽有 RPN 但需要后续 ROI Pooling。</p>
+<p>本文做法：在 VGG-16 的多个中间层（conv4_3、fc7 以及额外添加的 conv6_2、conv7_2、conv8_2、conv9_2）上分别做预测，特征图尺寸从 38×38 到 1×1，自然覆盖从小到大的目标。</p>
+<p>每个预测层对应不同的默认框尺度，通过线性插值公式确定：</p>
+
+$$s_k = s_{\min} + \frac{s_{\max} - s_{\min}}{m - 1}(k - 1), \quad k \in [1, m]$$
+
+
+<p>其中 $s_{\min} &#x3D; 0.2$，$s_{\max} &#x3D; 0.9$，$m$ 为预测层数目。</p>
+<p>这样做更好的原因：不同层的感受野天然匹配不同尺度的目标，低层高分辨率特征图捕捉小目标细节，高层低分辨率特征图覆盖大目标的全局信息。</p>
+<h3 id="洞察-2：默认框的系统化密铺"><a href="#洞察-2：默认框的系统化密铺" class="headerlink" title="洞察 2：默认框的系统化密铺"></a>洞察 2：默认框的系统化密铺</h3><p>传统做法：YOLO 每个网格只预测 2 个框，Faster R-CNN 虽有 anchor 但仅在单一特征图上生成。</p>
+<p>本文做法：在每个预测层的每个位置放置一组不同宽高比的默认框。宽高比取 $a_r \in {1, 2, 3, \frac{1}{2}, \frac{1}{3}}$，对 $a_r&#x3D;1$ 还额外增加尺度 $s’<em>k &#x3D; \sqrt{s_k \cdot s</em>{k+1}}$ 的框，每个位置最多 6 个默认框。每个默认框预测 $(c + 4)$ 个值（$c$ 个类别得分 + 4 个位置偏移），总输出大小为 $(c+4) \times k \times m \times n$。</p>
+<p>SSD300 总共生成 8732 个默认框（$38^2 \times 4 + 19^2 \times 6 + 10^2 \times 6 + 5^2 \times 6 + 3^2 \times 4 + 1^2 \times 4$），远多于 YOLO 的 98 个或 Faster R-CNN 的约 6000 个候选区域。</p>
+<h3 id="洞察-3：数据增强作为多尺度训练的替代"><a href="#洞察-3：数据增强作为多尺度训练的替代" class="headerlink" title="洞察 3：数据增强作为多尺度训练的替代"></a>洞察 3：数据增强作为多尺度训练的替代</h3><p>传统做法：Fast&#x2F;Faster R-CNN 仅使用原图和水平翻转。也有方法通过图像金字塔处理多尺度，但计算量大。</p>
+<p>本文做法：采用激进的数据增强策略——随机裁剪（zoom in）要求与目标的最小 IoU 达到 {0.1, 0.3, 0.5, 0.7, 0.9}，以及随机扩展（zoom out，将图像放在 16× 大小的画布上）。这等效于在训练时模拟了多尺度目标。</p>
+<p>论文消融实验表明数据增强带来 8.8% mAP 的巨大提升（65.5% → 74.3%），是所有组件中增益最大的。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>74.3% mAP &#x2F; 59 FPS</strong>：SSD300 在 VOC2007 test 上的性能（07+12 训练），首个超过 70% mAP 的实时检测器</li>
+<li><strong>8732</strong>：SSD300 每张图像生成的默认框总数，密铺确保了高召回率</li>
+<li>**8.8%**：数据增强策略带来的 mAP 提升幅度，体现了训练策略的关键作用</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>SSD 的核心流程：</p>
+
+$$\text{Image} \xrightarrow{\text{VGG-16 (truncated)}} \text{Multi-scale Feature Maps} \xrightarrow{3 \times 3 \text{ Conv}} \text{(scores, offsets)} \xrightarrow{\text{NMS}} \text{Detections}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/1512.02325/assets/x2.png" alt="SSD 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+Input (300×300×3)
+       │
+       ▼
+┌──────────────────────┐
+│  VGG-16 Base         │
+│  (conv1 ~ conv5)     │
+│  pool5: 3×3-s1       │
+│  fc6 → conv (atrous) │
+│  fc7 → conv          │
+└────────┬─────────────┘
+         │
+    ┌────┴────────────────────────────────────┐
+    │     Multi-scale Feature Maps            │
+    │                                         │
+    │  conv4_3  ──→ 38×38 ──→ 4 boxes/loc     │
+    │  fc7      ──→ 19×19 ──→ 6 boxes/loc     │
+    │  conv6_2  ──→ 10×10 ──→ 6 boxes/loc     │
+    │  conv7_2  ──→  5×5  ──→ 6 boxes/loc     │
+    │  conv8_2  ──→  3×3  ──→ 4 boxes/loc     │
+    │  conv9_2  ──→  1×1  ──→ 4 boxes/loc     │
+    │                                         │
+    │  每个位置: 3×3 conv → (c+4)×k 通道        │
+    └────────────┬────────────────────────────┘
+                 │
+                 ▼
+    NMS (IoU=0.45, top-200) → 检测结果
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><p><strong>多尺度预测层配置</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>预测层</th>
+<th>特征图尺寸</th>
+<th>默认框数</th>
+<th>宽高比</th>
+<th>步长</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>conv4_3</td>
+<td>38×38</td>
+<td>4</td>
+<td>{1, 2, 1&#x2F;2, 1’}</td>
+<td>8</td>
+</tr>
+<tr>
+<td>fc7</td>
+<td>19×19</td>
+<td>6</td>
+<td>{1, 2, 3, 1&#x2F;2, 1&#x2F;3, 1’}</td>
+<td>16</td>
+</tr>
+<tr>
+<td>conv6_2</td>
+<td>10×10</td>
+<td>6</td>
+<td>{1, 2, 3, 1&#x2F;2, 1&#x2F;3, 1’}</td>
+<td>32</td>
+</tr>
+<tr>
+<td>conv7_2</td>
+<td>5×5</td>
+<td>6</td>
+<td>{1, 2, 3, 1&#x2F;2, 1&#x2F;3, 1’}</td>
+<td>64</td>
+</tr>
+<tr>
+<td>conv8_2</td>
+<td>3×3</td>
+<td>4</td>
+<td>{1, 2, 1&#x2F;2, 1’}</td>
+<td>100</td>
+</tr>
+<tr>
+<td>conv9_2</td>
+<td>1×1</td>
+<td>4</td>
+<td>{1, 2, 1&#x2F;2, 1’}</td>
+<td>300</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：1’ 表示额外添加的尺度 $s’<em>k &#x3D; \sqrt{s_k \cdot s</em>{k+1}}$ 对应的 aspect ratio &#x3D; 1 的框。conv4_3 单独使用 L2 归一化（scale&#x3D;20）。</p>
+</blockquote>
+<p><strong>总损失函数</strong>：</p>
+
+$$L(x, c, l, g) = \frac{1}{N}\left(L_{\text{conf}}(x, c) + \alpha \cdot L_{\text{loc}}(x, l, g)\right)$$
+
+
+<p>其中 $N$ 为匹配的默认框数量，$\alpha &#x3D; 1$。</p>
+<p><strong>定位损失</strong>（Smooth L1）：</p>
+
+$$L_{\text{loc}} = \sum_{i \in \text{Pos}} \sum_{m \in \{cx,cy,w,h\}} x_{ij}^k \cdot \text{smooth}_{L1}(l_i^m - \hat{g}_j^m)$$
+
+
+<p><strong>分类损失</strong>（Softmax CE + Hard Negative Mining，neg:pos &#x3D; 3:1）：</p>
+
+$$L_{\text{conf}} = -\sum_{i \in \text{Pos}} x_{ij}^p \log(\hat{c}_i^p) - \sum_{i \in \text{Neg}} \log(\hat{c}_i^0)$$
+
+
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>从官方 Caffe 仓库中提取的关键代码。</p>
+<p><strong>模型架构配置</strong>：预测层定义与默认框参数</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/weiliu89/caffe/blob/ssd/examples/ssd/ssd_pascal.py">examples&#x2F;ssd&#x2F;ssd_pascal.py</a>）</p>
+<details>
+<summary>📄 点击展开 SSD 模型配置代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 参数设置：多尺度预测层定义</span></span><br><span class="line"><span class="comment"># minimum dimension of input image</span></span><br><span class="line">min_dim = <span class="number">300</span></span><br><span class="line"><span class="comment"># conv4_3 ==&gt; 38 x 38</span></span><br><span class="line"><span class="comment"># fc7 ==&gt; 19 x 19</span></span><br><span class="line"><span class="comment"># conv6_2 ==&gt; 10 x 10</span></span><br><span class="line"><span class="comment"># conv7_2 ==&gt; 5 x 5</span></span><br><span class="line"><span class="comment"># conv8_2 ==&gt; 3 x 3</span></span><br><span class="line"><span class="comment"># conv9_2 ==&gt; 1 x 1</span></span><br><span class="line">mbox_source_layers = [<span class="string">&#x27;conv4_3&#x27;</span>, <span class="string">&#x27;fc7&#x27;</span>, <span class="string">&#x27;conv6_2&#x27;</span>, <span class="string">&#x27;conv7_2&#x27;</span>, <span class="string">&#x27;conv8_2&#x27;</span>, <span class="string">&#x27;conv9_2&#x27;</span>]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 默认框尺度：线性插值 s_k = s_min + (s_max - s_min)/(m-1) * (k-1)</span></span><br><span class="line">min_ratio = <span class="number">20</span>  <span class="comment"># s_min = 0.2</span></span><br><span class="line">max_ratio = <span class="number">90</span>  <span class="comment"># s_max = 0.9</span></span><br><span class="line">step = <span class="built_in">int</span>(math.floor((max_ratio - min_ratio) / (<span class="built_in">len</span>(mbox_source_layers) - <span class="number">2</span>)))</span><br><span class="line">min_sizes = []</span><br><span class="line">max_sizes = []</span><br><span class="line"><span class="keyword">for</span> ratio <span class="keyword">in</span> xrange(min_ratio, max_ratio + <span class="number">1</span>, step):</span><br><span class="line">    min_sizes.append(min_dim * ratio / <span class="number">100.</span>)   <span class="comment"># 每层的最小尺度</span></span><br><span class="line">    max_sizes.append(min_dim * (ratio + step) / <span class="number">100.</span>)  <span class="comment"># 每层的最大尺度（用于 s&#x27;_k）</span></span><br><span class="line">min_sizes = [min_dim * <span class="number">10</span> / <span class="number">100.</span>] + min_sizes  <span class="comment"># conv4_3 特殊处理，scale=0.1</span></span><br><span class="line">max_sizes = [min_dim * <span class="number">20</span> / <span class="number">100.</span>] + max_sizes</span><br><span class="line"></span><br><span class="line">steps = [<span class="number">8</span>, <span class="number">16</span>, <span class="number">32</span>, <span class="number">64</span>, <span class="number">100</span>, <span class="number">300</span>]  <span class="comment"># 每层特征图的步长</span></span><br><span class="line">aspect_ratios = [[<span class="number">2</span>], [<span class="number">2</span>, <span class="number">3</span>], [<span class="number">2</span>, <span class="number">3</span>], [<span class="number">2</span>, <span class="number">3</span>], [<span class="number">2</span>], [<span class="number">2</span>]]  <span class="comment"># 宽高比（flip=True 自动添加倒数）</span></span><br><span class="line">normalizations = [<span class="number">20</span>, -<span class="number">1</span>, -<span class="number">1</span>, -<span class="number">1</span>, -<span class="number">1</span>, -<span class="number">1</span>]  <span class="comment"># conv4_3 使用 L2 归一化，scale=20</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># MultiBoxLoss 参数</span></span><br><span class="line">neg_pos_ratio = <span class="number">3.</span>  <span class="comment"># Hard Negative Mining: 负:正 = 3:1</span></span><br><span class="line">multibox_loss_param = &#123;</span><br><span class="line">    <span class="string">&#x27;loc_loss_type&#x27;</span>: P.MultiBoxLoss.SMOOTH_L1,    <span class="comment"># 定位损失</span></span><br><span class="line">    <span class="string">&#x27;conf_loss_type&#x27;</span>: P.MultiBoxLoss.SOFTMAX,      <span class="comment"># 分类损失</span></span><br><span class="line">    <span class="string">&#x27;loc_weight&#x27;</span>: (neg_pos_ratio + <span class="number">1.</span>) / <span class="number">4.</span>,        <span class="comment"># α = 1</span></span><br><span class="line">    <span class="string">&#x27;num_classes&#x27;</span>: <span class="number">21</span>,                              <span class="comment"># VOC 20类 + 背景</span></span><br><span class="line">    <span class="string">&#x27;overlap_threshold&#x27;</span>: <span class="number">0.5</span>,                       <span class="comment"># 匹配 IoU 阈值</span></span><br><span class="line">    <span class="string">&#x27;mining_type&#x27;</span>: P.MultiBoxLoss.MAX_NEGATIVE,     <span class="comment"># Hard Negative Mining</span></span><br><span class="line">    <span class="string">&#x27;neg_pos_ratio&#x27;</span>: neg_pos_ratio,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<p><strong>默认框生成</strong>：PriorBoxLayer 的核心逻辑</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/weiliu89/caffe/blob/ssd/src/caffe/layers/prior_box_layer.cpp">src&#x2F;caffe&#x2F;layers&#x2F;prior_box_layer.cpp</a>）</p>
+<details>
+<summary>📄 点击展开 PriorBoxLayer Forward 代码</summary>
+
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 遍历特征图每个位置，为每个位置生成一组默认框</span></span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> h = <span class="number">0</span>; h &lt; layer_height; ++h) &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> w = <span class="number">0</span>; w &lt; layer_width; ++w) &#123;</span><br><span class="line">        <span class="comment">// 默认框中心 = (位置 + 0.5) * 步长</span></span><br><span class="line">        <span class="type">float</span> center_x = (w + offset_) * step_w;</span><br><span class="line">        <span class="type">float</span> center_y = (h + offset_) * step_h;</span><br><span class="line">        <span class="type">float</span> box_width, box_height;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> s = <span class="number">0</span>; s &lt; min_sizes_.<span class="built_in">size</span>(); ++s) &#123;</span><br><span class="line">            <span class="type">int</span> min_size_ = min_sizes_[s];</span><br><span class="line">            <span class="comment">// 第一个默认框：aspect_ratio = 1, size = min_size</span></span><br><span class="line">            box_width = box_height = min_size_;</span><br><span class="line">            top_data[idx++] = (center_x - box_width / <span class="number">2.</span>) / img_width;   <span class="comment">// xmin</span></span><br><span class="line">            top_data[idx++] = (center_y - box_height / <span class="number">2.</span>) / img_height; <span class="comment">// ymin</span></span><br><span class="line">            top_data[idx++] = (center_x + box_width / <span class="number">2.</span>) / img_width;   <span class="comment">// xmax</span></span><br><span class="line">            top_data[idx++] = (center_y + box_height / <span class="number">2.</span>) / img_height; <span class="comment">// ymax</span></span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (max_sizes_.<span class="built_in">size</span>() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="type">int</span> max_size_ = max_sizes_[s];</span><br><span class="line">                <span class="comment">// 第二个默认框：aspect_ratio = 1, size = sqrt(min_size * max_size)</span></span><br><span class="line">                box_width = box_height = <span class="built_in">sqrt</span>(min_size_ * max_size_);</span><br><span class="line">                top_data[idx++] = (center_x - box_width / <span class="number">2.</span>) / img_width;</span><br><span class="line">                top_data[idx++] = (center_y - box_height / <span class="number">2.</span>) / img_height;</span><br><span class="line">                top_data[idx++] = (center_x + box_width / <span class="number">2.</span>) / img_width;</span><br><span class="line">                top_data[idx++] = (center_y + box_height / <span class="number">2.</span>) / img_height;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 其余宽高比的默认框</span></span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> r = <span class="number">0</span>; r &lt; aspect_ratios_.<span class="built_in">size</span>(); ++r) &#123;</span><br><span class="line">                <span class="type">float</span> ar = aspect_ratios_[r];</span><br><span class="line">                <span class="keyword">if</span> (<span class="built_in">fabs</span>(ar - <span class="number">1.</span>) &lt; <span class="number">1e-6</span>) <span class="keyword">continue</span>; <span class="comment">// 跳过 ar=1（已处理）</span></span><br><span class="line">                box_width = min_size_ * <span class="built_in">sqrt</span>(ar);    <span class="comment">// w = s * sqrt(ar)</span></span><br><span class="line">                box_height = min_size_ / <span class="built_in">sqrt</span>(ar);   <span class="comment">// h = s / sqrt(ar)</span></span><br><span class="line">                top_data[idx++] = (center_x - box_width / <span class="number">2.</span>) / img_width;</span><br><span class="line">                top_data[idx++] = (center_y - box_height / <span class="number">2.</span>) / img_height;</span><br><span class="line">                top_data[idx++] = (center_x + box_width / <span class="number">2.</span>) / img_width;</span><br><span class="line">                top_data[idx++] = (center_y + box_height / <span class="number">2.</span>) / img_height;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>PASCAL VOC2007 test</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>训练数据</th>
+<th>mAP</th>
+<th>FPS</th>
+<th>默认框数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Fast R-CNN</td>
+<td>VGG-16</td>
+<td>07+12</td>
+<td>70.0%</td>
+<td>~3</td>
+<td>~2000</td>
+</tr>
+<tr>
+<td>Faster R-CNN</td>
+<td>VGG-16</td>
+<td>07+12</td>
+<td>73.2%</td>
+<td>7</td>
+<td>~6000</td>
+</tr>
+<tr>
+<td>YOLO</td>
+<td>自定义</td>
+<td>07+12</td>
+<td>63.4%</td>
+<td>45</td>
+<td>98</td>
+</tr>
+<tr>
+<td>SSD300</td>
+<td>VGG-16</td>
+<td>07+12</td>
+<td>74.3%</td>
+<td>59</td>
+<td>8732</td>
+</tr>
+<tr>
+<td>SSD512</td>
+<td>VGG-16</td>
+<td>07+12</td>
+<td>76.8%</td>
+<td>22</td>
+<td>24564</td>
+</tr>
+<tr>
+<td>SSD300*</td>
+<td>VGG-16</td>
+<td>07+12</td>
+<td>77.2%</td>
+<td>46</td>
+<td>8732</td>
+</tr>
+<tr>
+<td>SSD512*</td>
+<td>VGG-16</td>
+<td>07+12</td>
+<td>79.8%</td>
+<td>19</td>
+<td>24564</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：SSD300*&#x2F;SSD512* 为加入”expand”数据增强后的版本。</p>
+</blockquote>
+<p><strong>COCO test-dev 2015</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>AP@[.5:.95]</th>
+<th>AP@.5</th>
+<th>AP@.75</th>
+<th>AP_S</th>
+<th>AP_M</th>
+<th>AP_L</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Faster R-CNN</td>
+<td>24.2</td>
+<td>45.3</td>
+<td>23.5</td>
+<td>7.7</td>
+<td>26.4</td>
+<td>37.1</td>
+</tr>
+<tr>
+<td>SSD300</td>
+<td>23.2</td>
+<td>41.2</td>
+<td>23.4</td>
+<td>5.3</td>
+<td>23.2</td>
+<td>39.6</td>
+</tr>
+<tr>
+<td>SSD512</td>
+<td>26.8</td>
+<td>46.5</td>
+<td>27.8</td>
+<td>9.0</td>
+<td>28.9</td>
+<td>41.9</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ul>
+<li>SSD300 是首个同时达到 70%+ mAP 和实时速度的检测器</li>
+<li>SSD512 在精度上全面超越 Faster R-CNN，同时速度快 3×</li>
+<li>SSD 在大目标上表现优异，但小目标仍是瓶颈（AP_S 远低于 AP_L）</li>
+</ul>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>组件消融（VOC2007 test, SSD300, 07+12 训练）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>mAP</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基线（无数据增强，仅 {1&#x2F;3, 3} box）</td>
+<td>65.5%</td>
+<td>—</td>
+</tr>
+<tr>
+<td>+ 数据增强</td>
+<td>71.6% (+6.1)</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>+ 添加 {1&#x2F;3, 3} 宽高比</td>
+<td>73.7% (+2.1)</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>+ 使用 atrous VGG</td>
+<td>74.3% (+0.6)</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><strong>多尺度预测层消融</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>使用的预测层数</th>
+<th>预测层</th>
+<th>mAP (含边界框)</th>
+<th>mAP (不含边界框)</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>6 层</td>
+<td>conv4_3 ~ conv9_2</td>
+<td>74.3%</td>
+<td>63.4%</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>5 层</td>
+<td>conv4_3 ~ conv8_2</td>
+<td>74.6%</td>
+<td>63.1%</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>4 层</td>
+<td>conv4_3 ~ conv7_2</td>
+<td>73.8%</td>
+<td>68.4%</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>3 层</td>
+<td>conv4_3 ~ conv6_2</td>
+<td>70.7%</td>
+<td>69.2%</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>1 层</td>
+<td>fc7</td>
+<td>62.4%</td>
+<td>64.0%</td>
+<td>洞察 1</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：去除层时调整默认框分配保持总数约 8732。单用 fc7 性能最差，验证了多尺度分布预测的关键性。</p>
+</blockquote>
+<h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><p>论文使用检测分析工具发现：</p>
+<ul>
+<li><strong>小目标检测差</strong>：小目标在高层特征图上可能完全没有信息，SSD 在 XS&#x2F;S 级别 BBox 上性能明显低于 M&#x2F;L&#x2F;XL</li>
+<li><strong>类别混淆</strong>：由于多类别共享位置预测，SSD 在相似类别间的混淆（尤其是动物类）高于 R-CNN</li>
+<li><strong>定位精度高于 R-CNN</strong>：直接回归框位置优于两步解耦方法</li>
+</ul>
+<h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
+<li><strong>极小目标</strong>：在最高分辨率特征图 conv4_3（38×38）上默认框尺度仍为 30 像素，更小的目标难以检测</li>
+<li><strong>相似外观的不同类别</strong>：如猫 vs 狗，共享检测位置导致混淆</li>
+<li><strong>高密度重叠场景</strong>：当多个目标聚集在同一位置时，固定数量的默认框可能不足以覆盖所有目标</li>
+<li><strong>极端宽高比目标</strong>：虽然有 {1&#x2F;3, 3} 等宽高比，但超出预设范围的长条形目标仍难以匹配</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:       VGG-16（ImageNet 预训练，fc6/fc7 转卷积，atrous）</span><br><span class="line">Input:          300×300 / 512×512</span><br><span class="line">Batch Size:     32</span><br><span class="line">Optimizer:      SGD (lr=1e-3, momentum=0.9, weight_decay=5e-4)</span><br><span class="line">LR Schedule:    MultiStep (80k→1e-4, 100k→1e-5, 共 120k iterations)</span><br><span class="line">Augmentation:   随机裁剪(IoU∈&#123;0.1,0.3,0.5,0.7,0.9&#125;), 扩展(max 4×), 水平翻转, 颜色扭曲</span><br><span class="line">Framework:      Caffe</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>conv4_3 的 L2 归一化</strong>：conv4_3 特征尺度与其他层差异大，必须用 L2 归一化（初始 scale&#x3D;20，可学习），否则训练不稳定</li>
+<li><strong>Hard Negative Mining 比例</strong>：neg:pos &#x3D; 3:1 是关键平衡点，比使用所有负样本或 OHEM 更稳定</li>
+<li><strong>数据增强不可省略</strong>：随机裁剪+扩展带来 8.8% mAP 提升，是 SSD 方法的核心组成部分</li>
+<li><strong>默认框匹配策略</strong>：先最大 IoU 匹配，再将 IoU &gt; 0.5 的所有默认框都匹配（而非只取最佳），这简化了学习问题</li>
+<li><strong>atrous 卷积加速</strong>：将 pool5 改为 3×3-s1 并在 fc6 上使用 atrous 卷积，精度不变速度提升约 20%</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>使用更强的 backbone（如 ResNet）替换 VGG-16，可能提升特征质量但需调整多尺度层</li>
+<li>引入特征融合（如 FPN）补充低层语义信息和高层空间信息</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>VGG-16 占用约 80% 前向时间，替换为轻量级 backbone（如 MobileNet）可显著加速</li>
+<li>NMS 耗时约 1.7ms&#x2F;image，可通过提高置信度阈值减少候选框</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>多尺度特征图联合预测</strong>：在不同分辨率的特征图上分别检测不同大小目标的思想，直接启发了 FPN 和后续所有多尺度检测架构</li>
+<li><strong>默认框系统化设计</strong>：通过公式化的尺度和宽高比分配覆盖目标空间，这一思想延续到 RetinaNet 的 anchor 设计</li>
+<li><strong>数据增强即多尺度训练</strong>：用裁剪&#x2F;扩展模拟目标尺度变化，成本远低于图像金字塔，广泛应用于后续检测器</li>
+<li><strong>单阶段端到端检测</strong>：证明去除提议机制的单阶段方法可以通过密集采样弥补精度差距</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li>小目标检测能力不足，低层特征语义信息弱</li>
+<li>默认框参数需要针对不同数据集手动调优</li>
+<li>依赖 VGG-16 的计算体量较大（约占 80% 推理时间）</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li>确立了”多尺度特征图 + anchor &#x2F; default box + 单阶段预测”的检测范式，FPN、RetinaNet 等均沿此思路发展</li>
+<li>在工业部署中被广泛采用，因其简洁的端到端结构容易适配嵌入式硬件</li>
+<li>与 YOLO 共同推动了实时目标检测的研究热潮</li>
+<li>Hard Negative Mining 的 3:1 比例策略被后续（如 RetinaNet 的 focal loss）从另一角度优化</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%A4%9A%E5%B0%BA%E5%BA%A6%E7%89%B9%E5%BE%81%E5%9B%BE%E8%81%94%E5%90%88%E9%A2%84%E6%B5%8B"><span class="toc-text">洞察 1：多尺度特征图联合预测</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E9%BB%98%E8%AE%A4%E6%A1%86%E7%9A%84%E7%B3%BB%E7%BB%9F%E5%8C%96%E5%AF%86%E9%93%BA"><span class="toc-text">洞察 2：默认框的系统化密铺</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E6%95%B0%E6%8D%AE%E5%A2%9E%E5%BC%BA%E4%BD%9C%E4%B8%BA%E5%A4%9A%E5%B0%BA%E5%BA%A6%E8%AE%AD%E7%BB%83%E7%9A%84%E6%9B%BF%E4%BB%A3"><span class="toc-text">洞察 3：数据增强作为多尺度训练的替代</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.3 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.4 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B/" class="tag">#目标检测</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

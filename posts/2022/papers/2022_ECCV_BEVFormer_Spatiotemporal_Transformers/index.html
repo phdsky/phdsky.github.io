@@ -167,20 +167,20 @@ $$\{I_t^i\}_{i=1}^{N_{view}} \xrightarrow{\text{Backbone+FPN}} F_t \xrightarrow[
         ▼
    FPN (1/16, 1/32, 1/64), C=256
         │
-        ▼                         ┌───────────────────┐
-BEV Queries Q ∈ R^{200×200×256}  │ Prev BEV B_{t-1}  │
-        │                         │  (ego-motion align)│
-        ▼                         └────────┬──────────┘
+        ▼                          ┌───────────────────┐
+BEV Queries Q ∈ R^{200×200×256}    │ Prev BEV B_{t-1}  │
+        │                          │ (ego-motion align)│
+        ▼                          └────────┬──────────┘
 ┌───────────────────────────────────────────┤
 │         BEV Encoder Layer (×6)            │
 │  ┌─────────────────────────────────┐      │
 │  │  Temporal Self-Attention (TSA)  │◄─────┘
-│  │  Q_p attends {Q, B'_{t-1}}     │
+│  │  Q_p attends {Q, B'_{t-1}}      │
 │  ├─────────────────────────────────┤
 │  │  LayerNorm                      │
 │  ├─────────────────────────────────┤
 │  │  Spatial Cross-Attention (SCA)  │◄── Multi-view Features F_t
-│  │  BEV → Pillar → 2D projection  │
+│  │  BEV → Pillar → 2D projection   │
 │  │  DeformAttn on V_hit only       │
 │  ├─────────────────────────────────┤
 │  │  LayerNorm + FFN + LayerNorm    │

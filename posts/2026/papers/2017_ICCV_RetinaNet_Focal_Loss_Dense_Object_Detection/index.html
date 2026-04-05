@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Focal Loss for Dense Object Detection (RetinaNet) - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Focal Loss for Dense Object Detection (RetinaNet)</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年01月17日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: 2D 目标检测<br>Method: Focal Loss + FPN + Anchor Boxes<br>Venue: ICCV<br>Year: 2017<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1708.02002">https://arxiv.org/abs/1708.02002</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/Detectron">https://github.com/facebookresearch/Detectron</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>RetinaNet 系统性地研究了单阶段检测器精度落后于两阶段方法的根本原因，发现核心障碍是训练过程中前景-背景的极端类别不平衡（约 1:1000）。本文提出 Focal Loss，通过在标准交叉熵中引入调制因子 $(1 - p_t)^\gamma$ 自动降低易分类样本的损失权重，使训练聚焦于少量困难样本。基于 Focal Loss，作者设计了简洁的 RetinaNet 检测器（ResNet-FPN backbone + 分类&#x2F;回归双子网络），首次使单阶段检测器在 COCO 上超越所有两阶段方法，达到 39.1 AP（ResNet-101-FPN），最优变体达 40.8 AP（ResNeXt-101-FPN）。</p>
+<p><strong>核心论点</strong>：单阶段检测器精度低的根因不在于网络架构而在于类别不平衡——Focal Loss 通过可微的损失重塑解决了这一根本问题，使简单的密集检测器即可达到 SOTA 精度。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2017 年检测领域的核心矛盾是：两阶段方法精度高但速度慢，单阶段方法速度快但精度差 10+ AP。</p>
+<table>
+<thead>
+<tr>
+<th>方法类型</th>
+<th>代表作</th>
+<th>COCO AP</th>
+<th>处理类别不平衡的方式</th>
+<th>核心问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>两阶段</td>
+<td>Faster R-CNN + FPN</td>
+<td>36.2</td>
+<td>提议级联 + 1:3 采样</td>
+<td>速度慢 (172ms)</td>
+</tr>
+<tr>
+<td>单阶段</td>
+<td>SSD513</td>
+<td>31.2</td>
+<td>Hard Negative Mining 3:1</td>
+<td>易分负样本淹没梯度</td>
+</tr>
+<tr>
+<td>单阶段</td>
+<td>YOLOv2</td>
+<td>21.6</td>
+<td>启发式采样</td>
+<td>精度差距大</td>
+</tr>
+</tbody></table>
+<p><strong>核心痛点</strong>：单阶段检测器在每张图上评估约 100k 个候选位置，其中绝大多数为易分类的背景样本（easy negatives）。这些样本虽然单个损失小，但数量庞大，累积起来主导了总损失和梯度，导致模型退化。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：类别不平衡是单阶段检测器的核心瓶颈"><a href="#洞察-1：类别不平衡是单阶段检测器的核心瓶颈" class="headerlink" title="洞察 1：类别不平衡是单阶段检测器的核心瓶颈"></a>洞察 1：类别不平衡是单阶段检测器的核心瓶颈</h3><p>传统观点认为单阶段检测器精度低于两阶段方法是因为网络架构不够强或缺少精细的特征对齐。</p>
+<p>本文发现：真正的瓶颈是训练时的极端类别不平衡。两阶段方法通过提议级联（将 100k 候选缩减至 1-2k）和硬编码采样比例（1:3 正负比）隐式解决了这一问题。单阶段方法的 OHEM 或 Hard Negative Mining 策略虽有帮助，但完全丢弃了易分样本的信息。</p>
+<h3 id="洞察-2：Focal-Loss-的动态损失重塑"><a href="#洞察-2：Focal-Loss-的动态损失重塑" class="headerlink" title="洞察 2：Focal Loss 的动态损失重塑"></a>洞察 2：Focal Loss 的动态损失重塑</h3><p>传统做法：使用 α-balanced CE 手动设定正负样本权重，或用 OHEM 选取 top-k 困难样本。前者无法区分难易样本，后者完全丢弃了易分样本。</p>
+<p>本文做法：在标准交叉熵中引入调制因子 $(1 - p_t)^\gamma$，构造 Focal Loss：</p>
+
+$$\text{FL}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)$$
+
+
+<p>其中 $p_t$ 是模型对真实类别的预测概率。关键性质：</p>
+<ul>
+<li>当样本被正确分类（$p_t \to 1$），调制因子趋近 0，损失自动衰减</li>
+<li>当样本被误分类（$p_t$ 小），调制因子近 1，损失保持不变</li>
+<li>$\gamma &#x3D; 2$ 时，$p_t &#x3D; 0.9$ 的样本损失降低 100×，$p_t \approx 0.968$ 的样本降低 1000×</li>
+</ul>
+<p>最优参数为 $\gamma &#x3D; 2, \alpha &#x3D; 0.25$。当 $\gamma$ 增大时 $\alpha$ 应适当减小（因易分负样本已被降权，正样本权重无需太高）。</p>
+<h3 id="洞察-3：简洁架构-正确的损失函数-复杂的采样策略"><a href="#洞察-3：简洁架构-正确的损失函数-复杂的采样策略" class="headerlink" title="洞察 3：简洁架构 + 正确的损失函数 &gt; 复杂的采样策略"></a>洞察 3：简洁架构 + 正确的损失函数 &gt; 复杂的采样策略</h3><p>传统做法：设计复杂的网络结构（如 R-FCN 的位置敏感 score maps、DSSD 的反卷积模块）或繁琐的训练策略（OHEM 需要额外的 NMS 和 batch 构造）来提升单阶段检测器。</p>
+<p>本文做法：使用标准的 ResNet-FPN backbone + 两个参数不共享的 FCN 子网络（分类 4 层 3×3 conv + 回归 4 层 3×3 conv），架构极其简洁。在所有约 100k 个 anchor 上直接计算 Focal Loss，无需任何采样策略。</p>
+<p>RetinaNet-101-800 达到 37.8 AP（minival）&#x2F; 39.1 AP（test-dev），超越 Faster R-CNN + FPN 的 36.2 AP，而 OHEM 最优配置仅 32.8 AP，相差 3.2 AP。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>39.1 AP</strong>：RetinaNet（ResNet-101-FPN）在 COCO test-dev 上的性能，首次单阶段超越所有两阶段方法</li>
+<li>**$\gamma &#x3D; 2$**：Focal Loss 的最优聚焦参数，使 $p_t &#x3D; 0.9$ 的易分样本损失降低 100×</li>
+<li><strong>100k</strong>：每张图约 100k 个 anchor 全部参与 Focal Loss 计算，无需采样</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>RetinaNet 的核心流程：</p>
+
+$$\text{Image} \xrightarrow{\text{ResNet + FPN}} \{P_3, P_4, P_5, P_6, P_7\} \xrightarrow{\substack{\text{Cls Subnet} \\ \text{Box Subnet}}} \text{(scores, deltas)} \xrightarrow{\text{NMS}} \text{Detections}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/1708.02002/assets/x2.png" alt="RetinaNet 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+    Input Image
+         │
+         ▼
+┌─────────────────────────┐
+│  ResNet-50/101 Backbone │
+│  (ImageNet pretrained)  │
+└────────┬────────────────┘
+         │
+         ▼
+┌─────────────────────────┐
+│  Feature Pyramid Network│
+│  P3 ~ P7 (C=256 each)   │
+│  P3: stride 8           │
+│  P7: stride 128         │
+└────────┬────────────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+┌────────┐ ┌────────┐
+│Cls Sub │ │Box Sub │  ← 参数不共享
+│4×3×3   │ │4×3×3   │  ← 参数跨层共享
+│conv    │ │conv    │
+│+ReLU   │ │+ReLU   │
+│        │ │        │
+│3×3 out │ │3×3 out │
+│K×A ch  │ │4×A ch  │
+│sigmoid │ │linear  │
+└───┬────┘ └───┬────┘
+    │          │
+    └────┬─────┘
+         ▼
+  NMS (IoU=0.5, top-1k/level)
+  → 最终检测结果
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><p><strong>Anchor 配置</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>FPN 层</th>
+<th>分辨率</th>
+<th>Anchor 面积</th>
+<th>子尺度</th>
+<th>宽高比</th>
+<th>Anchor 数&#x2F;位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P3</td>
+<td>stride 8</td>
+<td>32²</td>
+<td>{2⁰, 2^(1&#x2F;3), 2^(2&#x2F;3)}</td>
+<td>{1:2, 1:1, 2:1}</td>
+<td>9</td>
+</tr>
+<tr>
+<td>P4</td>
+<td>stride 16</td>
+<td>64²</td>
+<td>同上</td>
+<td>同上</td>
+<td>9</td>
+</tr>
+<tr>
+<td>P5</td>
+<td>stride 32</td>
+<td>128²</td>
+<td>同上</td>
+<td>同上</td>
+<td>9</td>
+</tr>
+<tr>
+<td>P6</td>
+<td>stride 64</td>
+<td>256²</td>
+<td>同上</td>
+<td>同上</td>
+<td>9</td>
+</tr>
+<tr>
+<td>P7</td>
+<td>stride 128</td>
+<td>512²</td>
+<td>同上</td>
+<td>同上</td>
+<td>9</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>每个位置 $A &#x3D; 9$ 个 anchor，覆盖 32 ~ 813 像素。匹配阈值：IoU ≥ 0.5 为正样本，≤ 0.4 为负样本，中间忽略。</p>
+</blockquote>
+<p><strong>分类子网络</strong>：4 层 3×3 conv（C&#x3D;256，各接 ReLU）→ 3×3 conv 输出 K×A 通道 → sigmoid</p>
+<p><strong>回归子网络</strong>：结构与分类子网络相同，输出 4×A 通道，class-agnostic</p>
+<p><strong>Focal Loss（分类损失）</strong>：</p>
+
+$$\text{FL}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t), \quad \gamma = 2, \alpha = 0.25$$
+
+
+<p><strong>回归损失</strong>：标准 Smooth L1</p>
+<p><strong>分类头初始化</strong>：最后一层偏置 $b &#x3D; -\log((1 - \pi) &#x2F; \pi)$，$\pi &#x3D; 0.01$，确保训练初期前景预测概率低（约 1%），防止大量背景 anchor 产生不稳定的大损失。</p>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>从 Detectron2（官方代码后续版本）中提取的 RetinaNet 核心实现。</p>
+<p><strong>RetinaNetHead：分类和回归子网络</strong></p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detectron2/blob/main/detectron2/modeling/meta_arch/retinanet.py">detectron2&#x2F;modeling&#x2F;meta_arch&#x2F;retinanet.py</a>）</p>
+<details>
+<summary>📄 点击展开 RetinaNetHead 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">RetinaNetHead</span>(nn.Module):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;RetinaNet 检测头：分类和回归两个子网络，结构相同但参数独立。&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="meta">    @configurable</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, *, input_shape, num_classes, num_anchors, conv_dims, norm=<span class="string">&quot;&quot;</span>, prior_prob=<span class="number">0.01</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        cls_subnet = []</span><br><span class="line">        bbox_subnet = []</span><br><span class="line">        <span class="keyword">for</span> in_channels, out_channels <span class="keyword">in</span> <span class="built_in">zip</span>(</span><br><span class="line">            [input_shape[<span class="number">0</span>].channels] + <span class="built_in">list</span>(conv_dims), conv_dims</span><br><span class="line">        ):</span><br><span class="line">            <span class="comment"># 分类子网络：4 层 3×3 conv + ReLU</span></span><br><span class="line">            cls_subnet.append(nn.Conv2d(in_channels, out_channels, kernel_size=<span class="number">3</span>, stride=<span class="number">1</span>, padding=<span class="number">1</span>))</span><br><span class="line">            <span class="keyword">if</span> norm:</span><br><span class="line">                cls_subnet.append(get_norm(norm, out_channels))</span><br><span class="line">            cls_subnet.append(nn.ReLU())</span><br><span class="line">            <span class="comment"># 回归子网络：结构相同，参数独立</span></span><br><span class="line">            bbox_subnet.append(nn.Conv2d(in_channels, out_channels, kernel_size=<span class="number">3</span>, stride=<span class="number">1</span>, padding=<span class="number">1</span>))</span><br><span class="line">            <span class="keyword">if</span> norm:</span><br><span class="line">                bbox_subnet.append(get_norm(norm, out_channels))</span><br><span class="line">            bbox_subnet.append(nn.ReLU())</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.cls_subnet = nn.Sequential(*cls_subnet)</span><br><span class="line">        <span class="variable language_">self</span>.bbox_subnet = nn.Sequential(*bbox_subnet)</span><br><span class="line">        <span class="comment"># 分类输出：K×A 通道（每个 anchor 预测 K 个类别的概率）</span></span><br><span class="line">        <span class="variable language_">self</span>.cls_score = nn.Conv2d(conv_dims[-<span class="number">1</span>], num_anchors * num_classes, kernel_size=<span class="number">3</span>, stride=<span class="number">1</span>, padding=<span class="number">1</span>)</span><br><span class="line">        <span class="comment"># 回归输出：4×A 通道（class-agnostic）</span></span><br><span class="line">        <span class="variable language_">self</span>.bbox_pred = nn.Conv2d(conv_dims[-<span class="number">1</span>], num_anchors * <span class="number">4</span>, kernel_size=<span class="number">3</span>, stride=<span class="number">1</span>, padding=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 初始化：所有新层 weight ~ N(0, 0.01)，bias = 0</span></span><br><span class="line">        <span class="keyword">for</span> modules <span class="keyword">in</span> [<span class="variable language_">self</span>.cls_subnet, <span class="variable language_">self</span>.bbox_subnet, <span class="variable language_">self</span>.cls_score, <span class="variable language_">self</span>.bbox_pred]:</span><br><span class="line">            <span class="keyword">for</span> layer <span class="keyword">in</span> modules.modules():</span><br><span class="line">                <span class="keyword">if</span> <span class="built_in">isinstance</span>(layer, nn.Conv2d):</span><br><span class="line">                    torch.nn.init.normal_(layer.weight, mean=<span class="number">0</span>, std=<span class="number">0.01</span>)</span><br><span class="line">                    torch.nn.init.constant_(layer.bias, <span class="number">0</span>)</span><br><span class="line">        <span class="comment"># 关键：分类头最后一层 bias 设为 -log((1-π)/π)，π=0.01</span></span><br><span class="line">        <span class="comment"># 确保训练初期所有 anchor 的前景预测概率约为 1%</span></span><br><span class="line">        bias_value = -(math.log((<span class="number">1</span> - prior_prob) / prior_prob))</span><br><span class="line">        torch.nn.init.constant_(<span class="variable language_">self</span>.cls_score.bias, bias_value)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, features</span>):</span><br><span class="line">        logits = []</span><br><span class="line">        bbox_reg = []</span><br><span class="line">        <span class="keyword">for</span> feature <span class="keyword">in</span> features:</span><br><span class="line">            logits.append(<span class="variable language_">self</span>.cls_score(<span class="variable language_">self</span>.cls_subnet(feature)))</span><br><span class="line">            bbox_reg.append(<span class="variable language_">self</span>.bbox_pred(<span class="variable language_">self</span>.bbox_subnet(feature)))</span><br><span class="line">        <span class="keyword">return</span> logits, bbox_reg</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<p><strong>Focal Loss 计算与损失汇总</strong></p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detectron2/blob/main/detectron2/modeling/meta_arch/retinanet.py">detectron2&#x2F;modeling&#x2F;meta_arch&#x2F;retinanet.py</a>）</p>
+<details>
+<summary>📄 点击展开 RetinaNet losses 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">losses</span>(<span class="params">self, anchors, pred_logits, gt_labels, pred_anchor_deltas, gt_boxes</span>):</span><br><span class="line">    num_images = <span class="built_in">len</span>(gt_labels)</span><br><span class="line">    gt_labels = torch.stack(gt_labels)  <span class="comment"># (N, R)</span></span><br><span class="line"></span><br><span class="line">    valid_mask = gt_labels &gt;= <span class="number">0</span></span><br><span class="line">    pos_mask = (gt_labels &gt;= <span class="number">0</span>) &amp; (gt_labels != <span class="variable language_">self</span>.num_classes)</span><br><span class="line">    num_pos_anchors = pos_mask.<span class="built_in">sum</span>().item()</span><br><span class="line">    get_event_storage().put_scalar(<span class="string">&quot;num_pos_anchors&quot;</span>, num_pos_anchors / num_images)</span><br><span class="line">    <span class="comment"># EMA 归一化因子，避免正样本为 0 时出错</span></span><br><span class="line">    normalizer = <span class="variable language_">self</span>._ema_update(<span class="string">&quot;loss_normalizer&quot;</span>, <span class="built_in">max</span>(num_pos_anchors, <span class="number">1</span>), <span class="number">100</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 分类损失：在所有有效 anchor 上计算 Focal Loss</span></span><br><span class="line">    gt_labels_target = F.one_hot(gt_labels[valid_mask], num_classes=<span class="variable language_">self</span>.num_classes + <span class="number">1</span>)[:, :-<span class="number">1</span>]</span><br><span class="line">    loss_cls = sigmoid_focal_loss_jit(</span><br><span class="line">        cat(pred_logits, dim=<span class="number">1</span>)[valid_mask],</span><br><span class="line">        gt_labels_target.to(pred_logits[<span class="number">0</span>].dtype),</span><br><span class="line">        alpha=<span class="variable language_">self</span>.focal_loss_alpha,   <span class="comment"># 0.25</span></span><br><span class="line">        gamma=<span class="variable language_">self</span>.focal_loss_gamma,   <span class="comment"># 2.0</span></span><br><span class="line">        reduction=<span class="string">&quot;sum&quot;</span>,</span><br><span class="line">    )</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 回归损失：仅在正样本 anchor 上计算</span></span><br><span class="line">    loss_box_reg = _dense_box_regression_loss(</span><br><span class="line">        anchors, <span class="variable language_">self</span>.box2box_transform, pred_anchor_deltas,</span><br><span class="line">        gt_boxes, pos_mask,</span><br><span class="line">        box_reg_loss_type=<span class="variable language_">self</span>.box_reg_loss_type,</span><br><span class="line">        smooth_l1_beta=<span class="variable language_">self</span>.smooth_l1_beta,</span><br><span class="line">    )</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">        <span class="string">&quot;loss_cls&quot;</span>: loss_cls / normalizer,</span><br><span class="line">        <span class="string">&quot;loss_box_reg&quot;</span>: loss_box_reg / normalizer,</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>COCO test-dev 结果</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>AP</th>
+<th>AP₅₀</th>
+<th>AP₇₅</th>
+<th>AP_S</th>
+<th>AP_M</th>
+<th>AP_L</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Faster R-CNN+++</td>
+<td>ResNet-101-C4</td>
+<td>34.9</td>
+<td>55.7</td>
+<td>37.4</td>
+<td>15.6</td>
+<td>38.7</td>
+<td>50.9</td>
+</tr>
+<tr>
+<td>Faster R-CNN w FPN</td>
+<td>ResNet-101-FPN</td>
+<td>36.2</td>
+<td>59.1</td>
+<td>39.0</td>
+<td>18.2</td>
+<td>39.0</td>
+<td>48.2</td>
+</tr>
+<tr>
+<td>YOLOv2</td>
+<td>DarkNet-19</td>
+<td>21.6</td>
+<td>44.0</td>
+<td>19.2</td>
+<td>5.0</td>
+<td>22.4</td>
+<td>35.5</td>
+</tr>
+<tr>
+<td>SSD513</td>
+<td>ResNet-101-SSD</td>
+<td>31.2</td>
+<td>50.4</td>
+<td>33.3</td>
+<td>10.2</td>
+<td>34.5</td>
+<td>49.8</td>
+</tr>
+<tr>
+<td>DSSD513</td>
+<td>ResNet-101-DSSD</td>
+<td>33.2</td>
+<td>53.3</td>
+<td>35.2</td>
+<td>13.0</td>
+<td>35.4</td>
+<td>51.1</td>
+</tr>
+<tr>
+<td><strong>RetinaNet</strong></td>
+<td>ResNet-101-FPN</td>
+<td><strong>39.1</strong></td>
+<td>59.1</td>
+<td>42.3</td>
+<td>21.8</td>
+<td>42.7</td>
+<td>50.2</td>
+</tr>
+<tr>
+<td><strong>RetinaNet</strong></td>
+<td>ResNeXt-101-FPN</td>
+<td><strong>40.8</strong></td>
+<td>61.1</td>
+<td>44.1</td>
+<td>24.1</td>
+<td>44.2</td>
+<td>51.2</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ul>
+<li>RetinaNet 以 5.9 AP 的优势超越最佳单阶段方法 DSSD（39.1 vs 33.2）</li>
+<li>以 2.3 AP 超越最佳两阶段方法 Faster R-CNN + TDM（39.1 vs 36.8）</li>
+<li>使用 ResNeXt-101 backbone 可进一步达到 40.8 AP</li>
+</ul>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>Focal Loss 参数消融（ResNet-50-FPN, 600px, minival）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>$\gamma$</th>
+<th>$\alpha$</th>
+<th>AP</th>
+<th>AP₅₀</th>
+<th>AP₇₅</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0 (CE)</td>
+<td>0.75</td>
+<td>31.1</td>
+<td>49.4</td>
+<td>33.0</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>0.5</td>
+<td>0.50</td>
+<td>32.9</td>
+<td>51.7</td>
+<td>35.2</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>1.0</td>
+<td>0.25</td>
+<td>33.7</td>
+<td>52.0</td>
+<td>36.2</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td><strong>2.0</strong></td>
+<td><strong>0.25</strong></td>
+<td><strong>34.0</strong></td>
+<td>52.5</td>
+<td>36.5</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>5.0</td>
+<td>0.25</td>
+<td>32.2</td>
+<td>49.6</td>
+<td>34.8</td>
+<td>洞察 2</td>
+</tr>
+</tbody></table>
+<p><strong>Focal Loss vs OHEM（ResNet-101, minival）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>配置</th>
+<th>AP</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Focal Loss</td>
+<td>γ&#x3D;2, α&#x3D;0.25</td>
+<td>36.0</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>OHEM</td>
+<td>batch&#x3D;128, nms&#x3D;0.5</td>
+<td>32.8</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>OHEM 1:3</td>
+<td>batch&#x3D;128, nms&#x3D;0.5</td>
+<td>31.1</td>
+<td>洞察 3</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：Focal Loss 比最优 OHEM 高 3.2 AP，且无需调节 NMS 阈值和 batch 大小。</p>
+</blockquote>
+<p><strong>Anchor 密度消融</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>尺度数</th>
+<th>宽高比数</th>
+<th>Anchor&#x2F;位置</th>
+<th>AP</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>30.3</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>2</td>
+<td>3</td>
+<td>6</td>
+<td>34.2</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>3</strong></td>
+<td><strong>9</strong></td>
+<td><strong>34.0</strong></td>
+<td>洞察 3</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：增加到 6-9 anchor&#x2F;位置后性能饱和，说明密集采样有上限。</p>
+</blockquote>
+<h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
+<li><strong>小目标仍有改进空间</strong>：AP_S &#x3D; 21.8 远低于 AP_L &#x3D; 50.2，尽管 FPN 已改善了多尺度问题</li>
+<li><strong>高 IoU 精度突出</strong>：AP₇₅ &#x3D; 42.3，Focal Loss 对定位精度同样有帮助</li>
+<li><strong>推理速度与精度的权衡</strong>：ResNet-101-800（198ms）精度最高，ResNet-50-500（72ms）在速度优先场景更实用</li>
+</ul>
+<h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
+<li><strong>极端类别不平衡以外的场景</strong>：当正负样本比例较均衡时，Focal Loss 与 CE 差异不大</li>
+<li><strong>γ 过大时的过拟合</strong>：γ&#x3D;5 性能下降，过度忽略半困难样本可能导致欠拟合</li>
+<li><strong>高密度小目标</strong>：FPN 的最低层 P3（stride&#x3D;8）对极小目标的分辨率仍有限</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:       ResNet-50/101-FPN（ImageNet 预训练）</span><br><span class="line">Input:          400~800 px（短边）</span><br><span class="line">Batch Size:     16（8 GPUs × 2 images）</span><br><span class="line">Optimizer:      SGD (lr=0.01, momentum=0.9, weight_decay=1e-4)</span><br><span class="line">LR Schedule:    Step (60k→÷10, 80k→÷10, 共 90k iterations)</span><br><span class="line">Augmentation:   水平翻转（基线），scale jitter（最优模型额外使用）</span><br><span class="line">Focal Loss:     γ=2.0, α=0.25</span><br><span class="line">Training Time:  10~35 hours</span><br><span class="line">Framework:      Detectron (Caffe2)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>分类头 bias 初始化</strong>：$b &#x3D; -\log((1-\pi)&#x2F;\pi)$, $\pi &#x3D; 0.01$，这是训练能收敛的前提；不设置此初始化会导致训练发散</li>
+<li><strong>Focal Loss 数值稳定性</strong>：将 sigmoid 和 log 操作合并实现（log-sum-exp trick），避免 $\log(0)$ 数值问题</li>
+<li><strong>α 与 γ 的耦合</strong>：γ 增大时应减小 α，推荐组合 γ&#x3D;2&#x2F;α&#x3D;0.25；不调 α 会损失约 0.4 AP</li>
+<li><strong>损失归一化</strong>：用匹配到正样本的 anchor 数量（而非总 anchor 数）归一化总损失，使用 EMA 平滑</li>
+<li><strong>推理优化</strong>：每个 FPN 层取 top-1k（置信度 &gt; 0.05），再 NMS（IoU&#x3D;0.5），最终保留 top-100</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>使用更强 backbone（如 ResNeXt-101）可从 39.1 提升至 40.8 AP</li>
+<li>增加 scale jitter + 延长训练（1.5×）可额外提升 1.3 AP</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>减小输入分辨率（800→500）可将推理时间从 198ms 降至 90ms，AP 从 37.8 降至 34.4</li>
+<li>使用 ResNet-50 替代 ResNet-101 在相同分辨率下速度提升约 20%</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>损失函数重塑解决类别不平衡</strong>：Focal Loss 的思想被广泛应用于分割（Dice Loss）、点云检测、3D 检测等所有存在类别不平衡的任务</li>
+<li><strong>简单架构 + 正确训练 &gt; 复杂架构</strong>：RetinaNet 架构极其标准，全部增益来自损失函数设计，这一理念影响了后续研究方法论</li>
+<li><strong>调制因子的通用设计模式</strong>：$(1 - p_t)^\gamma$ 这种自适应降权思想可推广到任何需要聚焦困难样本的场景</li>
+<li><strong>先验初始化稳定训练</strong>：$b &#x3D; -\log((1-\pi)&#x2F;\pi)$ 的初始化策略在极端不平衡分类中被广泛采用</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li>Focal Loss 对 γ 不太敏感（[0.5, 5] 均有效），但极端值仍可能导致欠&#x2F;过拟合</li>
+<li>仍依赖 anchor-based 框架，后续 anchor-free 方法（FCOS 等）提供了更简洁的替代</li>
+<li>两个子网络参数量较大，不如共享参数的变体轻量</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li>终结了”单阶段 vs 两阶段精度差距”的固有认知，开启了高精度单阶段检测的时代</li>
+<li>Focal Loss 成为目标检测领域的标准组件，几乎所有后续检测器都直接或间接受益</li>
+<li>RetinaNet 的 FPN + anchor + subnet 架构成为后续 anchor-based 单阶段检测器（如 ATSS、GFL）的通用基线</li>
+<li>论文的分析方法论（CDF 分析损失分布）为理解分类损失函数提供了经典范例</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E7%B1%BB%E5%88%AB%E4%B8%8D%E5%B9%B3%E8%A1%A1%E6%98%AF%E5%8D%95%E9%98%B6%E6%AE%B5%E6%A3%80%E6%B5%8B%E5%99%A8%E7%9A%84%E6%A0%B8%E5%BF%83%E7%93%B6%E9%A2%88"><span class="toc-text">洞察 1：类别不平衡是单阶段检测器的核心瓶颈</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9AFocal-Loss-%E7%9A%84%E5%8A%A8%E6%80%81%E6%8D%9F%E5%A4%B1%E9%87%8D%E5%A1%91"><span class="toc-text">洞察 2：Focal Loss 的动态损失重塑</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E7%AE%80%E6%B4%81%E6%9E%B6%E6%9E%84-%E6%AD%A3%E7%A1%AE%E7%9A%84%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-%E5%A4%8D%E6%9D%82%E7%9A%84%E9%87%87%E6%A0%B7%E7%AD%96%E7%95%A5"><span class="toc-text">洞察 3：简洁架构 + 正确的损失函数 &gt; 复杂的采样策略</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.3 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.4 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B/" class="tag">#目标检测</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

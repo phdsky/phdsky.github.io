@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            EfficientDet: Scalable and Efficient Object Detection - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">EfficientDet: Scalable and Efficient Object Detection</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年01月18日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: 2D 目标检测<br>Method: BiFPN + Compound Scaling + EfficientNet<br>Venue: CVPR<br>Year: 2020<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1911.09070">https://arxiv.org/abs/1911.09070</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/google/automl/tree/master/efficientdet">https://github.com/google/automl/tree/master/efficientdet</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>EfficientDet 系统性地研究了目标检测中的网络架构设计选择，提出两项关键优化：（1）加权双向特征金字塔网络（BiFPN），通过可学习权重实现快速多尺度特征融合；（2）复合缩放方法，用单一系数 $\phi$ 同时缩放 backbone、特征网络、预测头的宽度&#x2F;深度以及输入分辨率。结合 EfficientNet backbone，作者开发了 D0~D7x 共 8 个级别的检测器，在全资源谱段上均显著优于前作。EfficientDet-D7x 以 77M 参数和 410B FLOPs 达到 55.1 AP（COCO test-dev），比 AmoebaNet + NAS-FPN 高 4 AP 且小 2.7×、快 7.4×。</p>
+<p><strong>核心论点</strong>：高效检测的核心不在于单一维度的优化，而在于多尺度融合（BiFPN）与全维度联合缩放（compound scaling）的系统性设计——EfficientDet 证明了小模型也可以达到大模型的精度。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2020 年目标检测领域面临精度与效率的矛盾：SOTA 模型体量巨大，部署困难。</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>COCO AP</th>
+<th>参数量</th>
+<th>FLOPs</th>
+<th>核心问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AmoebaNet + NAS-FPN + AA</td>
+<td>50.7</td>
+<td>209M</td>
+<td>3045B</td>
+<td>体量太大，不可部署</td>
+</tr>
+<tr>
+<td>RetinaNet (ResNet-101)</td>
+<td>39.9</td>
+<td>53M</td>
+<td>127B</td>
+<td>效率一般</td>
+</tr>
+<tr>
+<td>YOLOv3</td>
+<td>33.0</td>
+<td>—</td>
+<td>71B</td>
+<td>精度较低</td>
+</tr>
+<tr>
+<td>NAS-FPN (ResNet-50)</td>
+<td>44.2</td>
+<td>60M</td>
+<td>360B</td>
+<td>NAS 搜索昂贵，结构不规则</td>
+</tr>
+</tbody></table>
+<p><strong>核心痛点</strong>：如何构建一个可伸缩的检测架构，在 3B~400B FLOPs 的全资源范围内均实现最优精度-效率平衡？现有方法仅单维度缩放（换更大 backbone 或增大输入），未考虑各组件的联合优化。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：加权双向特征融合（BiFPN）"><a href="#洞察-1：加权双向特征融合（BiFPN）" class="headerlink" title="洞察 1：加权双向特征融合（BiFPN）"></a>洞察 1：加权双向特征融合（BiFPN）</h3><p>传统做法：FPN 仅有自顶向下的单向信息流；PANet 增加了自底向上路径但参数多；NAS-FPN 用搜索找拓扑但结构不规则、搜索代价高。所有这些方法对不同分辨率的输入特征一视同仁地求和。</p>
+<p>本文做法：BiFPN 做了三项优化——（1）去除只有单输入的节点（贡献少）；（2）在同层增加跳连边（输入到输出的快捷路径）；（3）将双向路径作为一个 layer 重复多次。更关键的是引入快速归一化融合（Fast Normalized Fusion）：</p>
+
+$$O = \sum_i \frac{w_i}{\epsilon + \sum_j w_j} \cdot I_i, \quad w_i \geq 0$$
+
+
+<p>其中 $w_i$ 通过 ReLU 保证非负，$\epsilon &#x3D; 0.0001$。这比 softmax 融合快 26-31%，精度几乎无损。</p>
+<p>消融实验证实：BiFPN（带权重）在相同 backbone 下相比 FPN 提升约 7 AP（37.0 → 44.4），同时参数减少 65%，FLOPs 减少 75%。</p>
+<h3 id="洞察-2：复合缩放（Compound-Scaling）"><a href="#洞察-2：复合缩放（Compound-Scaling）" class="headerlink" title="洞察 2：复合缩放（Compound Scaling）"></a>洞察 2：复合缩放（Compound Scaling）</h3><p>传统做法：检测器缩放通常只调单一维度——换更大 backbone、增大输入分辨率、或堆叠更多 FPN 层。各维度独立调优效率低。</p>
+<p>本文做法：用单一复合系数 $\phi$ 同时控制所有维度：</p>
+
+$$W_{\text{bifpn}} = 64 \cdot (1.35^\phi), \quad D_{\text{bifpn}} = 3 + \phi$$
+$$D_{\text{box}} = D_{\text{class}} = 3 + \lfloor \phi / 3 \rfloor$$
+$$R_{\text{input}} = 512 + \phi \cdot 128$$
+
+
+<p>Backbone 则直接复用 EfficientNet-B0~B6 的缩放。$\phi &#x3D; 0$ 得到 D0（512 输入，3 层 BiFPN，64 通道），$\phi &#x3D; 7$ 得到 D7（1536 输入，8 层 BiFPN，384 通道）。</p>
+<h3 id="洞察-3：EfficientNet-作为高效-Backbone"><a href="#洞察-3：EfficientNet-作为高效-Backbone" class="headerlink" title="洞察 3：EfficientNet 作为高效 Backbone"></a>洞察 3：EfficientNet 作为高效 Backbone</h3><p>传统做法：大多数检测器使用 ResNet&#x2F;ResNeXt 作为 backbone，这些网络为分类设计，用于检测时效率不是最优。</p>
+<p>本文做法：采用 EfficientNet 作为 backbone，它本身就通过复合缩放实现了分类任务上的高效性。替换 backbone 从 ResNet-50 到 EfficientNet-B3 即可在参数更少的情况下提升约 3 AP（37.0 → 40.3）。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>55.1 AP</strong>：EfficientDet-D7x 在 COCO test-dev 上的 SOTA 精度，77M 参数 &#x2F; 410B FLOPs</li>
+<li><strong>28×</strong>：EfficientDet-D0（33.8 AP）相比 YOLOv3（33.0 AP）减少的 FLOPs 倍数</li>
+<li><strong>44.4 vs 37.0 AP</strong>：EfficientNet-B3 + BiFPN 对比 ResNet-50 + FPN 的精度提升，参数和 FLOPs 均更少</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3>
+$$\text{Image} \xrightarrow{\text{EfficientNet}} \{P_3,...,P_7\} \xrightarrow{\text{BiFPN} \times N} \text{Fused Features} \xrightarrow{\substack{\text{Class Net} \\ \text{Box Net}}} \text{Detections}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/1911.09070/assets/x3.png" alt="EfficientDet 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+Input (R_input × R_input × 3)
+          │
+          ▼
+┌──────────────────────────┐
+│   EfficientNet Backbone  │
+│   (B0~B6, ImageNet预训练) │
+│   输出: P3, P4, P5        │
+└────────┬─────────────────┘
+         │ + P6, P7 (下采样生成)
+         ▼
+┌──────────────────────────┐
+│      BiFPN × D_bifpn     │
+│ ┌──────────────────────┐ │
+│ │ Top-Down (td) Path   │ │
+│ │ P7→P6→P5→P4→P3       │ │
+│ │ + 可学习融合权重       │ │
+│ ├──────────────────────┤ │
+│ │ Bottom-Up (out) Path │ │
+│ │ P3→P4→P5→P6→P7       │ │
+│ │ + 跳连 + 可学习权重    │ │
+│ └──────────────────────┘ │
+│ Depthwise Sep Conv + BN  │
+└─────────┬────────────────┘
+          │
+     ┌────┴────┐
+     ▼         ▼
+┌────────┐ ┌────────┐
+│Class   │ │Box     │  ← 跨层共享参数
+│Net     │ │Net     │
+│D_class │ │D_box   │
+│层 conv │ │层 conv  │
+│+ BN    │ │+ BN    │
+│+ SiLU  │ │+ SiLU  │
+└───┬────┘ └───┬────┘
+    └────┬─────┘
+         ▼
+  Soft-NMS → 检测结果
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><p><strong>EfficientDet 缩放配置</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>$\phi$</th>
+<th>输入分辨率</th>
+<th>Backbone</th>
+<th>BiFPN 宽度</th>
+<th>BiFPN 深度</th>
+<th>Head 深度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>D0</td>
+<td>0</td>
+<td>512</td>
+<td>B0</td>
+<td>64</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr>
+<td>D1</td>
+<td>1</td>
+<td>640</td>
+<td>B1</td>
+<td>88</td>
+<td>4</td>
+<td>3</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>2</td>
+<td>768</td>
+<td>B2</td>
+<td>112</td>
+<td>5</td>
+<td>3</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>3</td>
+<td>896</td>
+<td>B3</td>
+<td>160</td>
+<td>6</td>
+<td>4</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>4</td>
+<td>1024</td>
+<td>B4</td>
+<td>224</td>
+<td>7</td>
+<td>4</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>5</td>
+<td>1280</td>
+<td>B5</td>
+<td>288</td>
+<td>7</td>
+<td>4</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>6</td>
+<td>1280</td>
+<td>B6</td>
+<td>384</td>
+<td>8</td>
+<td>5</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>7</td>
+<td>1536</td>
+<td>B6</td>
+<td>384</td>
+<td>8</td>
+<td>5</td>
+</tr>
+</tbody></table>
+<p><strong>BiFPN 融合公式</strong>（以 P6 为例）：</p>
+
+$$P_6^{td} = \text{Conv}\left(\frac{w_1 \cdot P_6^{in} + w_2 \cdot \text{Resize}(P_7^{in})}{w_1 + w_2 + \epsilon}\right)$$
+
+$$P_6^{out} = \text{Conv}\left(\frac{w_1' \cdot P_6^{in} + w_2' \cdot P_6^{td} + w_3' \cdot \text{Resize}(P_5^{out})}{w_1' + w_2' + w_3' + \epsilon}\right)$$
+
+
+<p><strong>损失函数</strong>：Focal Loss（$\alpha &#x3D; 0.25, \gamma &#x3D; 1.5$）+ Smooth L1</p>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>从官方 Google AutoML 仓库提取的核心代码。</p>
+<p><strong>BiFPN 特征融合</strong>：fast normalized fusion 实现</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/google/automl/blob/master/efficientdet/efficientdet_arch.py">efficientdet&#x2F;efficientdet_arch.py</a>）</p>
+<details>
+<summary>📄 点击展开 fuse_features 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">fuse_features</span>(<span class="params">nodes, weight_method</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;融合不同分辨率的特征，返回加权和。</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        nodes: 不同层级的特征列表</span></span><br><span class="line"><span class="string">        weight_method: 融合方法 - &quot;attn&quot;(softmax), &quot;fastattn&quot;(快速归一化), &quot;sum&quot;</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    dtype = nodes[<span class="number">0</span>].dtype</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> weight_method == <span class="string">&#x27;attn&#x27;</span>:</span><br><span class="line">        <span class="comment"># Softmax 加权融合: O = Σ (e^wi / Σe^wj) * Ii</span></span><br><span class="line">        edge_weights = [tf.cast(tf.Variable(<span class="number">1.0</span>, name=<span class="string">&#x27;WSM&#x27;</span>), dtype=dtype)</span><br><span class="line">                        <span class="keyword">for</span> _ <span class="keyword">in</span> nodes]</span><br><span class="line">        normalized_weights = tf.nn.softmax(tf.stack(edge_weights))</span><br><span class="line">        nodes = tf.stack(nodes, axis=-<span class="number">1</span>)</span><br><span class="line">        new_node = tf.reduce_sum(nodes * normalized_weights, -<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">elif</span> weight_method == <span class="string">&#x27;fastattn&#x27;</span>:</span><br><span class="line">        <span class="comment"># 快速归一化融合: O = Σ wi / (ε + Σwj) * Ii，wi &gt;= 0</span></span><br><span class="line">        edge_weights = [</span><br><span class="line">            tf.nn.relu(tf.cast(tf.Variable(<span class="number">1.0</span>, name=<span class="string">&#x27;WSM&#x27;</span>), dtype=dtype))</span><br><span class="line">            <span class="keyword">for</span> _ <span class="keyword">in</span> nodes</span><br><span class="line">        ]</span><br><span class="line">        weights_sum = tf.add_n(edge_weights)</span><br><span class="line">        <span class="comment"># 每个输入按其归一化权重加权，ε=0.0001 防止除零</span></span><br><span class="line">        nodes = [nodes[i] * edge_weights[i] / (weights_sum + <span class="number">0.0001</span>)</span><br><span class="line">                 <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(nodes))]</span><br><span class="line">        new_node = tf.add_n(nodes)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">elif</span> weight_method == <span class="string">&#x27;sum&#x27;</span>:</span><br><span class="line">        new_node = tf.add_n(nodes)  <span class="comment"># 传统无权重求和</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> new_node</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<p><strong>检测头</strong>：共享参数的分类和回归网络</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/google/automl/blob/master/efficientdet/efficientdet_arch.py">efficientdet&#x2F;efficientdet_arch.py</a>）</p>
+<details>
+<summary>📄 点击展开 class_net 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">class_net</span>(<span class="params">images, level, num_classes, num_anchors, num_filters,</span></span><br><span class="line"><span class="params">              is_training, act_type, separable_conv=<span class="literal">True</span>, repeats=<span class="number">4</span>,</span></span><br><span class="line"><span class="params">              survival_prob=<span class="literal">None</span>, strategy=<span class="literal">None</span>, data_format=<span class="string">&#x27;channels_last&#x27;</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;分类预测网络：多层 depthwise separable conv + BN + SiLU。&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">if</span> separable_conv:</span><br><span class="line">        conv_op = functools.partial(</span><br><span class="line">            tf.layers.separable_conv2d, depth_multiplier=<span class="number">1</span>,</span><br><span class="line">            data_format=data_format,</span><br><span class="line">            pointwise_initializer=tf.initializers.variance_scaling(),</span><br><span class="line">            depthwise_initializer=tf.initializers.variance_scaling())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(repeats):  <span class="comment"># repeats = D_class = 3 + ⌊φ/3⌋</span></span><br><span class="line">        orig_images = images</span><br><span class="line">        images = conv_op(images, num_filters, kernel_size=<span class="number">3</span>,</span><br><span class="line">                         bias_initializer=tf.zeros_initializer(),</span><br><span class="line">                         activation=<span class="literal">None</span>, padding=<span class="string">&#x27;same&#x27;</span>, name=<span class="string">&#x27;class-%d&#x27;</span> % i)</span><br><span class="line">        images = utils.batch_norm_act(images, is_training, act_type=act_type,</span><br><span class="line">                                       name=<span class="string">&#x27;class-%d-bn-%d&#x27;</span> % (i, level))</span><br><span class="line">        <span class="comment"># DropConnect 残差连接（层数 &gt; 0 时）</span></span><br><span class="line">        <span class="keyword">if</span> i &gt; <span class="number">0</span> <span class="keyword">and</span> survival_prob:</span><br><span class="line">            images = utils.drop_connect(images, is_training, survival_prob)</span><br><span class="line">            images = images + orig_images</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 最终分类输出，bias 初始化为 -log((1-0.01)/0.01) ≈ 4.6</span></span><br><span class="line">    classes = conv_op(images, num_classes * num_anchors, kernel_size=<span class="number">3</span>,</span><br><span class="line">                      bias_initializer=tf.constant_initializer(-np.log((<span class="number">1</span> - <span class="number">0.01</span>) / <span class="number">0.01</span>)),</span><br><span class="line">                      padding=<span class="string">&#x27;same&#x27;</span>, name=<span class="string">&#x27;class-predict&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> classes</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>COCO test-dev 结果（单模型单尺度）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>AP</th>
+<th>AP₅₀</th>
+<th>AP₇₅</th>
+<th>参数量</th>
+<th>FLOPs</th>
+<th>GPU 延迟</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>YOLOv3</td>
+<td>33.0</td>
+<td>57.9</td>
+<td>34.4</td>
+<td>—</td>
+<td>71B</td>
+<td>—</td>
+</tr>
+<tr>
+<td>EfficientDet-D0</td>
+<td>34.6</td>
+<td>53.0</td>
+<td>37.1</td>
+<td>3.9M</td>
+<td>2.5B</td>
+<td>10.2ms</td>
+</tr>
+<tr>
+<td>RetinaNet (R50)</td>
+<td>39.2</td>
+<td>58.0</td>
+<td>42.3</td>
+<td>34M</td>
+<td>97B</td>
+<td>25ms</td>
+</tr>
+<tr>
+<td>EfficientDet-D1</td>
+<td>40.5</td>
+<td>59.1</td>
+<td>43.7</td>
+<td>6.6M</td>
+<td>6.1B</td>
+<td>13.5ms</td>
+</tr>
+<tr>
+<td>EfficientDet-D4</td>
+<td>49.7</td>
+<td>68.4</td>
+<td>53.9</td>
+<td>21M</td>
+<td>55B</td>
+<td>42.8ms</td>
+</tr>
+<tr>
+<td>EfficientDet-D7x</td>
+<td>55.1</td>
+<td>74.3</td>
+<td>59.9</td>
+<td>77M</td>
+<td>410B</td>
+<td>153ms</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ul>
+<li>D0 与 YOLOv3 精度相当但 FLOPs 少 28×</li>
+<li>D1 超越 RetinaNet 但参数少 5×、FLOPs 少 16×</li>
+<li>D7x 刷新 COCO 单模型单尺度 SOTA（55.1 AP），比 AmoebaNet + NAS-FPN 高 4 AP 且快 7.4×</li>
+</ul>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>Backbone 与 BiFPN 解耦消融（RetinaNet 训练设置，COCO val）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>AP</th>
+<th>参数量</th>
+<th>FLOPs</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ResNet-50 + FPN</td>
+<td>37.0</td>
+<td>34M</td>
+<td>97B</td>
+<td>—</td>
+</tr>
+<tr>
+<td>EfficientNet-B3 + FPN</td>
+<td>40.3 (+3.3)</td>
+<td>21M</td>
+<td>75B</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>EfficientNet-B3 + BiFPN</td>
+<td>44.4 (+7.4)</td>
+<td>12M</td>
+<td>24B</td>
+<td>洞察 1 + 3</td>
+</tr>
+</tbody></table>
+<p><strong>特征网络拓扑消融</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>特征网络</th>
+<th>AP</th>
+<th>参数 (相对)</th>
+<th>FLOPs (相对)</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Repeated top-down FPN</td>
+<td>42.29</td>
+<td>1.0×</td>
+<td>1.0×</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>Repeated FPN + PANet</td>
+<td>44.08</td>
+<td>1.0×</td>
+<td>1.0×</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>NAS-FPN</td>
+<td>43.16</td>
+<td>0.71×</td>
+<td>0.72×</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>BiFPN (无权重)</td>
+<td>43.94</td>
+<td>0.88×</td>
+<td>0.67×</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>BiFPN (带权重)</td>
+<td>44.39</td>
+<td>0.88×</td>
+<td>0.68×</td>
+<td>洞察 1</td>
+</tr>
+</tbody></table>
+<p><strong>融合方式消融</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>融合方式</th>
+<th>AP</th>
+<th>GPU 速度比</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Softmax fusion</td>
+<td>基准</td>
+<td>1.0×</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>Fast normalized fusion</td>
+<td>-0.01~-0.11 AP</td>
+<td>1.26×~1.31×</td>
+<td>洞察 1</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：Fast normalized fusion 精度几乎无损但速度提升约 30%。</p>
+</blockquote>
+<h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
+<li><strong>小模型需要更长训练</strong>：EfficientDet-D1 在 300 epoch 时仍未完全饱和，而 RetinaNet 较早趋于稳定</li>
+<li><strong>大 scale jitter 需要长训练配合</strong>：[0.1, 2.0] 的 jitter 在 30 epoch 时反而降低精度，300 epoch 时才显现优势</li>
+<li><strong>复合缩放 vs 单维度缩放</strong>：复合缩放在相同 FLOPs 下始终优于仅缩放分辨率、深度或宽度</li>
+</ul>
+<h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
+<li><strong>极小目标</strong>：尽管 BiFPN 改善了多尺度融合，AP_S 仍显著低于 AP_L</li>
+<li><strong>超低延迟场景</strong>：D0 虽然 FLOPs 极低（2.5B），但 AP 仅 34.6，距高精度需求仍有差距</li>
+<li><strong>NAS 搜索可能找到更优 BiFPN 拓扑</strong>：现有 BiFPN 设计基于启发式优化，非全局最优</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:       EfficientNet-B0~B6（ImageNet 预训练）</span><br><span class="line">Input:          512~1536（按 φ 缩放）</span><br><span class="line">Batch Size:     128（32 TPUv3 cores）</span><br><span class="line">Optimizer:      SGD (lr=0.16 cosine decay, momentum=0.9, weight_decay=4e-5)</span><br><span class="line">LR Warmup:      1 epoch linear warmup</span><br><span class="line">Activation:     SiLU (Swish-1)</span><br><span class="line">Focal Loss:     α=0.25, γ=1.5</span><br><span class="line">BN:             Synchronized BN (decay=0.99, ε=1e-3)</span><br><span class="line">Augmentation:   水平翻转, scale jitter [0.1, 2.0]</span><br><span class="line">Epochs:         300 (D0~D6), 600 (D7/D7x)</span><br><span class="line">Framework:      TensorFlow</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>BiFPN 权重初始化</strong>：所有融合权重初始化为 1.0，经 ReLU 保证非负；$\epsilon &#x3D; 0.0001$ 防止除零</li>
+<li><strong>SiLU 激活函数</strong>：使用 $x \cdot \sigma(x)$ 替代 ReLU，对 EfficientNet 和 BiFPN 均有效</li>
+<li>**Scale jitter [0.1, 2.0]**：大范围 jitter 需配合长训练（≥300 epoch），短训练反而降低精度</li>
+<li><strong>EMA</strong>：使用 decay&#x3D;0.9998 的指数移动平均更新模型权重</li>
+<li><strong>Soft-NMS</strong>：使用 Soft-NMS 替代标准 NMS 可提升约 0.5 AP</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>使用 auto-augmentation 可进一步提升精度（AmoebaNet + AA 提升约 2 AP），但增加训练成本</li>
+<li>D7x 使用更大 backbone（B7）和额外 P8 层，说明探索更深层级仍有空间</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>固定 640×640 分辨率的 D6 可在 34ms 内达到 47.9 AP，适合实时场景</li>
+<li>Depthwise separable conv 是 BiFPN 效率的关键，替换为标准 conv 会显著增加 FLOPs</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>加权特征融合</strong>：不同尺度特征的重要性不同，可学习的融合权重优于简单求和，该思想可迁移到分割、关键点检测等多尺度任务</li>
+<li><strong>复合缩放方法论</strong>：用单一系数联合控制所有架构维度的方法论，可推广到任何需要模型家族的场景（如 3D 检测、视频理解）</li>
+<li><strong>高效 backbone 的传导效应</strong>：backbone 的效率提升会传导到整个检测管线，选择高效 backbone 是最基本的优化</li>
+<li><strong>Fast normalized fusion 的简洁性</strong>：用 ReLU + 简单归一化替代 softmax 的技巧，在需要加权聚合的任何场景都适用</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li>复合缩放公式基于启发式搜索，非理论最优</li>
+<li>BiFPN 仍是手工设计的拓扑，NAS 搜索可能找到更好结构</li>
+<li>训练成本较高（D7&#x2F;D7x 需要 128 TPUv3 × 600 epoch）</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li>确立了”高效 backbone + 加权特征融合 + 复合缩放”的检测器设计范式</li>
+<li>BiFPN 的加权融合思想被广泛采纳到后续工作（如 YOLOv5&#x2F;v8 的 PANet 变体）</li>
+<li>复合缩放方法直接影响了 YOLO 系列的模型家族设计（nano&#x2F;small&#x2F;medium&#x2F;large&#x2F;xlarge）</li>
+<li>证明了 EfficientNet 在检测任务中的有效性，推动了精度-效率帕累托前沿的改进</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%8A%A0%E6%9D%83%E5%8F%8C%E5%90%91%E7%89%B9%E5%BE%81%E8%9E%8D%E5%90%88%EF%BC%88BiFPN%EF%BC%89"><span class="toc-text">洞察 1：加权双向特征融合（BiFPN）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%A4%8D%E5%90%88%E7%BC%A9%E6%94%BE%EF%BC%88Compound-Scaling%EF%BC%89"><span class="toc-text">洞察 2：复合缩放（Compound Scaling）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9AEfficientNet-%E4%BD%9C%E4%B8%BA%E9%AB%98%E6%95%88-Backbone"><span class="toc-text">洞察 3：EfficientNet 作为高效 Backbone</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.3 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.4 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B/" class="tag">#目标检测</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

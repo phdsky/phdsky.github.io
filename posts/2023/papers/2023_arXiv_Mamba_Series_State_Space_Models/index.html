@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Mamba Series from Selective State Spaces to Visual State Space Models - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Mamba Series from Selective State Spaces to Visual State Space Models</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2023年12月01日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Sequence Modeling &#x2F; Visual Representation Learning<br>Method: Selective State Space Model (S6), 2D Selective Scan<br>Venue: arXiv 2023 (Mamba) &#x2F; NeurIPS 2024 Spotlight (VMamba)<br>Year: 2023–2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2312.00752">https://arxiv.org/abs/2312.00752</a> (Mamba) | <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2401.10166">https://arxiv.org/abs/2401.10166</a> (VMamba)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/state-spaces/mamba">https://github.com/state-spaces/mamba</a> (Mamba) | <a target="_blank" rel="noopener" href="https://github.com/MzeroMiko/VMamba">https://github.com/MzeroMiko/VMamba</a> (VMamba)</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Transformer 凭借注意力机制在序列建模中占据统治地位，但其 $O(N^2)$ 的计算复杂度在长序列上成为瓶颈。<strong>Mamba</strong>（arXiv 2023，Gu &amp; Dao）提出<strong>选择性状态空间模型</strong>（Selective State Space Model, S6），通过让 SSM 的参数依赖于输入（input-dependent），解决了传统 SSM 无法进行基于内容推理的根本缺陷。结合硬件感知的并行扫描算法，Mamba 以线性复杂度 $O(N)$ 实现了比 Transformer 快 5 倍的吞吐量。Mamba-3B 在语言建模上媲美两倍参数量的 Transformer，同时在音频和基因组学上也达到 SOTA。</p>
+<p><strong>VMamba</strong>（NeurIPS 2024 Spotlight，Liu et al.）将 Mamba 引入视觉领域。核心挑战是：1D 选择性扫描如何处理 2D 图像的非序列结构？VMamba 提出 <strong>2D 选择性扫描</strong>（SS2D）——通过四个方向（左上→右下、右下→左上、左下→右上、右上→左下）遍历特征图，使每个位置能聚合全局信息。基于此构建 Visual State Space（VSS）模块，VMamba-B 在 ImageNet-1K 上达到 83.9% top-1 精度，同时在 COCO 检测（MaskRCNN 49.2 AP）和 ADE20K 分割（UperNet 51.0 mIoU）上超越同量级 Swin Transformer。</p>
+<p><strong>核心论点</strong>：Transformer 的注意力机制并非序列建模的唯一解——选择性状态空间模型通过输入依赖的参数化实现了内容感知推理，同时保持线性计算复杂度。VMamba 的 2D 扫描策略证明了 SSM 架构在视觉任务中的可行性和竞争力。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>序列建模架构在效率和表达能力之间长期存在权衡：</p>
+<table>
+<thead>
+<tr>
+<th>架构类型</th>
+<th>代表作</th>
+<th>时间复杂度</th>
+<th>长序列性能</th>
+<th>内容推理能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Transformer</td>
+<td>GPT, ViT</td>
+<td>$O(N^2)$</td>
+<td>优 (但慢)</td>
+<td>强</td>
+</tr>
+<tr>
+<td>线性注意力</td>
+<td>Linear Transformer</td>
+<td>$O(N)$</td>
+<td>中</td>
+<td>弱</td>
+</tr>
+<tr>
+<td>传统 SSM</td>
+<td>S4, H3</td>
+<td>$O(N)$</td>
+<td>优 (连续信号)</td>
+<td>弱 (LTI)</td>
+</tr>
+<tr>
+<td>CNN (门控)</td>
+<td>RWKV, Hyena</td>
+<td>$O(N)$</td>
+<td>中</td>
+<td>中</td>
+</tr>
+</tbody></table>
+<p>传统 SSM（如 S4）在连续信号（音频、时序）上表现优异，但在语言等离散模态上明显弱于 Transformer。Mamba 的作者 Albert Gu 和 Tri Dao 发现，<strong>问题的根源在于 SSM 的 LTI（线性时不变）性质</strong>——参数不依赖输入内容，因此无法根据当前 token 决定保留还是遗忘历史信息。</p>
+<p>在视觉领域，虽然 ViT 已确立主导地位，但 $O(N^2)$ 的全局注意力在高分辨率输入（如 1024×1024）下计算量激增。Swin Transformer 通过窗口注意力缓解但牺牲了全局感受野。需要一种线性复杂度且具全局感受野的视觉 backbone。</p>
+<p><strong>核心痛点</strong>：（1）如何让 SSM 具备 Transformer 的内容推理能力而保持线性复杂度？（2）如何将 1D 扫描机制适配 2D 视觉数据？</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：选择性机制——让-SSM-参数依赖输入"><a href="#洞察-1：选择性机制——让-SSM-参数依赖输入" class="headerlink" title="洞察 1：选择性机制——让 SSM 参数依赖输入"></a>洞察 1：选择性机制——让 SSM 参数依赖输入</h3><p><strong>传统 SSM（S4）</strong>：状态空间方程为 LTI（线性时不变）系统：</p>
+$$h'(t) = Ah(t) + Bx(t), \quad y(t) = Ch(t)$$
+
+<p>离散化后 $\bar{A}, \bar{B}$ 与输入 $x$ 无关，因此对所有 token 使用相同的状态转移矩阵。这等价于一个全局卷积，无法区分哪些 token 重要、哪些应遗忘。</p>
+<p><strong>Mamba 做法</strong>（S6）：让离散化步长 $\Delta$、投影矩阵 $B$ 和 $C$ 成为输入的函数：</p>
+$$B = S_B(x), \quad C = S_C(x), \quad \Delta = \text{softplus}(S_\Delta(x))$$
+
+<p>其中 $S_B, S_C, S_\Delta$ 为线性投影。这使得：</p>
+<ul>
+<li>**大 $\Delta$**：忽略当前输入，更多依赖历史状态（类似 “跳过”）</li>
+<li>**小 $\Delta$**：重视当前输入，选择性记忆</li>
+</ul>
+<p><strong>代价与解决</strong>：参数输入依赖（即 time-varying）破坏了 SSM 的卷积表示，无法用 FFT 加速。Mamba 设计了<strong>硬件感知的并行扫描算法</strong>——在 GPU SRAM 中完成扫描运算，避免 HBM 的 I&#x2F;O 瓶颈：</p>
+<ol>
+<li>不将 $(\bar{A}, \bar{B})$ 展开为完整矩阵（节省 HBM 读写）</li>
+<li>用并行前缀扫描（parallel prefix scan）实现 $O(N)$ 递推</li>
+<li>反向传播时重新计算中间状态（避免存储 $O(N)$ 状态）</li>
+</ol>
+<h3 id="洞察-2：极简架构——去掉注意力和-MLP"><a href="#洞察-2：极简架构——去掉注意力和-MLP" class="headerlink" title="洞察 2：极简架构——去掉注意力和 MLP"></a>洞察 2：极简架构——去掉注意力和 MLP</h3><p><strong>Transformer block</strong>：Self-Attention + MLP，两个子模块各自占约一半计算量。</p>
+<p><strong>Mamba block</strong>：将选择性 SSM 嵌入一个类似 H3&#x2F;门控 MLP 的简化架构：</p>
+<ol>
+<li>输入线性投影 → 两路（expand ratio &#x3D; 2）</li>
+<li>一路：1D 卷积（kernel&#x3D;4）→ SiLU → 选择性 SSM</li>
+<li>另一路：SiLU（门控）</li>
+<li>两路逐元素相乘 → 线性投影输出</li>
+</ol>
+<p>没有注意力层、没有独立的 MLP block。整个网络是均匀堆叠的 Mamba block（类似 ResNet 堆叠残差块），参数效率极高。</p>
+<h3 id="洞察-3：2D-选择性扫描——从-1D-序列到-2D-视觉"><a href="#洞察-3：2D-选择性扫描——从-1D-序列到-2D-视觉" class="headerlink" title="洞察 3：2D 选择性扫描——从 1D 序列到 2D 视觉"></a>洞察 3：2D 选择性扫描——从 1D 序列到 2D 视觉</h3><p><strong>Mamba 的局限</strong>：选择性扫描沿单一方向处理序列，天然适合 1D（文本、音频）。但 2D 图像不存在天然的扫描顺序——简单的行优先展开（如 ViT 的 patch 序列化）会丢失空间局部性。</p>
+<p><strong>VMamba 做法（SS2D）</strong>：在 $H \times W$ 特征图上设计四个扫描方向：</p>
+<ol>
+<li>左上 → 右下（行优先）</li>
+<li>右下 → 左上（反向）</li>
+<li>左下 → 右上</li>
+<li>右上 → 左下</li>
+</ol>
+<p>每个方向独立运行选择性扫描，最后将四路输出合并。这样每个位置都能通过至少一个方向与所有其他位置建立信息通路——等效于全局感受野。</p>
+<p><strong>VSS block 结构</strong>：</p>
+<ol>
+<li>输入线性投影 → 两路</li>
+<li>一路：DWConv 3×3 → SiLU → SS2D（四方向扫描）</li>
+<li>另一路：SiLU（门控）</li>
+<li>逐元素相乘 → 线性投影输出</li>
+</ol>
+<p>VMamba 按层级设计（类似 Swin Transformer），每个 stage 下采样 2 倍。</p>
+<p><strong>效果</strong>：VMamba 具有全局有效感受野（ERF），类似 ViT 但计算量对序列长度线性增长。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>5×</strong>：Mamba 相比 Transformer 的推理吞吐量提升倍数，得益于线性复杂度和硬件感知算法</li>
+<li>**83.9%**：VMamba-B 在 ImageNet-1K 上的 top-1 精度，以 89M 参数超越同量级 Swin-B (83.5%)</li>
+<li><strong>49.2 AP</strong>：VMamba-B 使用 Mask R-CNN@1x 在 COCO 上的检测精度，比 Swin-B (46.9) 高 +2.3</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3>$$\text{Mamba} = \text{Linear Projection} + \text{1D Conv} + \text{Selective SSM (S6)} + \text{Gating}$$
+
+$$\text{VMamba} = \text{Patch Embedding} + \text{VSS Blocks (SS2D)} + \text{Hierarchical Downsampling}$$
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://raw.githubusercontent.com/MzeroMiko/VMamba/main/assets/architecture.png" alt="VMamba 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+┌─────────────────────────────────────────────────────────────────┐
+│                   Mamba Block (1D)                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  输入 x ──→ Linear ──┬──→ Conv1D(k=4) → SiLU → SSM (S6) ─────┐   │
+│                      │                                      │   │
+│                      └──→ SiLU (gate) ──────────────────→  ⊗    │
+│                                                             │   │
+│                                                    Linear ←─┘   │
+│                                                      ↓          │
+│                                                    输出          │
+└─────────────────────────────────────────────────────────────────┘
+
+<p>┌─────────────────────────────────────────────────────────────────┐<br>│                  VMamba &#x2F; VSS Block (2D)                        │<br>├─────────────────────────────────────────────────────────────────┤<br>│                                                                 │<br>│  输入 (H×W×C)                                                    │<br>│      ↓                                                          │<br>│  LayerNorm                                                      │<br>│      ↓                                                          │<br>│  Linear ──→ 两路分支                                             │<br>│  ┌────────────────┐    ┌────────────────────────────┐           │<br>│  │ DWConv 3×3     │    │ SiLU (gate)                │           │<br>│  │ SiLU           │    │                            │           │<br>│  │ SS2D:          │    │                            │           │<br>│  │  ┌→ 左上→右下   │    │                            │           │<br>│  │  ├→ 右下→左上   │    │                            │           │<br>│  │  ├→ 左下→右上   │    │                            │           │<br>│  │  └→ 右上→左下   │    │                            │           │<br>│  │  合并四路输出    │    │                            │           │<br>│  └───────┬────────┘    └──────────┬─────────────────┘           │<br>│          └────────── ⊗ ───────────┘                             │<br>│                      │                                          │<br>│                  Linear → 输出 + 残差                            │<br>└─────────────────────────────────────────────────────────────────┘</p>
+<p>┌─────────────────────────────────────────────────────────────────┐<br>│                 VMamba 层级结构                                  │<br>├─────────────────────────────────────────────────────────────────┤<br>│  Stage 1: Patch Embed (4×4, stride 4) → VSS blocks              │<br>│  Stage 2: Downsample (2×) → VSS blocks                          │<br>│  Stage 3: Downsample (2×) → VSS blocks                          │<br>│  Stage 4: Downsample (2×) → VSS blocks                          │<br>│                                                                 │<br>│  VMamba-T[s1l8]:  layers &#x3D; [2,2,8,2],  dims &#x3D; […], 30M        │<br>│  VMamba-S[s2l15]: layers &#x3D; [2,2,15,2], dims &#x3D; […], 50M        │<br>│  VMamba-B[s2l15]: layers &#x3D; [2,2,15,2], dims &#x3D; […], 89M        │<br>└─────────────────────────────────────────────────────────────────┘<br></pre></p>
+</div>
+
+<h3 id="关键组件"><a href="#关键组件" class="headerlink" title="关键组件"></a>关键组件</h3><h4 id="Mamba-vs-VMamba-对比"><a href="#Mamba-vs-VMamba-对比" class="headerlink" title="Mamba vs VMamba 对比"></a>Mamba vs VMamba 对比</h4><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Mamba</th>
+<th>VMamba</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>目标任务</strong></td>
+<td>语言、音频、基因组</td>
+<td>图像分类、检测、分割</td>
+</tr>
+<tr>
+<td><strong>扫描方式</strong></td>
+<td>单向 1D 扫描</td>
+<td>四方向 2D 扫描 (SS2D)</td>
+</tr>
+<tr>
+<td><strong>架构风格</strong></td>
+<td>均匀堆叠（类 GPT）</td>
+<td>层级下采样（类 Swin）</td>
+</tr>
+<tr>
+<td><strong>输入处理</strong></td>
+<td>Token 嵌入</td>
+<td>Patch Embedding + Downsample</td>
+</tr>
+<tr>
+<td><strong>计算复杂度</strong></td>
+<td>$O(N)$</td>
+<td>$O(HW)$ &#x3D; $O(N)$</td>
+</tr>
+<tr>
+<td><strong>参数量</strong></td>
+<td>130M–2.8B (语言模型)</td>
+<td>30M–89M (视觉 backbone)</td>
+</tr>
+</tbody></table>
+<h4 id="选择性-SSM-的数学形式"><a href="#选择性-SSM-的数学形式" class="headerlink" title="选择性 SSM 的数学形式"></a>选择性 SSM 的数学形式</h4><p><strong>连续系统</strong>：</p>
+$$h'(t) = Ah(t) + Bx(t), \quad y(t) = Ch(t)$$
+
+<p><strong>离散化</strong>（零阶保持）：</p>
+$$\bar{A} = \exp(\Delta A), \quad \bar{B} = (\Delta A)^{-1}(\exp(\Delta A) - I) \cdot \Delta B$$
+
+<p><strong>选择性参数化（Mamba S6）</strong>：</p>
+$$\Delta = \text{softplus}(W_\Delta x + b_\Delta), \quad B = W_B x, \quad C = W_C x$$
+
+<p>其中 $W_\Delta, W_B, W_C$ 为可学习线性投影。A 保持固定（对角矩阵），仅通过 $\Delta$ 的变化间接改变 $\bar{A}$。</p>
+<h4 id="关键代码"><a href="#关键代码" class="headerlink" title="关键代码"></a>关键代码</h4><table>
+<thead>
+<tr>
+<th>函数&#x2F;类</th>
+<th>功能</th>
+<th>来源文件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>cross_scan_fwd</code></td>
+<td>四方向 2D 扫描展开</td>
+<td><code>vmamba.py</code></td>
+</tr>
+<tr>
+<td><code>SS2Dv0.forwardv0</code></td>
+<td>SS2D 核心前向传播</td>
+<td><code>vmamba.py</code></td>
+</tr>
+<tr>
+<td><code>VSSBlock._forward</code></td>
+<td>VSS block 结构</td>
+<td><code>vmamba.py</code></td>
+</tr>
+</tbody></table>
+<details><summary>📄 点击展开 cross_scan_fwd（四方向扫描）代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/MzeroMiko/VMamba/blob/main/vmamba.py">vmamba.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">cross_scan_fwd</span>(<span class="params">x: torch.Tensor, in_channel_first=<span class="literal">True</span>, out_channel_first=<span class="literal">True</span>, scans=<span class="number">0</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;将 2D 特征图展开为四条 1D 扫描序列&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">if</span> in_channel_first:</span><br><span class="line">        B, C, H, W = x.shape</span><br><span class="line">        <span class="keyword">if</span> scans == <span class="number">0</span>:  <span class="comment"># cross scan: 四方向</span></span><br><span class="line">            y = x.new_empty((B, <span class="number">4</span>, C, H * W))</span><br><span class="line">            y[:, <span class="number">0</span>, :, :] = x.flatten(<span class="number">2</span>, <span class="number">3</span>)                          <span class="comment"># 左上→右下（行优先）</span></span><br><span class="line">            y[:, <span class="number">1</span>, :, :] = x.transpose(dim0=<span class="number">2</span>, dim1=<span class="number">3</span>).flatten(<span class="number">2</span>, <span class="number">3</span>) <span class="comment"># 左上→右下（列优先=转置）</span></span><br><span class="line">            y[:, <span class="number">2</span>:<span class="number">4</span>, :, :] = torch.flip(y[:, <span class="number">0</span>:<span class="number">2</span>, :, :], dims=[-<span class="number">1</span>]) <span class="comment"># 上述两路各自翻转</span></span><br><span class="line">    <span class="keyword">return</span> y</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details><summary>📄 点击展开 SS2Dv0.forwardv0（SS2D 前向传播）代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/MzeroMiko/VMamba/blob/main/vmamba.py">vmamba.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forwardv0</span>(<span class="params">self, x: torch.Tensor, seq=<span class="literal">False</span>, force_fp32=<span class="literal">True</span>, **kwargs</span>):</span><br><span class="line">    x = <span class="variable language_">self</span>.in_proj(x)</span><br><span class="line">    x, z = x.chunk(<span class="number">2</span>, dim=-<span class="number">1</span>)  <span class="comment"># (b, h, w, d) → 两路分支</span></span><br><span class="line">    z = <span class="variable language_">self</span>.act(z)             <span class="comment"># 门控分支: SiLU</span></span><br><span class="line">    x = x.permute(<span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">2</span>).contiguous()</span><br><span class="line">    x = <span class="variable language_">self</span>.conv2d(x)          <span class="comment"># DWConv 3×3</span></span><br><span class="line">    x = <span class="variable language_">self</span>.act(x)             <span class="comment"># SiLU</span></span><br><span class="line">    B, D, H, W = x.shape</span><br><span class="line">    D, N = <span class="variable language_">self</span>.A_logs.shape</span><br><span class="line">    K, D, R = <span class="variable language_">self</span>.dt_projs_weight.shape</span><br><span class="line">    L = H * W</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 四方向扫描：行优先 + 列优先 + 各自翻转 = 4 路</span></span><br><span class="line">    x_hwwh = torch.stack([</span><br><span class="line">        x.view(B, -<span class="number">1</span>, L),</span><br><span class="line">        torch.transpose(x, dim0=<span class="number">2</span>, dim1=<span class="number">3</span>).contiguous().view(B, -<span class="number">1</span>, L)</span><br><span class="line">    ], dim=<span class="number">1</span>).view(B, <span class="number">2</span>, -<span class="number">1</span>, L)</span><br><span class="line">    xs = torch.cat([x_hwwh, torch.flip(x_hwwh, dims=[-<span class="number">1</span>])], dim=<span class="number">1</span>)  <span class="comment"># (b, 4, d, l)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 投影得到 dt, B, C 参数（输入依赖 = 选择性）</span></span><br><span class="line">    x_dbl = torch.einsum(<span class="string">&quot;b k d l, k c d -&gt; b k c l&quot;</span>, xs, <span class="variable language_">self</span>.x_proj_weight)</span><br><span class="line">    dts, Bs, Cs = torch.split(x_dbl, [R, N, N], dim=<span class="number">2</span>)</span><br><span class="line">    dts = torch.einsum(<span class="string">&quot;b k r l, k d r -&gt; b k d l&quot;</span>, dts, <span class="variable language_">self</span>.dt_projs_weight)</span><br><span class="line"></span><br><span class="line">    As = -<span class="variable language_">self</span>.A_logs.<span class="built_in">float</span>().exp()       <span class="comment"># (k*d, d_state)</span></span><br><span class="line">    Ds = <span class="variable language_">self</span>.Ds.<span class="built_in">float</span>()                  <span class="comment"># (k*d) skip connection</span></span><br><span class="line">    dt_projs_bias = <span class="variable language_">self</span>.dt_projs_bias.<span class="built_in">float</span>().view(-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 选择性扫描（四路并行）</span></span><br><span class="line">    out_y = selective_scan(xs, dts, As, Bs, Cs, Ds,</span><br><span class="line">                           delta_bias=dt_projs_bias, delta_softplus=<span class="literal">True</span></span><br><span class="line">                           ).view(B, K, -<span class="number">1</span>, L)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 四路合并：翻转回来 + 转置回来 → 求和</span></span><br><span class="line">    inv_y = torch.flip(out_y[:, <span class="number">2</span>:<span class="number">4</span>], dims=[-<span class="number">1</span>]).view(B, <span class="number">2</span>, -<span class="number">1</span>, L)</span><br><span class="line">    wh_y = torch.transpose(out_y[:, <span class="number">1</span>].view(B, -<span class="number">1</span>, W, H), dim0=<span class="number">2</span>, dim1=<span class="number">3</span>).contiguous().view(B, -<span class="number">1</span>, L)</span><br><span class="line">    invwh_y = torch.transpose(inv_y[:, <span class="number">1</span>].view(B, -<span class="number">1</span>, W, H), dim0=<span class="number">2</span>, dim1=<span class="number">3</span>).contiguous().view(B, -<span class="number">1</span>, L)</span><br><span class="line">    y = out_y[:, <span class="number">0</span>] + inv_y[:, <span class="number">0</span>] + wh_y + invwh_y  <span class="comment"># 聚合四路全局信息</span></span><br><span class="line"></span><br><span class="line">    y = y.transpose(dim0=<span class="number">1</span>, dim1=<span class="number">2</span>).contiguous()</span><br><span class="line">    y = <span class="variable language_">self</span>.out_norm(y).view(B, H, W, -<span class="number">1</span>)</span><br><span class="line">    y = y * z                  <span class="comment"># 门控</span></span><br><span class="line">    out = <span class="variable language_">self</span>.dropout(<span class="variable language_">self</span>.out_proj(y))</span><br><span class="line">    <span class="keyword">return</span> out</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="主要结果"><a href="#主要结果" class="headerlink" title="主要结果"></a>主要结果</h3><h4 id="Mamba-语言建模（从论文摘要和已知结果）"><a href="#Mamba-语言建模（从论文摘要和已知结果）" class="headerlink" title="Mamba 语言建模（从论文摘要和已知结果）"></a>Mamba 语言建模（从论文摘要和已知结果）</h4><p>Mamba-3B 在预训练和下游评估中匹配两倍参数量的 Transformer，推理吞吐量提升 5 倍。在音频（SC10 和 SpeechCommands）和基因组学（Species DNA）上达到 SOTA。</p>
+<blockquote>
+<p>注：Mamba 论文的具体 perplexity 和下游数值较多，此处列出核心结论，详细数据请参阅原文 Table 3-5。</p>
+</blockquote>
+<h4 id="VMamba-ImageNet-1K-分类"><a href="#VMamba-ImageNet-1K-分类" class="headerlink" title="VMamba ImageNet-1K 分类"></a>VMamba ImageNet-1K 分类</h4><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>参数</th>
+<th>FLOPs</th>
+<th>Top-1</th>
+<th>吞吐量 (im&#x2F;s)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Swin-T</td>
+<td>28M</td>
+<td>4.5G</td>
+<td>81.2</td>
+<td>1244</td>
+</tr>
+<tr>
+<td><strong>VMamba-T</strong></td>
+<td><strong>30M</strong></td>
+<td><strong>4.9G</strong></td>
+<td><strong>82.6</strong></td>
+<td><strong>1686</strong></td>
+</tr>
+<tr>
+<td>Swin-S</td>
+<td>50M</td>
+<td>8.7G</td>
+<td>83.2</td>
+<td>718</td>
+</tr>
+<tr>
+<td><strong>VMamba-S</strong></td>
+<td><strong>50M</strong></td>
+<td><strong>8.7G</strong></td>
+<td><strong>83.6</strong></td>
+<td><strong>877</strong></td>
+</tr>
+<tr>
+<td>Swin-B</td>
+<td>88M</td>
+<td>15.4G</td>
+<td>83.5</td>
+<td>458</td>
+</tr>
+<tr>
+<td><strong>VMamba-B</strong></td>
+<td><strong>89M</strong></td>
+<td><strong>15.4G</strong></td>
+<td><strong>83.9</strong></td>
+<td><strong>646</strong></td>
+</tr>
+</tbody></table>
+<h4 id="VMamba-COCO-检测（Mask-R-CNN）"><a href="#VMamba-COCO-检测（Mask-R-CNN）" class="headerlink" title="VMamba COCO 检测（Mask R-CNN）"></a>VMamba COCO 检测（Mask R-CNN）</h4><table>
+<thead>
+<tr>
+<th>Backbone</th>
+<th>参数</th>
+<th>FLOPs</th>
+<th>Schedule</th>
+<th>bbox AP</th>
+<th>segm AP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Swin-T</td>
+<td>48M</td>
+<td>267G</td>
+<td>1x</td>
+<td>42.7</td>
+<td>39.3</td>
+</tr>
+<tr>
+<td>VMamba-T</td>
+<td>50M</td>
+<td>271G</td>
+<td>1x</td>
+<td>47.3</td>
+<td>42.7</td>
+</tr>
+<tr>
+<td>Swin-S</td>
+<td>69M</td>
+<td>354G</td>
+<td>1x</td>
+<td>44.8</td>
+<td>40.9</td>
+</tr>
+<tr>
+<td>VMamba-S</td>
+<td>70M</td>
+<td>384G</td>
+<td>1x</td>
+<td>48.7</td>
+<td>43.7</td>
+</tr>
+<tr>
+<td>Swin-B</td>
+<td>107M</td>
+<td>496G</td>
+<td>1x</td>
+<td>46.9</td>
+<td>42.3</td>
+</tr>
+<tr>
+<td><strong>VMamba-B</strong></td>
+<td><strong>108M</strong></td>
+<td><strong>485G</strong></td>
+<td><strong>1x</strong></td>
+<td><strong>49.2</strong></td>
+<td><strong>44.1</strong></td>
+</tr>
+</tbody></table>
+<h4 id="VMamba-ADE20K-分割（UperNet-160k）"><a href="#VMamba-ADE20K-分割（UperNet-160k）" class="headerlink" title="VMamba ADE20K 分割（UperNet@160k）"></a>VMamba ADE20K 分割（UperNet@160k）</h4><table>
+<thead>
+<tr>
+<th>Backbone</th>
+<th>参数</th>
+<th>FLOPs</th>
+<th>mIoU (SS)</th>
+<th>mIoU (MS)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Swin-T</td>
+<td>60M</td>
+<td>945G</td>
+<td>44.4</td>
+<td>45.8</td>
+</tr>
+<tr>
+<td>VMamba-T</td>
+<td>62M</td>
+<td>949G</td>
+<td>47.9</td>
+<td>48.8</td>
+</tr>
+<tr>
+<td>Swin-S</td>
+<td>81M</td>
+<td>1039G</td>
+<td>47.6</td>
+<td>49.5</td>
+</tr>
+<tr>
+<td>VMamba-S</td>
+<td>82M</td>
+<td>1028G</td>
+<td>50.6</td>
+<td>51.2</td>
+</tr>
+<tr>
+<td>Swin-B</td>
+<td>121M</td>
+<td>1188G</td>
+<td>48.1</td>
+<td>49.7</td>
+</tr>
+<tr>
+<td><strong>VMamba-B</strong></td>
+<td><strong>122M</strong></td>
+<td><strong>1170G</strong></td>
+<td><strong>51.0</strong></td>
+<td><strong>51.6</strong></td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li><strong>VMamba 全面超越同量级 Swin</strong>：在分类、检测、分割三项任务上，VMamba-T&#x2F;S&#x2F;B 均超越对应的 Swin-T&#x2F;S&#x2F;B，且在分类上吞吐量更高（VMamba-T 1686 vs Swin-T 1244 im&#x2F;s）</li>
+<li><strong>检测和分割的提升更显著</strong>：VMamba-B 在 COCO 检测上比 Swin-B 高 +2.3 AP，在 ADE20K 分割上高 +2.9 mIoU——全局感受野对密集预测任务的增益大于分类</li>
+<li><strong>线性复杂度的实际优势</strong>：VMamba 的吞吐量随分辨率增大优势更明显——当序列长度增加时，Transformer 的 $O(N^2)$ 使延迟急剧增长，而 VMamba 保持线性增长</li>
+</ol>
+<h3 id="消融实验：验证三个洞察"><a href="#消融实验：验证三个洞察" class="headerlink" title="消融实验：验证三个洞察"></a>消融实验：验证三个洞察</h3><h4 id="洞察-1-验证：选择性-vs-非选择性（来自-Mamba-论文）"><a href="#洞察-1-验证：选择性-vs-非选择性（来自-Mamba-论文）" class="headerlink" title="洞察 1 验证：选择性 vs 非选择性（来自 Mamba 论文）"></a>洞察 1 验证：选择性 vs 非选择性（来自 Mamba 论文）</h4><p>Mamba 论文通过合成任务验证了选择性机制的必要性。在 Selective Copying 和 Induction Heads 任务上，标准 S4（LTI）完全失败，而 Mamba（S6）完美解决，因为这些任务本质上需要根据内容决定何时记忆和何时遗忘。</p>
+<h4 id="洞察-2-验证：Mamba-block-vs-Transformer-block"><a href="#洞察-2-验证：Mamba-block-vs-Transformer-block" class="headerlink" title="洞察 2 验证：Mamba block vs Transformer block"></a>洞察 2 验证：Mamba block vs Transformer block</h4><p>在相同参数量下，Mamba block 因取消了独立 MLP 和注意力机制，序列处理效率更高。Mamba-3B 匹配 Transformer-6.7B（2× 参数）验证了架构效率。</p>
+<h4 id="洞察-3-验证：四方向扫描的必要性"><a href="#洞察-3-验证：四方向扫描的必要性" class="headerlink" title="洞察 3 验证：四方向扫描的必要性"></a>洞察 3 验证：四方向扫描的必要性</h4><p>VMamba 通过有效感受野（ERF）分析验证了 SS2D 的效果——四方向扫描后每个位置的 ERF 覆盖整个特征图，类似 ViT 的全局注意力，但 Swin 的 ERF 仅覆盖局部窗口。</p>
+<h3 id="性能瓶颈分析"><a href="#性能瓶颈分析" class="headerlink" title="性能瓶颈分析"></a>性能瓶颈分析</h3><table>
+<thead>
+<tr>
+<th>瓶颈</th>
+<th>影响</th>
+<th>解决方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>四方向扫描的序列化开销</td>
+<td>四条 1D 路径各自独立扫描</td>
+<td>Mamba2 的更高效实现</td>
+</tr>
+<tr>
+<td>自定义 CUDA 核的维护成本</td>
+<td>依赖特定 CUDA 版本和驱动</td>
+<td>框架级集成 (PyTorch 原生)</td>
+</tr>
+<tr>
+<td>causal 性质限制</td>
+<td>每条扫描路径仅看单向上下文</td>
+<td>双向变体（如 Vim 的 bidirectional）</td>
+</tr>
+</tbody></table>
+<h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><ul>
+<li><strong>需要精确 token 间交互的任务</strong>：SSM 通过压缩状态传递信息，不如注意力机制能精确地在任意两个位置间建立直接连接</li>
+<li><strong>极端长序列的训练稳定性</strong>：虽然推理时线性，但训练时并行扫描在极长序列上的数值稳定性需要仔细工程</li>
+<li><strong>硬件兼容性</strong>：Mamba 的 CUDA 实现依赖特定硬件特性（如 SRAM 大小），在非 NVIDIA 硬件上的移植和优化需额外工作</li>
+<li><strong>2D 扫描的顺序假设</strong>：SS2D 的四方向遍历仍是人为设定的——对于某些具有特殊空间结构的数据（如环形全景图），可能需要不同的扫描策略</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><p>**VMamba (NeurIPS 2024)**：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:       VMamba-T/S/B</span><br><span class="line">Input:          224×224</span><br><span class="line">Training:       300 epochs, ImageNet-1K</span><br><span class="line">Optimizer:      AdamW (继承 Swin 超参设定)</span><br><span class="line">EMA:            所有模型使用 EMA (除 Vanilla-VMamba-T)</span><br><span class="line">Drop Path:      按模型大小调整</span><br><span class="line">Batch Size:     128 per GPU</span><br><span class="line">GPU:            A100 (吞吐量测试 + AMD EPYC 7542 CPU)</span><br><span class="line">Dependencies:   PyTorch 2.0+, mamba_ssm, triton</span><br></pre></td></tr></table></figure>
+
+<p>**检测 (COCO)**：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Detector:       Mask R-CNN (1x / 3x schedule)</span><br><span class="line">Init:           ImageNet-1K 分类预训练</span><br><span class="line">Framework:      mmdetection</span><br></pre></td></tr></table></figure>
+
+<p>**分割 (ADE20K)**：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Segmentor:      UperNet@160k</span><br><span class="line">Input:          512×512</span><br><span class="line">Init:           ImageNet-1K 分类预训练</span><br><span class="line">Framework:      mmsegmentation</span><br></pre></td></tr></table></figure>
+
+<h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
+<li><strong>CUDA 环境严格要求</strong>：Mamba&#x2F;VMamba 依赖自定义 CUDA 核（selective_scan_cuda），需 PyTorch≥2.0 + CUDA≥11.8，不兼容的版本会导致编译失败或数值错误</li>
+<li><strong>cudnn.enabled 的影响</strong>：在下游任务中使用 <code>torch.backends.cudnn.enabled=True</code> 可能导致 VMamba 显著变慢，需在 vmamba.py 中禁用</li>
+<li><strong>FLOPs 计算注意</strong>：VMamba 的 FLOPs 使用了 Mamba 作者提供的硬件感知算法计算，比基于 selective_scan_ref 的朴素计算更大（后者忽略了 IO 部分）</li>
+<li><strong>SS2D 的实现</strong>：四方向扫描通过展开 2D 特征图为四条 1D 序列实现，可利用 Mamba2 的更高效扫描原语加速</li>
+<li><strong>下游任务的初始化</strong>：检测和分割模型从分类预训练初始化——与 Swin 的做法一致，预训练质量直接影响下游精度</li>
+</ol>
+<h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>更大模型（VMamba-L&#x2F;XL）有望进一步提升精度，但需更多训练资源</li>
+<li>结合自监督预训练（如 DINOv2 式蒸馏）可能释放 VMamba 在大规模数据上的潜力</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>Mamba2 提供了 2-8× 更快的 SSM 实现，VMamba 已支持 Mamba2 后端</li>
+<li>减少扫描方向数（4→2）可加速但可能损失精度，需权衡</li>
+<li>量化（INT8&#x2F;FP16）对 SSM 的适配已有初步探索</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ul>
+<li>**”输入依赖的参数 &#x3D; 选择性记忆”**：Mamba 的核心洞察——让模型参数依赖输入以实现选择性信息保留——适用于任何需要长距离依赖建模的场景，如时序预测、强化学习中的状态压缩</li>
+<li>**”线性复杂度不意味着弱表达力”**：Mamba 证明了线性模型通过选择性机制可匹敌二次复杂度的注意力，这对高分辨率视觉、长视频理解等序列长度敏感的任务有重要启示</li>
+<li>**”多方向扫描 &#x3D; 2D 全局感受野”**：VMamba 的 SS2D 策略可推广到 3D（体素、点云）甚至图结构数据——关键是设计覆盖全空间的扫描路径</li>
+<li>**”简化架构设计”**：Mamba 去掉了注意力和独立 MLP，仅用门控 SSM 一种模块统一序列建模——这种极简设计理念（fewer types of blocks, more uniform stacking）值得借鉴</li>
+</ul>
+<h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
+<li>选择性扫描的 causal 性质（每条路径只看单向）使得全局信息聚合依赖多路合并，不如注意力的直接全对全交互精确</li>
+<li>自定义 CUDA 核的工程维护成本高，限制了社区的快速迭代和跨平台部署</li>
+<li>VMamba 的四方向扫描在序列极长时（如 4K 图像），四倍的扫描开销使实际速度优势减弱</li>
+</ul>
+<h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
+<li><strong>开辟 SSM 在视觉中的应用</strong>：VMamba 和同期的 Vision Mamba (Vim) 证明了 SSM 架构在视觉任务中的可行性，引发了 MambaOut、LocalMamba、PlainMamba 等大量后续工作</li>
+<li><strong>推动高效架构研究</strong>：Mamba 重新点燃了学术界对亚二次复杂度架构的兴趣，与 RWKV、xLSTM 等工作共同挑战 Transformer 的统治地位</li>
+<li><strong>影响自动驾驶感知</strong>：VMamba 的线性复杂度和全局感受野对高分辨率多摄像头 BEV 感知有潜在优势，已有 MambaAD 等方法探索将 Mamba 用于自动驾驶</li>
+<li><strong>Mamba2 的后续演进</strong>：Mamba 作者发布的 Mamba2 通过建立 SSM 与注意力的理论联系（State Space Duality），实现了 2-8× 的进一步加速</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E9%80%89%E6%8B%A9%E6%80%A7%E6%9C%BA%E5%88%B6%E2%80%94%E2%80%94%E8%AE%A9-SSM-%E5%8F%82%E6%95%B0%E4%BE%9D%E8%B5%96%E8%BE%93%E5%85%A5"><span class="toc-text">洞察 1：选择性机制——让 SSM 参数依赖输入</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E6%9E%81%E7%AE%80%E6%9E%B6%E6%9E%84%E2%80%94%E2%80%94%E5%8E%BB%E6%8E%89%E6%B3%A8%E6%84%8F%E5%8A%9B%E5%92%8C-MLP"><span class="toc-text">洞察 2：极简架构——去掉注意力和 MLP</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A2D-%E9%80%89%E6%8B%A9%E6%80%A7%E6%89%AB%E6%8F%8F%E2%80%94%E2%80%94%E4%BB%8E-1D-%E5%BA%8F%E5%88%97%E5%88%B0-2D-%E8%A7%86%E8%A7%89"><span class="toc-text">洞察 3：2D 选择性扫描——从 1D 序列到 2D 视觉</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">关键组件</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Mamba-vs-VMamba-%E5%AF%B9%E6%AF%94"><span class="toc-text">Mamba vs VMamba 对比</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%80%89%E6%8B%A9%E6%80%A7-SSM-%E7%9A%84%E6%95%B0%E5%AD%A6%E5%BD%A2%E5%BC%8F"><span class="toc-text">选择性 SSM 的数学形式</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">关键代码</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">主要结果</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Mamba-%E8%AF%AD%E8%A8%80%E5%BB%BA%E6%A8%A1%EF%BC%88%E4%BB%8E%E8%AE%BA%E6%96%87%E6%91%98%E8%A6%81%E5%92%8C%E5%B7%B2%E7%9F%A5%E7%BB%93%E6%9E%9C%EF%BC%89"><span class="toc-text">Mamba 语言建模（从论文摘要和已知结果）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#VMamba-ImageNet-1K-%E5%88%86%E7%B1%BB"><span class="toc-text">VMamba ImageNet-1K 分类</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#VMamba-COCO-%E6%A3%80%E6%B5%8B%EF%BC%88Mask-R-CNN%EF%BC%89"><span class="toc-text">VMamba COCO 检测（Mask R-CNN）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#VMamba-ADE20K-%E5%88%86%E5%89%B2%EF%BC%88UperNet-160k%EF%BC%89"><span class="toc-text">VMamba ADE20K 分割（UperNet@160k）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">消融实验：验证三个洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1-%E9%AA%8C%E8%AF%81%EF%BC%9A%E9%80%89%E6%8B%A9%E6%80%A7-vs-%E9%9D%9E%E9%80%89%E6%8B%A9%E6%80%A7%EF%BC%88%E6%9D%A5%E8%87%AA-Mamba-%E8%AE%BA%E6%96%87%EF%BC%89"><span class="toc-text">洞察 1 验证：选择性 vs 非选择性（来自 Mamba 论文）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2-%E9%AA%8C%E8%AF%81%EF%BC%9AMamba-block-vs-Transformer-block"><span class="toc-text">洞察 2 验证：Mamba block vs Transformer block</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3-%E9%AA%8C%E8%AF%81%EF%BC%9A%E5%9B%9B%E6%96%B9%E5%90%91%E6%89%AB%E6%8F%8F%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7"><span class="toc-text">洞察 3 验证：四方向扫描的必要性</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

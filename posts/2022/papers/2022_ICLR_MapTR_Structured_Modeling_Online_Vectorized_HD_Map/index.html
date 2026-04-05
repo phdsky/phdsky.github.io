@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            MapTR/MapTRv2 An End-to-End Framework for Online Vectorized HD Map Construction - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">MapTR/MapTRv2 An End-to-End Framework for Online Vectorized HD Map Construction</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2022年08月30日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Online Vectorized HD Map Construction<br>Method: Permutation-Equivalent Modeling, Hierarchical Query, Bipartite Matching<br>Venue: ICLR 2023 Spotlight &#x2F; IJCV 2024<br>Year: 2022-2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2208.14437">https://arxiv.org/abs/2208.14437</a> (MapTR) &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.05736">https://arxiv.org/abs/2308.05736</a> (MapTRv2)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/MapTR">https://github.com/hustvl/MapTR</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>高精地图（HD Map）为自动驾驶提供了丰富且精确的静态环境信息，是运动规划不可或缺的基础组件。传统高精地图依赖 SLAM 离线构建，流程复杂、维护成本高。本文提出 <strong>MapTR（Map TRansformer）</strong>，一个结构化的端到端 Transformer 框架，用于高效的在线矢量化高精地图构建。核心创新在于提出了<strong>置换等价建模</strong>（Permutation-Equivalent Modeling），将地图元素建模为带有一组等价置换的点集，精确描述地图元素的几何形状并稳定训练过程。框架采用<strong>分层查询嵌入</strong>灵活编码实例级和点级信息，通过<strong>分层二部匹配</strong>完成地图元素学习。MapTR-nano 在 RTX 3090 上达到实时推理速度（25.1 FPS），比当时最优纯视觉方法快 8 倍且 mAP 高 5.0；MapTR-tiny 比多模态最优方法高 13.5 mAP 且快 3 倍。</p>
+<p><strong>MapTRv2</strong> 在此基础上引入<strong>解耦自注意力</strong>降低显存消耗、<strong>辅助一对多匹配</strong>加速收敛、<strong>辅助密集监督</strong>（深度&#x2F;PV 分割&#x2F;BEV 分割）提升精度，并扩展支持 <strong>centerline 学习</strong>和 <strong>3D 地图构建</strong>。MapTRv2-R50 在 nuScenes 上以 24 epoch 训练即达 61.5 mAP（比 MapTR +11.2），110 epoch 达 68.7 mAP；V2-99 backbone 更达 73.4 mAP，均为同期最优。</p>
+<p><strong>核心论点</strong>：矢量化高精地图构建的关键在于如何建模”形状歧义”——MapTR 通过置换等价建模消除了多线&#x2F;多边形点序的固有模糊性，结合分层查询和分层匹配，首次实现了实时、端到端、高精度的在线矢量化地图构建，开创了该领域的 DETR-like 范式。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>自动驾驶需要高精地图提供车道线、人行横道、道路边界等语义信息。传统方法依赖 SLAM 离线构建，存在流程复杂、更新滞后、与自车不对齐等问题。在线高精地图构建因此成为热门方向。</p>
+<table>
+<thead>
+<tr>
+<th>方法类型</th>
+<th>代表作</th>
+<th>核心问题</th>
+<th>mAP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEV 语义分割</td>
+<td>HDMapNet</td>
+<td>栅格化表示缺乏实例级矢量信息，需复杂后处理聚类</td>
+<td>23.0</td>
+</tr>
+<tr>
+<td>自回归序列预测</td>
+<td>VectorMapNet</td>
+<td>逐点串行预测，推理慢（2.9 FPS），且存在点序歧义</td>
+<td>40.9（C）</td>
+</tr>
+<tr>
+<td>前视图车道检测</td>
+<td>PersFormer, LSTR</td>
+<td>仅限单视图、单类型元素，无法处理全景多类地图元素</td>
+<td>—</td>
+</tr>
+<tr>
+<td>SLAM 离线构建</td>
+<td>LOAM, LIO-SAM</td>
+<td>流程复杂，实时性差，维护成本高</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><strong>核心痛点</strong>：矢量化地图元素（车道线、人行横道等）具有动态形状，无法像目标检测那样用 bounding box 简单抽象。更关键的是，同一个几何形状存在多种等价的点序排列，例如：多线可以从两端出发遍历、多边形可以从任意顶点以两种方向遍历。将某一固定点序强行指定为监督标签，会与其他等价点序产生矛盾，导致训练不稳定。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：置换等价建模——消除形状表示的点序歧义"><a href="#洞察-1：置换等价建模——消除形状表示的点序歧义" class="headerlink" title="洞察 1：置换等价建模——消除形状表示的点序歧义"></a>洞察 1：置换等价建模——消除形状表示的点序歧义</h3><p><strong>传统做法</strong>：将地图元素表示为固定顺序的有序点列 $V_F = [v_0, v_1, \ldots, v_{N_v-1}]$，隐含地规定了唯一的遍历方向和起点。</p>
+<p><strong>MapTR 做法</strong>：将每个地图元素建模为 $\mathcal{V} &#x3D; (V, \Gamma)$，其中 $V$ 是点集，$\Gamma$ 是一组<strong>等价置换</strong>（覆盖所有产生相同几何形状的排列方式）。</p>
+<p>对于<strong>多线</strong>（polyline，如车道线）：两个端点均可作为起点，遍历方向有两种：</p>
+
+$$\Gamma_{\text{polyline}} = \{\gamma_0, \gamma_1\}, \quad \gamma_0(j) = j \bmod N_v, \quad \gamma_1(j) = (N_v - 1 - j) \bmod N_v$$
+
+
+<p>对于<strong>多边形</strong>（polygon，如人行横道）：任意顶点可做起点，方向有顺&#x2F;逆时针两种，共 $2 \times N_v$ 种等价置换：</p>
+
+$$\Gamma_{\text{polygon}} = \{\gamma_0, \gamma_1, \ldots, \gamma_{2N_v - 1}\}$$
+
+
+<p><strong>为什么更好</strong>：固定序标签方法在 nuScenes 上仅 44.4 mAP，引入置换等价建模后提升至 50.3 mAP（**+5.9 mAP<strong>），其中人行横道提升最大（</strong>+11.9 AP**），因为多边形的等价置换数最多（$2 \times 20 &#x3D; 40$ 种），消除歧义带来的收益最显著。MapTRv2 中该提升仍达 <strong>+4.1 mAP</strong>。</p>
+<h3 id="洞察-2：分层查询与分层匹配——结构化编码地图元素"><a href="#洞察-2：分层查询与分层匹配——结构化编码地图元素" class="headerlink" title="洞察 2：分层查询与分层匹配——结构化编码地图元素"></a>洞察 2：分层查询与分层匹配——结构化编码地图元素</h3><p><strong>传统做法</strong>（DETR 式）：每个查询对应一个实例的整体信息，难以编码地图元素内部的”多点结构”。</p>
+<p><strong>MapTR 做法</strong>：设计分层查询嵌入，分别定义 $N$ 个实例级查询 $\{q_i^{\text{ins}}\}$ 和 $N_v$ 个点级查询 $\{q_j^{\text{pt}}\}$（所有实例共享），通过加法组合得到每个点的分层查询：</p>
+
+$$q_{ij}^{\text{hie}} = q_i^{\text{ins}} + q_j^{\text{pt}}$$
+
+
+<p>匹配也分两层：先做<strong>实例级匈牙利匹配</strong>找到预测-GT 的最优对应 $\hat{\pi}$，再对每个正样本实例做<strong>点级匹配</strong>，从置换组 $\Gamma$ 中选出最优点序 $\hat{\gamma}$：</p>
+
+$$\hat{\gamma} = \arg\min_{\gamma \in \Gamma} \sum_{j=0}^{N_v - 1} D_{\text{Manhattan}}(\hat{v}_j, v_{\gamma(j)})$$
+
+
+<p><strong>为什么更好</strong>：分层查询让每个参考点可以自适应地分布在地图元素的各个位置上，天然适配不规则形状；分层匹配将实例关联和点序对齐解耦，避免了联合优化的困难。</p>
+<h3 id="洞察-3：MapTRv2-三把斧——解耦注意力、一对多匹配、密集监督"><a href="#洞察-3：MapTRv2-三把斧——解耦注意力、一对多匹配、密集监督" class="headerlink" title="洞察 3：MapTRv2 三把斧——解耦注意力、一对多匹配、密集监督"></a>洞察 3：MapTRv2 三把斧——解耦注意力、一对多匹配、密集监督</h3><p>MapTRv2 在 MapTR 基础上引入三项关键改进：</p>
+<p><strong>解耦自注意力</strong>：MapTR 使用全局自注意力，复杂度为 $O((N \times N_v)^2)$，显存需求高。MapTRv2 将其解耦为实例间注意力 + 点间注意力，复杂度降至 $O(N^2 + N_v^2)$，显存减少约 2000M（8458M vs. 10443M），且 mAP 反而提升 0.5。</p>
+<p><strong>辅助一对多匹配</strong>：训练时增加一组辅助实例查询，将 GT 重复 $K$ 倍（默认 $K&#x3D;6$）进行一对多匹配，正样本比例大幅增加，加速收敛约 4 倍。该分支与主分支共享解码器，仅在训练阶段使用。</p>
+<p><strong>辅助密集监督</strong>：在 PV 特征上加深度预测损失（LiDAR 渲染 GT）、PV 前景分割损失、BEV 前景分割损失，三者互补，共带来 <strong>+4.9 mAP</strong> 提升。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>61.5 mAP</strong>：MapTRv2-R50 在 nuScenes 上 24 epoch 的成绩，比 MapTR 同条件高 <strong>+11.2 mAP</strong></li>
+<li><strong>25.1 FPS</strong>：MapTR-nano 的实时推理速度，比 VectorMapNet 快 <strong>8 倍</strong></li>
+<li><strong>73.4 mAP</strong>：MapTRv2-V2-99 在 nuScenes 上 110 epoch 的最佳成绩</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>MapTR&#x2F;MapTRv2 的核心流程可概括为：</p>
+
+$$\text{多视图图像} \xrightarrow{\text{Backbone}} \text{PV 特征} \xrightarrow{\text{PV2BEV}} \text{BEV 特征} \xrightarrow{\text{分层查询解码器}} \text{矢量化地图}$$
+
+
+<blockquote>
+<p><strong>PV（Perspective View）特征</strong>：Backbone 在相机原始透视视角下提取的 2D 图像特征，保留了相机投影的空间关系。PV2BEV 模块（MapTR 默认 GKT、MapTRv2 默认 BEVPoolv2、也兼容 BEVFormer 的可变形注意力）负责将 PV 特征投影&#x2F;查询到 BEV 平面坐标系。</p>
+</blockquote>
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2308.05736/assets/x4.png" alt="MapTRv2 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+多视图 6 cam（1600×900）
+      │
+      ▼
+┌─────────────┐
+│  Backbone   │  ResNet-18/50/V2-99
+│  (PV 特征)   │  输出：6×C×H×W
+└─────┬───────┘
+      │
+      ▼
+┌─────────────┐
+│  PV → BEV   │  GKT(MapTR) / BEVPoolv2(MapTRv2)
+│  Transform  │  输出：BEV 特征 H_bev×W_bev×C
+└─────┬───────┘
+      │            ┌──────────────────────┐
+      ▼            │  分层查询嵌入          │
+┌─────────────┐    │  q_ij = q_i^ins      │
+│ Map Decoder │◄── │       + q_j^pt       │
+│  (6 层)     │    │  N=50 实例, Nv=20 点  │
+└─────┬───────┘    └──────────────────────┘
+      │
+      ├──► 分类头 → 实例类别分数
+      │
+      └──► 回归头 → 点集坐标 (N×Nv×2)
+</pre>
+</div>
+
+<h3 id="关键组件"><a href="#关键组件" class="headerlink" title="关键组件"></a>关键组件</h3><table>
+<thead>
+<tr>
+<th>模块</th>
+<th>MapTR</th>
+<th>MapTRv2</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PV2BEV</td>
+<td>GKT（默认）</td>
+<td>BEVPoolv2（LSS-based）</td>
+<td>2D→BEV 特征变换</td>
+</tr>
+<tr>
+<td>自注意力</td>
+<td>全局 $O((N \cdot N_v)^2)$</td>
+<td>解耦 $O(N^2 + N_v^2)$</td>
+<td>查询间信息交互</td>
+</tr>
+<tr>
+<td>交叉注意力</td>
+<td>BEV-based Deformable Attn</td>
+<td>BEV&#x2F;PV&#x2F;Hybrid</td>
+<td>查询与特征交互</td>
+</tr>
+<tr>
+<td>匹配策略</td>
+<td>一对一匈牙利匹配</td>
+<td>一对一 + 辅助一对多</td>
+<td>标签分配</td>
+</tr>
+<tr>
+<td>辅助监督</td>
+<td>无</td>
+<td>深度 + PV 分割 + BEV 分割</td>
+<td>密集几何&#x2F;语义监督</td>
+</tr>
+<tr>
+<td>Centerline</td>
+<td>不支持</td>
+<td>支持（路径式建模）</td>
+<td>下游规划所需</td>
+</tr>
+</tbody></table>
+<p><strong>损失函数</strong>：</p>
+<p>MapTR 的总损失包含三项：</p>
+
+$$\mathcal{L} = \lambda_c \mathcal{L}_{\text{cls}} + \lambda_p \mathcal{L}_{\text{p2p}} + \lambda_d \mathcal{L}_{\text{dir}}$$
+
+
+其中 $\lambda_c = 2$、$\lambda_p = 5$、$\lambda_d = 0.005$。
+
+<ul>
+<li><strong>分类损失</strong> $\mathcal{L}_{\text{cls}}$：Focal Loss</li>
+<li><strong>Point-to-Point 损失</strong> $\mathcal{L}_{\text{p2p}}$：预测点与 GT 点之间的 Manhattan 距离</li>
+<li><strong>边方向损失</strong> $\mathcal{L}_{\text{dir}}$：相邻点构成的边的余弦相似度</li>
+</ul>
+
+$$\mathcal{L}_{\text{p2p}} = \sum_{i} \mathbb{1}_{\{c_i \neq \varnothing\}} \sum_{j=0}^{N_v - 1} D_{\text{Manhattan}}(\hat{v}_{\hat{\pi}(i),j},\ v_{i,\hat{\gamma}_i(j)})$$
+
+
+
+$$\mathcal{L}_{\text{dir}} = -\sum_{i} \mathbb{1}_{\{c_i \neq \varnothing\}} \sum_{j=0}^{N_v - 1} \text{cos\_sim}(\hat{\mathbf{e}}_{\hat{\pi}(i),j},\ \mathbf{e}_{i,\hat{\gamma}_i(j)})$$
+
+
+<p>MapTRv2 的总损失扩展为：</p>
+
+$$\mathcal{L} = \beta_o \mathcal{L}_{\text{one2one}} + \beta_m \mathcal{L}_{\text{one2many}} + \beta_d \mathcal{L}_{\text{dense}}$$
+
+
+其中 $\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \mathcal{L}_{\text{BEVSeg}} + \alpha_p \mathcal{L}_{\text{PVSeg}}$。
+
+<h3 id="关键代码"><a href="#关键代码" class="headerlink" title="关键代码"></a>关键代码</h3><p>MapTR 的分层查询通过实例嵌入与点级嵌入相加构成：</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/hustvl/MapTR/blob/main/projects/mmdet3d_plugin/maptr/dense_heads/maptr_head.py">maptr_head.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 分层查询嵌入：实例级 + 点级</span></span><br><span class="line"><span class="keyword">if</span> <span class="variable language_">self</span>.query_embed_type == <span class="string">&#x27;instance_pts&#x27;</span>:</span><br><span class="line">    pts_embeds = <span class="variable language_">self</span>.pts_embedding.weight.unsqueeze(<span class="number">0</span>)       <span class="comment"># (1, Nv, D*2)</span></span><br><span class="line">    instance_embeds = <span class="variable language_">self</span>.instance_embedding.weight.unsqueeze(<span class="number">1</span>) <span class="comment"># (N, 1, D*2)</span></span><br><span class="line">    object_query_embeds = (pts_embeds + instance_embeds).flatten(<span class="number">0</span>, <span class="number">1</span>)  <span class="comment"># (N*Nv, D*2)</span></span><br></pre></td></tr></table></figure>
+
+<p>分类分支：对同一实例的所有点特征取均值后预测类别；回归分支：每个查询独立预测 2D 坐标。</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/hustvl/MapTR/blob/main/projects/mmdet3d_plugin/maptr/dense_heads/maptr_head.py">maptr_head.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 分类：将同一实例的 Nv 个点特征取均值</span></span><br><span class="line">outputs_class = <span class="variable language_">self</span>.cls_branches[lvl](</span><br><span class="line">    hs[lvl].view(bs, <span class="variable language_">self</span>.num_vec, <span class="variable language_">self</span>.num_pts_per_vec, -<span class="number">1</span>).mean(<span class="number">2</span>)</span><br><span class="line">)</span><br><span class="line"><span class="comment"># 回归：每个查询预测 2D 点坐标（相对 reference point 的残差）</span></span><br><span class="line">tmp = <span class="variable language_">self</span>.reg_branches[lvl](hs[lvl])</span><br><span class="line">tmp[..., <span class="number">0</span>:<span class="number">2</span>] += reference[..., <span class="number">0</span>:<span class="number">2</span>]</span><br><span class="line">tmp = tmp.sigmoid()  <span class="comment"># 归一化到 [0, 1]</span></span><br></pre></td></tr></table></figure>
+
+<details><summary>📄 点击展开 置换等价匹配（shift_fixed_num_sampled_points）代码</summary>
+
+<p>点级匹配的核心：对每个 GT 实例生成所有等价置换的点序，在匹配阶段选择 Manhattan 距离最小的那个。</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/hustvl/MapTR/blob/main/projects/mmdet3d_plugin/maptr/dense_heads/maptr_head.py">maptr_head.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 在 _get_target_single 中，根据 assigner 返回的 order_index 选取最优置换</span></span><br><span class="line"><span class="keyword">if</span> order_index <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">    assigned_shift = gt_labels[sampling_result.pos_assigned_gt_inds]</span><br><span class="line"><span class="keyword">else</span>:</span><br><span class="line">    <span class="comment"># order_index: (num_query, num_gt) 记录每对预测-GT最优的置换索引</span></span><br><span class="line">    assigned_shift = order_index[sampling_result.pos_inds,</span><br><span class="line">                                 sampling_result.pos_assigned_gt_inds]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 使用最优置换索引从 gt_shifts_pts 中取出对应顺序的 GT 点集</span></span><br><span class="line">pts_targets[pos_inds] = gt_shifts_pts[</span><br><span class="line">    sampling_result.pos_assigned_gt_inds, assigned_shift, :, :]</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="主要结果"><a href="#主要结果" class="headerlink" title="主要结果"></a>主要结果</h3><h4 id="nuScenes-val（MapTR-论文结果）"><a href="#nuScenes-val（MapTR-论文结果）" class="headerlink" title="nuScenes val（MapTR 论文结果）"></a>nuScenes val（MapTR 论文结果）</h4><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>模态</th>
+<th>Backbone</th>
+<th>Epoch</th>
+<th>AP_ped</th>
+<th>AP_div</th>
+<th>AP_bou</th>
+<th>mAP</th>
+<th>FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HDMapNet</td>
+<td>C</td>
+<td>Effi-B0</td>
+<td>30</td>
+<td>14.4</td>
+<td>21.7</td>
+<td>33.0</td>
+<td>23.0</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>VectorMapNet</td>
+<td>C</td>
+<td>R50</td>
+<td>110</td>
+<td>36.1</td>
+<td>47.3</td>
+<td>39.3</td>
+<td>40.9</td>
+<td>2.9</td>
+</tr>
+<tr>
+<td>VectorMapNet</td>
+<td>C &amp; L</td>
+<td>R50 &amp; PP</td>
+<td>110</td>
+<td>37.6</td>
+<td>50.5</td>
+<td>47.5</td>
+<td>45.2</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>MapTR-nano</strong></td>
+<td>C</td>
+<td>R18</td>
+<td>110</td>
+<td>39.6</td>
+<td>49.9</td>
+<td>48.2</td>
+<td><strong>45.9</strong></td>
+<td><strong>25.1</strong></td>
+</tr>
+<tr>
+<td><strong>MapTR-tiny</strong></td>
+<td>C</td>
+<td>R50</td>
+<td>24</td>
+<td>46.3</td>
+<td>51.5</td>
+<td>53.1</td>
+<td><strong>50.3</strong></td>
+<td>11.2</td>
+</tr>
+<tr>
+<td><strong>MapTR-tiny</strong></td>
+<td>C</td>
+<td>R50</td>
+<td>110</td>
+<td>56.2</td>
+<td>59.8</td>
+<td>60.1</td>
+<td><strong>58.7</strong></td>
+<td>15.1</td>
+</tr>
+</tbody></table>
+<h4 id="nuScenes-val（MapTRv2-论文结果）"><a href="#nuScenes-val（MapTRv2-论文结果）" class="headerlink" title="nuScenes val（MapTRv2 论文结果）"></a>nuScenes val（MapTRv2 论文结果）</h4><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>模态</th>
+<th>Backbone</th>
+<th>Epoch</th>
+<th>AP_ped</th>
+<th>AP_div</th>
+<th>AP_bou</th>
+<th>mAP</th>
+<th>FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MapTR</td>
+<td>C</td>
+<td>R50</td>
+<td>24</td>
+<td>46.3</td>
+<td>51.5</td>
+<td>53.1</td>
+<td>50.3</td>
+<td>15.1</td>
+</tr>
+<tr>
+<td><strong>MapTRv2</strong></td>
+<td>C</td>
+<td>R18</td>
+<td>110</td>
+<td>46.9</td>
+<td>55.1</td>
+<td>54.9</td>
+<td><strong>52.3</strong></td>
+<td><strong>33.7</strong></td>
+</tr>
+<tr>
+<td><strong>MapTRv2</strong></td>
+<td>C</td>
+<td>R50</td>
+<td>24</td>
+<td>59.8</td>
+<td>62.4</td>
+<td>62.4</td>
+<td><strong>61.5</strong></td>
+<td>14.1</td>
+</tr>
+<tr>
+<td><strong>MapTRv2</strong></td>
+<td>C</td>
+<td>R50</td>
+<td>110</td>
+<td>68.1</td>
+<td>68.3</td>
+<td>69.7</td>
+<td><strong>68.7</strong></td>
+<td>14.1</td>
+</tr>
+<tr>
+<td><strong>MapTRv2</strong></td>
+<td>C</td>
+<td>V2-99</td>
+<td>110</td>
+<td>71.4</td>
+<td>73.7</td>
+<td>75.0</td>
+<td><strong>73.4</strong></td>
+<td>9.9</td>
+</tr>
+<tr>
+<td>MapTRv2</td>
+<td>C &amp; L</td>
+<td>R50 &amp; Sec</td>
+<td>24</td>
+<td>65.6</td>
+<td>66.5</td>
+<td>74.8</td>
+<td>69.0</td>
+<td>5.8</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>MapTR-nano 首次实现实时矢量化高精地图构建（25.1 FPS），比 VectorMapNet 快 <strong>8 倍</strong></li>
+<li>MapTRv2-R50 仅用 24 epoch 就超过 MapTR-R50 用 110 epoch 训练的结果（61.5 vs. 58.7 mAP）</li>
+<li>纯视觉 MapTRv2 凭借密集监督逐步缩小与 LiDAR 模态的差距（Camera-only 61.5 vs. LiDAR-only 61.5 mAP）</li>
+</ol>
+<h3 id="消融实验：验证三个洞察"><a href="#消融实验：验证三个洞察" class="headerlink" title="消融实验：验证三个洞察"></a>消融实验：验证三个洞察</h3><h4 id="MapTRv2-渐进式构建路线图"><a href="#MapTRv2-渐进式构建路线图" class="headerlink" title="MapTRv2 渐进式构建路线图"></a>MapTRv2 渐进式构建路线图</h4><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>mAP</th>
+<th>增量</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MapTR baseline</td>
+<td>50.3</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>+PV2BEV 换 LSS</td>
+<td>50.1</td>
+<td>-0.2</td>
+<td>基础替换</td>
+</tr>
+<tr>
+<td>+辅助深度监督</td>
+<td>55.2</td>
+<td>+4.9</td>
+<td>洞察 3（密集监督）</td>
+</tr>
+<tr>
+<td>+辅助 BEV 分割</td>
+<td>56.5</td>
+<td>+6.2</td>
+<td>洞察 3（密集监督）</td>
+</tr>
+<tr>
+<td>+辅助 PV 分割</td>
+<td>57.1</td>
+<td>+6.8</td>
+<td>洞察 3（密集监督）</td>
+</tr>
+<tr>
+<td>+解耦自注意力</td>
+<td>57.6</td>
+<td>+7.3</td>
+<td>洞察 3（解耦注意力）</td>
+</tr>
+<tr>
+<td>+一对多匹配</td>
+<td><strong>61.5</strong></td>
+<td><strong>+11.2</strong></td>
+<td>洞察 3（一对多匹配）</td>
+</tr>
+</tbody></table>
+<h4 id="置换等价建模（洞察-1）"><a href="#置换等价建模（洞察-1）" class="headerlink" title="置换等价建模（洞察 1）"></a>置换等价建模（洞察 1）</h4><table>
+<thead>
+<tr>
+<th>建模方式</th>
+<th>AP_ped</th>
+<th>AP_div</th>
+<th>AP_bou</th>
+<th>mAP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>固定序（有歧义）</td>
+<td>34.4 &#x2F; 52.7</td>
+<td>48.1 &#x2F; 59.1</td>
+<td>50.7 &#x2F; 60.3</td>
+<td>44.4 &#x2F; 57.4</td>
+</tr>
+<tr>
+<td>置换等价（无歧义）</td>
+<td><strong>46.3 &#x2F; 59.8</strong></td>
+<td><strong>51.5 &#x2F; 62.4</strong></td>
+<td><strong>53.1 &#x2F; 62.4</strong></td>
+<td><strong>50.3 &#x2F; 61.5</strong></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>上方数值为 MapTR &#x2F; MapTRv2。人行横道（polygon）提升最大（+11.9 &#x2F; +7.1 AP），验证了多边形等价置换数最多时消歧收益最大。</p>
+</blockquote>
+<h4 id="自注意力变体对比（洞察-2-3）"><a href="#自注意力变体对比（洞察-2-3）" class="headerlink" title="自注意力变体对比（洞察 2&#x2F;3）"></a>自注意力变体对比（洞察 2&#x2F;3）</h4><table>
+<thead>
+<tr>
+<th>自注意力类型</th>
+<th>mAP</th>
+<th>GPU 显存</th>
+<th>FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>全局（Vanilla）</td>
+<td>57.1</td>
+<td>10443M</td>
+<td>14.7</td>
+</tr>
+<tr>
+<td>仅实例间</td>
+<td>56.8</td>
+<td>8178M</td>
+<td>14.9</td>
+</tr>
+<tr>
+<td><strong>解耦（MapTRv2 默认）</strong></td>
+<td><strong>57.6</strong></td>
+<td><strong>8458M</strong></td>
+<td>14.1</td>
+</tr>
+</tbody></table>
+<h3 id="性能瓶颈分析"><a href="#性能瓶颈分析" class="headerlink" title="性能瓶颈分析"></a>性能瓶颈分析</h3><p>MapTR-tiny 的运行时间分布（RTX 3090）：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>耗时 (ms)</th>
+<th>占比</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Backbone</td>
+<td>55.5 &#x2F; 42.4</td>
+<td>62.1% &#x2F; 59.8%</td>
+</tr>
+<tr>
+<td>PV2BEV（GKT&#x2F;BEVPool）</td>
+<td>12.3 &#x2F; 11.6</td>
+<td>13.8% &#x2F; 16.4%</td>
+</tr>
+<tr>
+<td>Map Decoder</td>
+<td>21.5 &#x2F; 16.9</td>
+<td>24.1% &#x2F; 23.8%</td>
+</tr>
+<tr>
+<td><strong>总计</strong></td>
+<td><strong>89.3 &#x2F; 70.9</strong></td>
+<td>100%</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>上方数值为 MapTR &#x2F; MapTRv2。Backbone 占据约 60% 的推理时间，是主要瓶颈。Map Decoder（含 6 层 Transformer）仅占约 24%，说明分层查询机制的计算开销可控。</p>
+</blockquote>
+<h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><ul>
+<li><strong>远距离地图元素</strong>：感知范围为 $[-15m, 15m] \times [-30m, 30m]$，远处元素投影到 BEV 后分辨率低，细节丢失</li>
+<li><strong>严重遮挡场景</strong>：多车拥堵或施工区域中，路面标线被大量遮挡，BEV 特征缺失</li>
+<li><strong>夜间&#x2F;恶劣天气</strong>：定性可视化显示，MapTR 在雨天和夜间场景中仍保持较稳定的构建质量，但存在更多碎片化预测</li>
+<li><strong>相机外参偏差</strong>：当平移噪声标准差 $\sigma &gt; 0.5m$ 或旋转噪声 $\sigma &gt; 0.02rad$ 时，mAP 显著下降（50.3→34.0 &#x2F; 50.3→42.0）</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        ResNet-18 (nano) / ResNet-50 (tiny) / VoVNetV2-99</span><br><span class="line">Input:           6 cameras, 1600×900, resize ratio: 0.2 (nano) / 0.5 (tiny)</span><br><span class="line">Batch Size:      32 (6 view images, 8× RTX 3090)</span><br><span class="line">Optimizer:       AdamW, lr=6e-4, weight decay=0.01, cosine decay</span><br><span class="line">Backbone LR:     ×0.1 multiplier</span><br><span class="line">Schedule:        24 epochs (ablation) / 110 epochs (full)</span><br><span class="line">BEV Grid:        0.3m (tiny) / 0.75m (nano)</span><br><span class="line">Decoder Layers:  6 (tiny) / 2 (nano)</span><br><span class="line">Instance Queries: 50 (tiny) / 100 (nano)</span><br><span class="line">Point Queries:   20</span><br><span class="line">Loss Weights:    λ_c=2, λ_p=5, λ_d=0.005</span><br><span class="line">Augmentation:    Color Jitter</span><br><span class="line">Training Memory: ~10287M (MapTR-tiny bs4) / ~19426M (MapTRv2 bs24)</span><br></pre></td></tr></table></figure>
+
+<h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
+<li><strong>置换等价 GT 生成</strong>：需预先为每个 GT 元素生成所有等价置换的点集（<code>shift_fixed_num_sampled_points</code>），多线 2 种、多边形 $2N_v$ 种；实现时注意 polygon 的循环移位 + 方向翻转的组合顺序</li>
+<li><strong>BEV 网格大小敏感</strong>：MapTR-nano 使用 0.75m 网格（效率优先）、tiny 使用 0.3m 网格（精度优先），二者的感知范围和分辨率差异会影响后续匹配和损失计算</li>
+<li><strong>边方向损失权重</strong>：$\beta &#x3D; 5 \times 10^{-3}$ 是精心调优的结果；过大（$10^{-2}$）反而降低 2 mAP，因为点级损失尚未收敛时强制约束边方向会引入矛盾梯度</li>
+<li><strong>MapTRv2 一对多匹配显存</strong>：$K&#x3D;6, T&#x3D;300$ 时显存从 8458M 增至 19426M，需确保足够 GPU 显存；推理时该分支完全不参与</li>
+<li><strong>PV2BEV 模块选择</strong>：MapTR 默认 GKT（易部署），MapTRv2 默认 BEVPoolv2（LSS-based，需深度监督配合才能发挥优势）</li>
+</ol>
+<h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>引入时序信息（MapTR+ 已支持时序 GKT&#x2F;BEVFormer，24 epoch 提升约 1-3 mAP），利用多帧聚合减少遮挡和远距离误检</li>
+<li>使用更大 backbone + 更长训练（V2-99 + 110ep 可达 73.4 mAP），代价是推理速度降至约 10 FPS</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>Backbone 轻量化为首选方向（占比 ~60%），如替换为 EfficientNet 或蒸馏模型</li>
+<li>减少解码器层数（6→2 层），MapTR-nano 即采用此策略，精度下降约 8 mAP 但速度翻倍</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ul>
+<li><strong>置换等价建模处理几何歧义</strong>：任何涉及有序点集表示的任务（轮廓检测、路径规划、骨架估计）都会面临点序模糊问题，MapTR 的等价置换组 + 最优匹配选择策略可直接迁移</li>
+<li><strong>分层查询分解实例-部件关系</strong>：将”实例查询 + 部件查询”通过加法组合的设计模式，适用于任何需要结构化表示的目标（如人体姿态的关节点、场景图的节点-关系等）</li>
+<li><strong>辅助密集监督加速稀疏预测收敛</strong>：稀疏 query-based 方法天然正样本不足，在骨干网络上添加密集分割&#x2F;深度辅助任务是通用加速手段</li>
+<li><strong>一对多匹配增加正样本覆盖</strong>：受 DETR with Hybrid Matching 启发，该策略已被广泛验证可用于各类 query-based 检测&#x2F;分割方法</li>
+</ul>
+<h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
+<li>当前以单帧为主，缺乏长时序建图一致性保证（时序版本仍为初步探索）</li>
+<li>感知范围受限于 BEV 网格大小（$60m \times 30m$），无法处理远距离高精地图</li>
+<li>不支持动态地图元素（如临时施工标线、可变车道）</li>
+</ul>
+<h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
+<li>MapTR 开创了在线矢量化高精地图构建的 DETR-like 范式，后续 BeMapNet、MachMap、PolyDiffuse、MapVR 等工作均以 MapTR 为对比基线或在其基础上改进</li>
+<li>VAD（Vectorized Scene Representation for Efficient Autonomous Driving）直接利用 MapTR 输出进行端到端运动规划，证明了矢量化地图对下游任务的价值</li>
+<li>MapTRv2 进一步将 centerline 建模纳入框架，为 TopoNet 等拓扑推理工作提供了基础输入</li>
+<li>在工业界，MapTR 的实时性（25+ FPS）使得在线高精地图构建首次具备上车部署的可行性</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E7%BD%AE%E6%8D%A2%E7%AD%89%E4%BB%B7%E5%BB%BA%E6%A8%A1%E2%80%94%E2%80%94%E6%B6%88%E9%99%A4%E5%BD%A2%E7%8A%B6%E8%A1%A8%E7%A4%BA%E7%9A%84%E7%82%B9%E5%BA%8F%E6%AD%A7%E4%B9%89"><span class="toc-text">洞察 1：置换等价建模——消除形状表示的点序歧义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%88%86%E5%B1%82%E6%9F%A5%E8%AF%A2%E4%B8%8E%E5%88%86%E5%B1%82%E5%8C%B9%E9%85%8D%E2%80%94%E2%80%94%E7%BB%93%E6%9E%84%E5%8C%96%E7%BC%96%E7%A0%81%E5%9C%B0%E5%9B%BE%E5%85%83%E7%B4%A0"><span class="toc-text">洞察 2：分层查询与分层匹配——结构化编码地图元素</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9AMapTRv2-%E4%B8%89%E6%8A%8A%E6%96%A7%E2%80%94%E2%80%94%E8%A7%A3%E8%80%A6%E6%B3%A8%E6%84%8F%E5%8A%9B%E3%80%81%E4%B8%80%E5%AF%B9%E5%A4%9A%E5%8C%B9%E9%85%8D%E3%80%81%E5%AF%86%E9%9B%86%E7%9B%91%E7%9D%A3"><span class="toc-text">洞察 3：MapTRv2 三把斧——解耦注意力、一对多匹配、密集监督</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">主要结果</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#nuScenes-val%EF%BC%88MapTR-%E8%AE%BA%E6%96%87%E7%BB%93%E6%9E%9C%EF%BC%89"><span class="toc-text">nuScenes val（MapTR 论文结果）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#nuScenes-val%EF%BC%88MapTRv2-%E8%AE%BA%E6%96%87%E7%BB%93%E6%9E%9C%EF%BC%89"><span class="toc-text">nuScenes val（MapTRv2 论文结果）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">消融实验：验证三个洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#MapTRv2-%E6%B8%90%E8%BF%9B%E5%BC%8F%E6%9E%84%E5%BB%BA%E8%B7%AF%E7%BA%BF%E5%9B%BE"><span class="toc-text">MapTRv2 渐进式构建路线图</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BD%AE%E6%8D%A2%E7%AD%89%E4%BB%B7%E5%BB%BA%E6%A8%A1%EF%BC%88%E6%B4%9E%E5%AF%9F-1%EF%BC%89"><span class="toc-text">置换等价建模（洞察 1）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%87%AA%E6%B3%A8%E6%84%8F%E5%8A%9B%E5%8F%98%E4%BD%93%E5%AF%B9%E6%AF%94%EF%BC%88%E6%B4%9E%E5%AF%9F-2-3%EF%BC%89"><span class="toc-text">自注意力变体对比（洞察 2&#x2F;3）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            UniAD Planning-oriented Autonomous Driving - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">UniAD Planning-oriented Autonomous Driving</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2022年12月20日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: End-to-End Autonomous Driving (Detection, Tracking, Mapping, Motion, Occupancy, Planning)<br>Method: Unified Query-based Multi-task Framework, Planning-oriented Design<br>Venue: CVPR 2023 Best Paper<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2212.10156">https://arxiv.org/abs/2212.10156</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/OpenDriveLab/UniAD">https://github.com/OpenDriveLab/UniAD</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>现代自动驾驶系统采用模块化设计，按顺序执行感知、预测和规划任务。现有方案要么部署独立模型（信息损失+误差累积），要么简单多任务学习（负迁移）。本文提出 <strong>UniAD（Unified Autonomous Driving）</strong>，首个涵盖检测、跟踪、建图、运动预测、占用预测与规划的全栈端到端框架。核心设计是以 <strong>query</strong> 作为统一接口连接所有模块——TrackFormer 用 track query 编码智能体、MapFormer 用 map query 编码道路元素、MotionFormer 用 motion query 联合预测多智能体轨迹、OccFormer 用 BEV 特征与智能体特征交互预测未来占用、Planner 利用 ego query 在 BEV 上做注意力后预测规划轨迹并用占用图做碰撞优化。在 nuScenes 上，UniAD 在所有任务上显著超越前人方法，规划 L2 误差降低 51.2%、碰撞率降低 56.3%（相比 ST-P3）。</p>
+<p><strong>核心论点</strong>：端到端自动驾驶的关键不是简单堆叠任务，而是以规划为导向、通过 query 接口协调各模块的信息流——每个前置任务都应为最终规划服务。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>自动驾驶系统需要同时完成检测、跟踪、建图、运动预测、占用预测和规划。现有方案存在明显局限：</p>
+<table>
+<thead>
+<tr>
+<th>方案设计</th>
+<th>代表作</th>
+<th>核心问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>独立模型</td>
+<td>Mobileye, NVIDIA DRIVE</td>
+<td>模块间信息损失、误差累积、特征不对齐</td>
+</tr>
+<tr>
+<td>多任务学习</td>
+<td>BEVerse, NMP</td>
+<td>共享 backbone + 独立 head，任务间负迁移</td>
+</tr>
+<tr>
+<td>端到端（直接规划）</td>
+<td>行为克隆方法</td>
+<td>无中间表示，缺乏安全保障和可解释性</td>
+</tr>
+<tr>
+<td>端到端（部分组件）</td>
+<td>PnPNet, ST-P3, MP3</td>
+<td>缺少部分关键任务（如跟踪或建图），任务协调不充分</td>
+</tr>
+</tbody></table>
+<p><strong>核心痛点</strong>：如何设计一个端到端框架，让感知和预测的所有任务都为规划服务，同时避免独立模型的误差累积和多任务学习的负迁移？关键挑战在于模块间的信息传递——如何让检测 → 跟踪 → 运动预测 → 占用预测 → 规划形成协调一致的信息流。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：Query-作为统一接口——连接全栈任务的信息管道"><a href="#洞察-1：Query-作为统一接口——连接全栈任务的信息管道" class="headerlink" title="洞察 1：Query 作为统一接口——连接全栈任务的信息管道"></a>洞察 1：Query 作为统一接口——连接全栈任务的信息管道</h3><p><strong>传统做法</strong>：独立模型间通过 bounding box 等结构化输出传递信息，信息压缩严重（box 无法编码丰富的上下文特征）；多任务学习共享 backbone 但 head 独立，任务间无交互。</p>
+<p><strong>UniAD 做法</strong>：所有模块统一使用 Transformer decoder 结构，以 <strong>query</strong> 作为连接接口：</p>
+<ul>
+<li><strong>Track query</strong> $Q_A$：编码智能体信息，从 TrackFormer → MotionFormer → OccFormer</li>
+<li><strong>Map query</strong> $Q_M$：编码道路语义，从 MapFormer → MotionFormer</li>
+<li><strong>Ego query</strong>：特殊的 track query，从 TrackFormer → MotionFormer → Planner</li>
+<li>匹配结果在 TrackFormer 中确定后，被下游 MotionFormer 和 OccFormer <strong>共享复用</strong></li>
+</ul>
+<p><strong>为什么更好</strong>：query 拥有全局感受野，能编码比 bounding box 更丰富的特征信息。当某个模块预测不准时（如检测漏了目标），下游模块仍可通过 BEV 特征和注意力机制部分恢复。消融实验（Table 2）显示，完整 UniAD（Exp.12）相比朴素多任务学习（Exp.0）在运动预测上提升 15.2% minADE，规划碰撞率降低 0.51 个百分点。</p>
+<h3 id="洞察-2：双类型预测互补——运动预测-占用预测联合提升规划安全"><a href="#洞察-2：双类型预测互补——运动预测-占用预测联合提升规划安全" class="headerlink" title="洞察 2：双类型预测互补——运动预测 + 占用预测联合提升规划安全"></a>洞察 2：双类型预测互补——运动预测 + 占用预测联合提升规划安全</h3><p><strong>传统做法</strong>：运动预测（稀疏、智能体级）和占用预测（稠密、场景级）分别独立使用，前者保留身份但非可微，后者可微但缺身份。</p>
+<p><strong>UniAD 做法</strong>：同时引入运动预测和占用预测两种互补的预测任务。运动预测提供智能体个体的多模态未来轨迹（6 个模式 × 12 步），占用预测提供场景级的稠密未来占用图（5 步）。规划模块利用 ego query 的运动信息做初始轨迹预测，再用占用图做碰撞优化。</p>
+<p><strong>为什么更好</strong>：消融实验（Table 2, Exp.10-12）显示，单独使用运动预测或占用预测做规划均不如二者联合：完整模型（Exp.12）的碰撞率为 0.430%，仅用 Planner（Exp.10）为 0.773%，仅用运动+感知（Exp.9）为无法评估。两类预测分别提供了智能体级动态（谁会怎么动）和场景级约束（哪里会被占据），共同保障规划安全。</p>
+<h3 id="洞察-3：感知为预测服务——跟踪和建图对运动预测的关键作用"><a href="#洞察-3：感知为预测服务——跟踪和建图对运动预测的关键作用" class="headerlink" title="洞察 3：感知为预测服务——跟踪和建图对运动预测的关键作用"></a>洞察 3：感知为预测服务——跟踪和建图对运动预测的关键作用</h3><p><strong>传统做法</strong>：检测、跟踪和建图作为独立感知任务，其输出直接提供给下游使用，不关注对后续任务的贡献。</p>
+<p><strong>UniAD 做法</strong>：将跟踪和建图嵌入端到端管线，其输出 query 直接供 MotionFormer 使用——Track query 提供历史轨迹和身份信息（agent-agent 交互），Map query 提供道路结构（agent-map 交互），两者合力使运动预测精度大幅提升。</p>
+<p><strong>为什么更好</strong>：Table 2 Exp.4-6 显示，纯 MotionFormer 的 minADE 为 0.815，加入 TrackFormer 后降至 0.751（-7.9%），再加入 MapFormer 后降至 0.736（-9.7%），建图和跟踪共同为运动预测带来了 <strong>-12.9% minFDE</strong> 的提升。且感知模块在共同训练中 <strong>不出现显著性能下降</strong>。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>1.03m avg L2</strong>：UniAD-B 的规划平均 L2 误差，比 ST-P3（2.11m）降低 51.2%</li>
+<li><strong>0.31% avg Col</strong>：UniAD-B 的规划平均碰撞率，比 ST-P3（0.71%）降低 56.3%</li>
+<li><strong>0.71 minADE</strong>：UniAD 的运动预测精度，比 PnPNet-vision（1.15）降低 38.3%</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>UniAD 的全栈管线：</p>
+
+$$\text{多视图图像} \xrightarrow{\text{BEVFormer}} \text{BEV 特征}\ B \xrightarrow{\text{TrackFormer}} Q_A \xrightarrow{\text{MapFormer}} Q_M \xrightarrow[\text{OccFormer}]{\text{MotionFormer}} \xrightarrow{\text{Planner}} \tau^*$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2212.10156/assets/x2.png" alt="UniAD 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+多视图 6 cam
+      │
+      ▼
+┌─────────────────┐
+│ BEVFormer       │  ResNet-101 + FPN + 时空注意力
+│ (BEV Encoder)   │  输出：B ∈ R^{200×200×256}
+└─────┬───────────┘
+      │
+      ├──────────────────────┐
+      ▼                      ▼
+┌─────────────┐       ┌─────────────┐
+│ TrackFormer │       │ MapFormer   │
+│ 6 layers    │       │ 6+4 layers  │
+│ Det+Track Q │       │ 300 Thing   │
+│ → Q_A, ego Q│       │ → Q_M       │
+└──┬──────────┘       └──┬──────────┘
+   │                     │
+   ├─► agent-agent ◄─────┘
+   ├─► agent-map   ◄─────┘
+   ▼
+┌─────────────────────────┐
+│ MotionFormer (3 layers) │  agent-agent + agent-map + agent-goal
+│ 输入：Q_A, Q_M, B        │  输出：K=6 模态 × T=12 步轨迹
+│ + ego query 特殊处理     │  + ego-vehicle query 更新
+└──┬─────────────┬────────┘
+   │             │
+   ▼             ▼
+┌──────────┐  ┌──────────────────┐
+│OccFormer │  │ Planner(3 layers)│
+│ 5 blocks │  │ ego Q + cmd emb  │
+│ pixel-   │  │ → BEV 注意力      │
+│ agent    │  │ → 轨迹 τ^         │
+│ interact │  │ + 占用碰撞优化     │
+└──┬───────┘  └──┬───────────────┘
+   │             │
+   └──► 占用图 O^ ──► 碰撞优化 → τ*
+</pre>
+</div>
+
+<h3 id="关键组件"><a href="#关键组件" class="headerlink" title="关键组件"></a>关键组件</h3><table>
+<thead>
+<tr>
+<th>模块</th>
+<th>输入</th>
+<th>输出</th>
+<th>层数</th>
+<th>核心设计</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEVFormer</td>
+<td>多视图图像</td>
+<td>BEV 特征 $B$</td>
+<td>—</td>
+<td>BEVFormer 编码器（空间&#x2F;时序注意力）</td>
+</tr>
+<tr>
+<td>TrackFormer</td>
+<td>$B$</td>
+<td>$Q_A$（智能体 query）</td>
+<td>6</td>
+<td>检测 query + track query 时序传播</td>
+</tr>
+<tr>
+<td>MapFormer</td>
+<td>$B$</td>
+<td>$Q_M$（地图 query）</td>
+<td>6+4</td>
+<td>Panoptic SegFormer，thing + stuff query</td>
+</tr>
+<tr>
+<td>MotionFormer</td>
+<td>$Q_A, Q_M, B$</td>
+<td>$K \times T$ 轨迹</td>
+<td>3</td>
+<td>agent-agent &#x2F; agent-map &#x2F; agent-goal 交互</td>
+</tr>
+<tr>
+<td>OccFormer</td>
+<td>$B, Q_A$, motion query</td>
+<td>实例级占用图</td>
+<td>5</td>
+<td>pixel-agent 交互 + 注意力掩码</td>
+</tr>
+<tr>
+<td>Planner</td>
+<td>ego query, $B$, 命令嵌入</td>
+<td>规划轨迹 $\tau^*$</td>
+<td>3</td>
+<td>BEV 注意力 + 占用碰撞优化</td>
+</tr>
+</tbody></table>
+<p><strong>MotionFormer 三类交互</strong>：</p>
+
+$$Q_a = \text{MHCA}(\text{MHSA}(Q), Q_A), \quad Q_m = \text{MHCA}(\text{MHSA}(Q), Q_M)$$
+
+
+
+$$Q_g = \text{DeformAttn}(Q, \hat{\mathbf{x}}_T^{l-1}, B)$$
+
+
+<p>三路输出拼接后通过 MLP 融合。其中 agent-goal 交互使用可变形注意力在预测终点附近采样 BEV 特征，实现逐层 coarse-to-fine 的轨迹精化。</p>
+<p><strong>Motion Query 的位置编码（四重先验）</strong>：</p>
+
+$$Q_{\text{pos}} = \text{MLP}(\text{PE}(I_s)) + \text{MLP}(\text{PE}(I_a)) + \text{MLP}(\text{PE}(\hat{\mathbf{x}}_0)) + \text{MLP}(\text{PE}(\hat{\mathbf{x}}_T^{l-1}))$$
+
+
+<p>其中 $I_s$ 为场景级 anchor、$I_a$ 为智能体级 anchor（均由 k-means 聚类得到）、$\hat{\mathbf{x}}_0$ 为当前位置、$\hat{\mathbf{x}}_T^{l-1}$ 为上一层预测的终点。</p>
+<p><strong>OccFormer 的 pixel-agent 交互</strong>：</p>
+
+$$D_{\text{ds}}^t = \text{MHCA}(\text{MHSA}(F_{\text{ds}}^t), G^t, \text{attn\_mask} = O_m^t)$$
+
+
+<p>使用占用引导的注意力掩码约束每个像素仅关注占据它的智能体，保持稀疏且高效。实例级占用直接通过矩阵乘 $\hat{O}_A^t = U^t \cdot F_{\text{dec}}^t$ 得到。</p>
+<p><strong>Planner 碰撞优化</strong>：</p>
+
+$$\tau^* = \arg\min_{\tau} \lambda_{\text{coord}} \|\tau, \hat{\tau}\|_2 + \lambda_{\text{obs}} \sum_t \mathcal{D}(\tau_t, \hat{O}^t)$$
+
+
+<p>其中 $\mathcal{D}$ 为高斯距离场，将轨迹推离已占用区域。仅在推理时使用 Newton 法优化。</p>
+<p><strong>损失函数</strong>：</p>
+<p>训练分两阶段：</p>
+
+$$\mathcal{L}_1 = \mathcal{L}_{\text{track}} + \mathcal{L}_{\text{map}} \quad \text{(Stage 1, 6 epochs)}$$
+
+
+
+$$\mathcal{L}_2 = \mathcal{L}_{\text{track}} + \mathcal{L}_{\text{map}} + \mathcal{L}_{\text{motion}} + \mathcal{L}_{\text{occ}} + \mathcal{L}_{\text{plan}} \quad \text{(Stage 2, 20 epochs)}$$
+
+
+<ul>
+<li>$\mathcal{L}_{\text{track}}$: Focal Loss + L1 Loss（匈牙利匹配）</li>
+<li>$\mathcal{L}_{\text{map}}$: Focal + L1 + GIoU + Dice（Panoptic 分割）</li>
+<li>$\mathcal{L}_{\text{motion}}$: 分类损失 + NLL 损失（GMM 多模态轨迹）</li>
+<li>$\mathcal{L}_{\text{occ}}$: BCE + Dice（实例级二值占用）</li>
+<li>$\mathcal{L}_{\text{plan}}$: 模仿 L2 + 碰撞 IoU 损失</li>
+</ul>
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="主要结果"><a href="#主要结果" class="headerlink" title="主要结果"></a>主要结果</h3><h4 id="nuScenes-val（各任务对比）"><a href="#nuScenes-val（各任务对比）" class="headerlink" title="nuScenes val（各任务对比）"></a>nuScenes val（各任务对比）</h4><p><strong>跟踪</strong>（Table 3）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>AMOTA↑</th>
+<th>AMOTP↓</th>
+<th>Recall↑</th>
+<th>IDS↓</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ViP3D</td>
+<td>0.217</td>
+<td>1.625</td>
+<td>0.363</td>
+<td>—</td>
+</tr>
+<tr>
+<td>MUTR3D</td>
+<td>0.294</td>
+<td>1.498</td>
+<td>0.427</td>
+<td>3822</td>
+</tr>
+<tr>
+<td><strong>UniAD</strong></td>
+<td><strong>0.359</strong></td>
+<td><strong>1.320</strong></td>
+<td><strong>0.467</strong></td>
+<td><strong>906</strong></td>
+</tr>
+</tbody></table>
+<p><strong>运动预测</strong>（Table 5）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>minADE↓</th>
+<th>minFDE↓</th>
+<th>MR↓</th>
+<th>EPA↑</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PnPNet</td>
+<td>1.15</td>
+<td>1.95</td>
+<td>0.226</td>
+<td>0.222</td>
+</tr>
+<tr>
+<td>ViP3D</td>
+<td>2.05</td>
+<td>2.84</td>
+<td>0.246</td>
+<td>0.226</td>
+</tr>
+<tr>
+<td><strong>UniAD</strong></td>
+<td><strong>0.71</strong></td>
+<td><strong>1.02</strong></td>
+<td><strong>0.151</strong></td>
+<td><strong>0.456</strong></td>
+</tr>
+</tbody></table>
+<p><strong>规划</strong>（Table 7）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>L2 1s↓</th>
+<th>L2 2s↓</th>
+<th>L2 3s↓</th>
+<th>avg L2↓</th>
+<th>Col 1s↓</th>
+<th>Col 2s↓</th>
+<th>Col 3s↓</th>
+<th>avg Col↓</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>FF</td>
+<td>0.55</td>
+<td>1.20</td>
+<td>2.54</td>
+<td>1.43</td>
+<td>0.06</td>
+<td>0.17</td>
+<td>1.07</td>
+<td>0.43</td>
+</tr>
+<tr>
+<td>ST-P3</td>
+<td>1.33</td>
+<td>2.11</td>
+<td>2.90</td>
+<td>2.11</td>
+<td>0.23</td>
+<td>0.62</td>
+<td>1.27</td>
+<td>0.71</td>
+</tr>
+<tr>
+<td><strong>UniAD</strong></td>
+<td><strong>0.48</strong></td>
+<td><strong>0.96</strong></td>
+<td><strong>1.65</strong></td>
+<td><strong>1.03</strong></td>
+<td><strong>0.05</strong></td>
+<td><strong>0.17</strong></td>
+<td><strong>0.71</strong></td>
+<td><strong>0.31</strong></td>
+</tr>
+</tbody></table>
+<h4 id="三种模型规模对比（Table-12）"><a href="#三种模型规模对比（Table-12）" class="headerlink" title="三种模型规模对比（Table 12）"></a>三种模型规模对比（Table 12）</h4><table>
+<thead>
+<tr>
+<th>变体</th>
+<th>Backbone</th>
+<th>AMOTA↑</th>
+<th>minADE↓</th>
+<th>IoU-n↑</th>
+<th>avg L2↓</th>
+<th>avg Col↓</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>UniAD-S</td>
+<td>R50</td>
+<td>0.241</td>
+<td>0.788</td>
+<td>59.4</td>
+<td>1.04</td>
+<td>0.32</td>
+</tr>
+<tr>
+<td>UniAD-B</td>
+<td>R101</td>
+<td>0.359</td>
+<td>0.708</td>
+<td>63.4</td>
+<td>1.03</td>
+<td>0.31</td>
+</tr>
+<tr>
+<td>UniAD-L</td>
+<td>V2-99</td>
+<td>0.409</td>
+<td>0.723</td>
+<td>64.1</td>
+<td>1.03</td>
+<td>0.29</td>
+</tr>
+</tbody></table>
+<h3 id="消融实验：验证三个洞察"><a href="#消融实验：验证三个洞察" class="headerlink" title="消融实验：验证三个洞察"></a>消融实验：验证三个洞察</h3><h4 id="全栈任务的必要性（Table-2，洞察-1-2-3）"><a href="#全栈任务的必要性（Table-2，洞察-1-2-3）" class="headerlink" title="全栈任务的必要性（Table 2，洞察 1+2+3）"></a>全栈任务的必要性（Table 2，洞察 1+2+3）</h4><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Track</th>
+<th>Map</th>
+<th>Motion</th>
+<th>Occ</th>
+<th>Plan</th>
+<th>minADE↓</th>
+<th>avg L2↓</th>
+<th>avg Col↓</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0 (MTL)</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>0.858</td>
+<td>1.15</td>
+<td>0.93</td>
+</tr>
+<tr>
+<td>4</td>
+<td>—</td>
+<td>—</td>
+<td>✓</td>
+<td>—</td>
+<td>—</td>
+<td>0.815</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>6</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>—</td>
+<td>—</td>
+<td>0.736</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>10</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>✓</td>
+<td>—</td>
+<td>1.131</td>
+<td>0.773</td>
+</tr>
+<tr>
+<td>12</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>0.728</td>
+<td>1.004</td>
+<td>0.430</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>完整 UniAD（Exp.12）比朴素 MTL（Exp.0）在 minADE 上提升 15.2%、碰撞率降低 0.51 个百分点</li>
+<li>Track + Map 使 MotionFormer 的 minADE 从 0.815 降至 0.736（**-9.7%**），minFDE 降低 12.9%</li>
+<li>同时引入 Motion + Occ 做规划（Exp.12）比仅 Planner（Exp.10）碰撞率降低 44%（0.773→0.430）</li>
+</ol>
+<h4 id="MotionFormer-设计消融（Table-8）"><a href="#MotionFormer-设计消融（Table-8）" class="headerlink" title="MotionFormer 设计消融（Table 8）"></a>MotionFormer 设计消融（Table 8）</h4><table>
+<thead>
+<tr>
+<th>场景 anchor</th>
+<th>goal 交互</th>
+<th>ego Query</th>
+<th>NLO</th>
+<th>minADE↓</th>
+<th>MR↓</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>0.844</td>
+<td>0.177</td>
+</tr>
+<tr>
+<td>✓</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>0.768</td>
+<td>0.164</td>
+</tr>
+<tr>
+<td>✓</td>
+<td>✓</td>
+<td>—</td>
+<td>—</td>
+<td>0.755</td>
+<td>0.168</td>
+</tr>
+<tr>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>—</td>
+<td>0.747</td>
+<td>0.156</td>
+</tr>
+<tr>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td><strong>0.710</strong></td>
+<td><strong>0.146</strong></td>
+</tr>
+</tbody></table>
+<h3 id="计算复杂度（Table-13）"><a href="#计算复杂度（Table-13）" class="headerlink" title="计算复杂度（Table 13）"></a>计算复杂度（Table 13）</h3><table>
+<thead>
+<tr>
+<th>模块组合</th>
+<th>参数量</th>
+<th>FLOPs</th>
+<th>FPS (A100)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BEVFormer Only</td>
+<td>65.9M</td>
+<td>1324G</td>
+<td>4.2</td>
+</tr>
+<tr>
+<td>+ Track</td>
+<td>68.2M</td>
+<td>1326G</td>
+<td>2.7</td>
+</tr>
+<tr>
+<td>+ Map</td>
+<td>95.8M</td>
+<td>1520G</td>
+<td>2.2</td>
+</tr>
+<tr>
+<td>+ Motion</td>
+<td>108.6M</td>
+<td>1535G</td>
+<td>2.1</td>
+</tr>
+<tr>
+<td>+ Occ</td>
+<td>122.5M</td>
+<td>1701G</td>
+<td>2.0</td>
+</tr>
+<tr>
+<td>+ Plan (Full)</td>
+<td>125.0M</td>
+<td>1709G</td>
+<td><strong>1.8</strong></td>
+</tr>
+</tbody></table>
+<h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><ul>
+<li><strong>长尾场景</strong>：大型拖挂车、施工区域等训练数据稀少的场景，所有模块精度均下降</li>
+<li><strong>暗光环境</strong>：夜间场景下，Planner 因碰撞 loss 可能过于保守</li>
+<li><strong>远距离目标</strong>：BEV 范围 51.2m，超出范围的目标无法感知</li>
+<li><strong>遮挡恢复</strong>：track query 有生命周期管理（2s 容忍期），但长时间遮挡后 ID 仍可能切换</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        ResNet-50 (S) / ResNet-101 (B) / VoVNetV2-99 (L)</span><br><span class="line">BEV Encoder:     BEVFormer (时空注意力), 200×200, [-51.2m, 51.2m]</span><br><span class="line">Training:</span><br><span class="line">  Stage 1:       6 epochs, Track + Map 损失, 冻结 backbone</span><br><span class="line">  Stage 2:       20 epochs (ablation 8ep), 全任务损失, 冻结 backbone + BEV encoder</span><br><span class="line">Batch Size:      1 per GPU</span><br><span class="line">Optimizer:       AdamW, lr=2e-4, weight_decay=0.01, backbone lr ×0.1</span><br><span class="line">Sequence Length:  5 frames (3 for ablation)</span><br><span class="line">GPUs:            8× A100</span><br><span class="line">TrackFormer:     900 det queries + dynamic track queries, 6 layers</span><br><span class="line">MapFormer:       300 thing queries + 1 stuff query, 6+4 layers</span><br><span class="line">MotionFormer:    K=6 modes, T=12 steps (6s), 3 layers</span><br><span class="line">OccFormer:       T_o=5 blocks (2.5s at 2Hz)</span><br><span class="line">Planner:         T_p=6 steps (3s), 3 layers</span><br><span class="line">Feature Dim:     256 throughout</span><br></pre></td></tr></table></figure>
+
+<h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
+<li><strong>两阶段训练至关重要</strong>：直接端到端训练不收敛，需先预训练感知模块（Stage 1），再联合训练全任务（Stage 2）。Stage 2 额外冻结 BEV encoder 以节省显存</li>
+<li><strong>Track query 生命周期管理</strong>：训练时用 3D IoU &gt; 0.5 过滤配对结果；推理时用分类分数 &gt; 0.4（det）&#x2F; &gt; 0.35（track）过滤，2s 容忍期避免短时遮挡中断</li>
+<li><strong>匹配结果共享</strong>：TrackFormer 的匈牙利匹配结果被 MotionFormer 和 OccFormer 复用，保证从历史跟踪到未来预测的身份一致性</li>
+<li><strong>非线性优化（NLO）</strong>：训练时对 GT 轨迹做运动学约束（多重射击法），使其在检测位置不精确时仍物理可行；仅训练阶段使用</li>
+<li><strong>碰撞优化</strong>：推理时用 Newton 法在占用图上优化规划轨迹，设定 $\lambda_{\text{coord}}=1.0, \lambda_{\text{obs}}=5.0, d=5, \sigma=1.0$</li>
+<li><strong>显存管理</strong>：OccFormer 在 BEV 1&#x2F;4 分辨率上做交互，再降至 1&#x2F;8 做 pixel-agent 注意力</li>
+</ol>
+<h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>更大 backbone（V2-99）可提升感知精度，进而改善预测和规划（UniAD-L 碰撞率降至 0.29%）</li>
+<li>更长训练序列（从 3 帧增至 5 帧）有助于时序建模，但显存倍增</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>BEVFormer + TrackFormer 占约 70% 计算量，轻量化 BEV encoder 是首选方向</li>
+<li>MotionFormer + OccFormer + Planner 总参数仅约 56M（不含 backbone），计算量可控</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ul>
+<li><strong>Query 作为跨任务接口</strong>：将不同任务的输出编码为 query，通过注意力机制传递信息，适用于任何多阶段管线（如机器人操控的感知→规划、医学图像的检测→分割→诊断）</li>
+<li><strong>Planning-oriented 任务编排</strong>：以最终目标（规划）为导向反向审视前置任务的必要性，而非简单堆叠所有可能的任务</li>
+<li><strong>双类型预测互补</strong>：稀疏（智能体级）+ 稠密（场景级）的预测组合，前者保留身份做交互建模，后者提供全局约束做碰撞避免</li>
+<li><strong>非线性优化适配端到端</strong>：在端到端系统中，上游感知不精确会导致不合理的 GT 轨迹，NLO 通过运动学约束修正 GT 使训练更稳定</li>
+</ul>
+<h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
+<li>推理速度 1.8 FPS（A100），远未达到实时部署要求</li>
+<li>依赖 nuScenes 的开环评估，闭环（如 CARLA、nuPlan）性能未验证</li>
+<li>两阶段训练复杂，且需要大量 GPU 显存（因时序序列+多模块）</li>
+<li>OccFormer 的预测时域（2.5s）远小于 MotionFormer（6s），时域不一致</li>
+</ul>
+<h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
+<li>UniAD 是首个涵盖全栈驾驶任务的端到端框架，获得 CVPR 2023 最佳论文奖，奠定了”planning-oriented”端到端自动驾驶的范式</li>
+<li>后续 VAD、SparseDrive、GenAD 等方法均以 UniAD 为基线或在其基础上简化&#x2F;改进</li>
+<li>证明了端到端训练中各任务的渐进式协调优于独立多任务学习，影响了自动驾驶工业界的系统设计思路</li>
+<li>开放代码和模型，成为社区广泛使用的端到端自动驾驶基准</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9AQuery-%E4%BD%9C%E4%B8%BA%E7%BB%9F%E4%B8%80%E6%8E%A5%E5%8F%A3%E2%80%94%E2%80%94%E8%BF%9E%E6%8E%A5%E5%85%A8%E6%A0%88%E4%BB%BB%E5%8A%A1%E7%9A%84%E4%BF%A1%E6%81%AF%E7%AE%A1%E9%81%93"><span class="toc-text">洞察 1：Query 作为统一接口——连接全栈任务的信息管道</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%8F%8C%E7%B1%BB%E5%9E%8B%E9%A2%84%E6%B5%8B%E4%BA%92%E8%A1%A5%E2%80%94%E2%80%94%E8%BF%90%E5%8A%A8%E9%A2%84%E6%B5%8B-%E5%8D%A0%E7%94%A8%E9%A2%84%E6%B5%8B%E8%81%94%E5%90%88%E6%8F%90%E5%8D%87%E8%A7%84%E5%88%92%E5%AE%89%E5%85%A8"><span class="toc-text">洞察 2：双类型预测互补——运动预测 + 占用预测联合提升规划安全</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E6%84%9F%E7%9F%A5%E4%B8%BA%E9%A2%84%E6%B5%8B%E6%9C%8D%E5%8A%A1%E2%80%94%E2%80%94%E8%B7%9F%E8%B8%AA%E5%92%8C%E5%BB%BA%E5%9B%BE%E5%AF%B9%E8%BF%90%E5%8A%A8%E9%A2%84%E6%B5%8B%E7%9A%84%E5%85%B3%E9%94%AE%E4%BD%9C%E7%94%A8"><span class="toc-text">洞察 3：感知为预测服务——跟踪和建图对运动预测的关键作用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">关键组件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">主要结果</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#nuScenes-val%EF%BC%88%E5%90%84%E4%BB%BB%E5%8A%A1%E5%AF%B9%E6%AF%94%EF%BC%89"><span class="toc-text">nuScenes val（各任务对比）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%89%E7%A7%8D%E6%A8%A1%E5%9E%8B%E8%A7%84%E6%A8%A1%E5%AF%B9%E6%AF%94%EF%BC%88Table-12%EF%BC%89"><span class="toc-text">三种模型规模对比（Table 12）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">消融实验：验证三个洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%85%A8%E6%A0%88%E4%BB%BB%E5%8A%A1%E7%9A%84%E5%BF%85%E8%A6%81%E6%80%A7%EF%BC%88Table-2%EF%BC%8C%E6%B4%9E%E5%AF%9F-1-2-3%EF%BC%89"><span class="toc-text">全栈任务的必要性（Table 2，洞察 1+2+3）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#MotionFormer-%E8%AE%BE%E8%AE%A1%E6%B6%88%E8%9E%8D%EF%BC%88Table-8%EF%BC%89"><span class="toc-text">MotionFormer 设计消融（Table 8）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%A1%E7%AE%97%E5%A4%8D%E6%9D%82%E5%BA%A6%EF%BC%88Table-13%EF%BC%89"><span class="toc-text">计算复杂度（Table 13）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

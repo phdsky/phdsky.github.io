@@ -170,11 +170,11 @@ Multi-view Images (6 cams, multi-timestamp)
   → Multi-scale Feature Maps I = {I_{t,n,s}}
           │
           ▼                          ┌─────────────────────┐
-  Instance Bank                      │ Temporal Instances   │
+  Instance Bank                      │ Temporal Instances  │
   ├─ Learnable Anchors (300)         │ (top-600 from prev) │
   └─ Learnable Features (300)        └──────────┬──────────┘
-          │                                      │
-          ▼                                      ▼
+          │                                     │
+          ▼                                     ▼
   ┌──────────────────────────────────────────────────────┐
   │         Decoder Layer (×1 single-frame + ×5 multi)   │
   │   ┌──────────────────────────────────────────┐       │
@@ -182,13 +182,13 @@ Multi-view Images (6 cams, multi-timestamp)
   │   │ Q=instance, K/V=temporal instances       │
   │   ├──────────────────────────────────────────┤
   │   │ Instance Self-Attention (gnn)            │
-  │   │ Decoupled: concat(F, E) instead of F+E  │
+  │   │ Decoupled: concat(F, E) instead of F+E   │
   │   ├──────────────────────────────────────────┤
   │   │ Deformable 4D Aggregation (deformable)   │
   │   │ Keypoints → project → sample → fuse      │
   │   ├──────────────────────────────────────────┤
   │   │ FFN + Refine Layer                       │
-  │   │ → Δ(x,y,z,w,l,h,yaw,vx,vy) + cls + qt  │
+  │   │ → Δ(x,y,z,w,l,h,yaw,vx,vy) + cls + qt    │
   │   └──────────────────────────────────────────┘
   └──────────────────────────────────────────────────────┘
           │

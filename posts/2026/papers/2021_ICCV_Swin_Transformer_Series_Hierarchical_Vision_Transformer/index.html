@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Swin Transformer 系列：基于移位窗口的层级视觉 Transformer - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Swin Transformer 系列：基于移位窗口的层级视觉 Transformer</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年01月24日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Image Classification &#x2F; Object Detection &#x2F; Semantic Segmentation<br>Method: Shifted Window Self-Attention &#x2F; Hierarchical Feature Maps<br>Venue: ICCV 2021 (V1) &#x2F; CVPR 2022 (V2)<br>Year: 2021 &#x2F; 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2103.14030">https://arxiv.org/abs/2103.14030</a> &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2111.09883">https://arxiv.org/abs/2111.09883</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer">https://github.com/microsoft/Swin-Transformer</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Swin Transformer 提出了一种<strong>基于移位窗口的层级视觉 Transformer 架构</strong>，首次让 Transformer 在图像分类、目标检测和语义分割三个任务上全面超越 CNN 和先前的 ViT 方案。核心设计包括：(1) 将自注意力限制在不重叠的局部窗口内，使计算复杂度从全局二次降到图像尺寸的<strong>线性</strong>；(2) 通过窗口移位在相邻层之间建立跨窗口连接；(3) 通过 patch merging 构建 4 阶段层级特征图，天然兼容 FPN、UperNet 等密集预测框架。</p>
+<p>Swin Transformer V2 在此基础上解决了大规模训练的三个关键问题：(1) <strong>residual-post-norm + scaled cosine attention</strong> 稳定深层激活值，使模型可扩展到 30 亿参数；(2) <strong>log-spaced continuous position bias (Log-CPB)</strong> 实现窗口分辨率的平滑迁移；(3) 结合 <strong>SimMIM</strong> 自监督预训练，用 1&#x2F;40 的标注数据和 1&#x2F;40 的训练时间达到 SOTA。</p>
+<p><strong>核心论点</strong>：将局部性（窗口注意力）和层级结构（patch merging）这两个 CNN 归纳偏置引入 Transformer，在保留强建模能力的同时获得线性复杂度和多尺度特征，使 Transformer 真正成为视觉通用骨干网络。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>ViT 将 Transformer 引入视觉领域取得了令人瞩目的分类结果，但在密集预测任务上存在根本性限制：</p>
+<table>
+<thead>
+<tr>
+<th>方案类型</th>
+<th>代表作</th>
+<th>核心问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>全局 ViT</td>
+<td>ViT, DeiT</td>
+<td>单一分辨率特征图，复杂度 $O(n^2)$，无法直接用于检测&#x2F;分割</td>
+</tr>
+<tr>
+<td>局部注意力 CNN</td>
+<td>Local Relation Net</td>
+<td>滑动窗口导致每个 query 对应不同 key set，硬件内存访问效率低</td>
+</tr>
+<tr>
+<td>CNN 骨干</td>
+<td>ResNet, EfficientNet</td>
+<td>准确度接近饱和，缺少长距离建模能力</td>
+</tr>
+</tbody></table>
+<p><strong>核心痛点</strong>：ViT 的全局自注意力在高分辨率图像上计算量无法承受（$O(n^2)$），且其单尺度特征图无法直接服务目标检测和语义分割等需要多尺度特征的密集预测任务。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：窗口注意力-移位策略-线性复杂度-跨窗口连接"><a href="#洞察-1：窗口注意力-移位策略-线性复杂度-跨窗口连接" class="headerlink" title="洞察 1：窗口注意力 + 移位策略 &#x3D; 线性复杂度 + 跨窗口连接"></a>洞察 1：窗口注意力 + 移位策略 &#x3D; 线性复杂度 + 跨窗口连接</h3><p><strong>传统做法</strong>：ViT 对所有 token 计算全局自注意力，复杂度为 $\Omega(\text{MSA}) = 4hwC^2 + 2(hw)^2C$，在高分辨率图像上不可行。</p>
+<p><strong>本文做法</strong>：将自注意力限制在 $M \times M$（默认 $M&#x3D;7$）的不重叠局部窗口内：</p>
+
+$$\Omega(\text{W-MSA}) = 4hwC^2 + 2M^2 hwC$$
+
+
+<p>复杂度从 $(hw)^2$ 降为 $M^2 \cdot hw$，当 $M$ 固定时关于图像尺寸线性。为解决窗口间信息隔离问题，相邻两层交替使用常规窗口（W-MSA）和移位窗口（SW-MSA），移位偏移量为 $(\lfloor M&#x2F;2 \rfloor, \lfloor M&#x2F;2 \rfloor)$：</p>
+
+$$\hat{\mathbf{z}}^l = \text{W-MSA}(\text{LN}(\mathbf{z}^{l-1})) + \mathbf{z}^{l-1}, \quad \mathbf{z}^l = \text{MLP}(\text{LN}(\hat{\mathbf{z}}^l)) + \hat{\mathbf{z}}^l$$
+$$\hat{\mathbf{z}}^{l+1} = \text{SW-MSA}(\text{LN}(\mathbf{z}^l)) + \mathbf{z}^l, \quad \mathbf{z}^{l+1} = \text{MLP}(\text{LN}(\hat{\mathbf{z}}^{l+1})) + \hat{\mathbf{z}}^{l+1}$$
+
+
+<p>通过<strong>循环移位 + mask</strong>（cyclic shift）实现高效 batch 计算，比 naive padding 快 13%−18%，比滑动窗口快 4× 以上。</p>
+<h3 id="洞察-2：Patch-Merging-构建层级特征-—-Transformer-的-“FPN-兼容性”"><a href="#洞察-2：Patch-Merging-构建层级特征-—-Transformer-的-“FPN-兼容性”" class="headerlink" title="洞察 2：Patch Merging 构建层级特征 — Transformer 的 “FPN 兼容性”"></a>洞察 2：Patch Merging 构建层级特征 — Transformer 的 “FPN 兼容性”</h3><p><strong>传统做法</strong>：ViT 全程保持 $\frac{H}{16} \times \frac{W}{16}$ 的单一分辨率特征图，无法直接接 FPN 或 UperNet。</p>
+<p><strong>本文做法</strong>：设计 4 阶段层级架构，每个阶段通过 <strong>patch merging</strong> 降采样 2×：将 $2 \times 2$ 邻近 patch 的特征拼接（$4C$ 维），再经线性层投影到 $2C$ 维。四个阶段分辨率分别为 $\frac{H}{4}, \frac{H}{8}, \frac{H}{16}, \frac{H}{32}$，与 ResNet 的 C2-C5 完全对齐。</p>
+<table>
+<thead>
+<tr>
+<th>变体</th>
+<th>$C$</th>
+<th>层数 {S1,S2,S3,S4}</th>
+<th>参数量</th>
+<th>FLOPs</th>
+<th>ImageNet top-1</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Swin-T</td>
+<td>96</td>
+<td>{2,2,6,2}</td>
+<td>29M</td>
+<td>4.5G</td>
+<td>81.3%</td>
+</tr>
+<tr>
+<td>Swin-S</td>
+<td>96</td>
+<td>{2,2,18,2}</td>
+<td>50M</td>
+<td>8.7G</td>
+<td>83.0%</td>
+</tr>
+<tr>
+<td>Swin-B</td>
+<td>128</td>
+<td>{2,2,18,2}</td>
+<td>88M</td>
+<td>15.4G</td>
+<td>83.5%</td>
+</tr>
+<tr>
+<td>Swin-L</td>
+<td>192</td>
+<td>{2,2,18,2}</td>
+<td>197M</td>
+<td>103.9G</td>
+<td>87.3%（22K）</td>
+</tr>
+</tbody></table>
+<p>这一层级设计使 Swin Transformer 可以无缝替换 ResNet 骨干，接入 Cascade Mask R-CNN、HTC++、UperNet 等框架。</p>
+<h3 id="洞察-3：V2-—-Post-Norm-Cosine-Attention-Log-CPB-解决大规模训练的三大障碍"><a href="#洞察-3：V2-—-Post-Norm-Cosine-Attention-Log-CPB-解决大规模训练的三大障碍" class="headerlink" title="洞察 3：V2 — Post-Norm + Cosine Attention + Log-CPB 解决大规模训练的三大障碍"></a>洞察 3：V2 — Post-Norm + Cosine Attention + Log-CPB 解决大规模训练的三大障碍</h3><p><strong>障碍 1 — 训练不稳定</strong>：原始 pre-norm 配置中残差输出直接回加主干，激活值逐层累积，在 Large 模型上最高&#x2F;最低层振幅差达 $10^4$，Huge 模型直接崩溃。</p>
+<p><strong>解决 — Residual-post-norm + Scaled cosine attention</strong>：将 LayerNorm 移至残差分支末尾（post-norm），激活值不再累积；将 dot-product attention 替换为基于余弦相似度的 scaled cosine attention：</p>
+
+$$\text{Sim}(\mathbf{q}_i, \mathbf{k}_j) = \frac{\cos(\mathbf{q}_i, \mathbf{k}_j)}{\tau} + B_{ij}$$
+
+
+<p>其中 $\tau$ 为可学习标量（$\tau &gt; 0.01$），每头每层独立。余弦函数天然归一化，不受输入振幅影响。</p>
+<p><strong>障碍 2 — 跨分辨率迁移困难</strong>：原始参数化位置偏置在窗口尺寸变化时用双三次插值，效果差。</p>
+<p>**解决 — Log-spaced Continuous Position Bias (Log-CPB)**：用小型 MLP $\mathcal{G}$（2 层 + ReLU）从相对坐标生成偏置值 $B(\Delta x, \Delta y) &#x3D; \mathcal{G}(\widehat{\Delta x}, \widehat{\Delta y})$，并对坐标取对数：</p>
+
+$$\widehat{\Delta x} = \text{sign}(\Delta x) \cdot \log(1 + |\Delta x|)$$
+
+
+<p>窗口从 $8 \times 8$ 迁移到 $16 \times 16$ 时，外推比从原始 1.14× 降至 0.33×（约 4× 更小的外推范围），显著改善迁移准确率。</p>
+<p><strong>障碍 3 — 标注数据需求大</strong>：V2 结合 SimMIM 自监督预训练，仅用 7000 万张图像（JFT-3B 的 1&#x2F;40）。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>58.7 &#x2F; 51.1 AP</strong>：Swin-L 在 COCO test-dev 上的 box &#x2F; mask AP，分别超越前 SOTA +2.7 &#x2F; +2.6</li>
+<li><strong>87.3% top-1</strong>：Swin-L（ImageNet-22K 预训练）在 ImageNet-1K 上的分类准确率</li>
+<li><strong>63.1 &#x2F; 54.4 AP</strong>：SwinV2-G（3B 参数）在 COCO test-dev 上的 box &#x2F; mask AP，超越前 SOTA +1.8 &#x2F; +1.4</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>核心流程：</p>
+
+$$\text{Image} \xrightarrow{\text{Patch Partition}} \text{Tokens}_{H/4 \times W/4} \xrightarrow{\text{Stage 1-4}} \text{Multi-scale Features} \xrightarrow{\text{Task Head}} \text{Output}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2103.14030/assets/x1.png" alt="Swin Transformer 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+Input Image (H×W×3)
+       │
+       ▼
+┌─────────────────┐
+│  Patch Partition│  4×4 patch → 拼接 RGB → 48 维
+│  Linear Embed   │  48 → C 维
+└─────────────────┘
+       │  H/4 × W/4 × C
+       ▼
+┌─────────────────┐
+│    Stage 1      │  ×L1 Swin Blocks (W-MSA / SW-MSA 交替)
+└─────────────────┘
+       │  H/4 × W/4 × C
+       ▼
+┌─────────────────┐
+│  Patch Merging  │  2×2 拼接 → 4C → Linear → 2C
+└─────────────────┘
+       │  H/8 × W/8 × 2C
+       ▼
+┌─────────────────┐
+│    Stage 2      │  ×L2 Swin Blocks
+└─────────────────┘
+       │  H/8 × W/8 × 2C
+       ▼
+┌─────────────────┐
+│  Patch Merging  │  → 4C → 2C (same)
+└─────────────────┘
+       │  H/16 × W/16 × 4C
+       ▼
+┌─────────────────┐
+│    Stage 3      │  ×L3 Swin Blocks (主计算量)
+└─────────────────┘
+       │  H/16 × W/16 × 4C
+       ▼
+┌─────────────────┐
+│  Patch Merging  │
+└─────────────────┘
+       │  H/32 × W/32 × 8C
+       ▼
+┌─────────────────┐
+│    Stage 4      │  ×L4 Swin Blocks
+└─────────────────┘
+       │
+       ├──→ Global AvgPool → Linear → [分类]
+       └──→ FPN / UperNet → [检测/分割]
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><p><strong>窗口注意力与相对位置偏置</strong>：</p>
+
+$$\text{Attention}(Q, K, V) = \text{SoftMax}\left(\frac{QK^T}{\sqrt{d}} + B\right) V$$
+
+
+<p>其中 $B \in \mathbb{R}^{M^2 \times M^2}$ 从可学习偏置矩阵 $\hat{B} \in \mathbb{R}^{(2M-1) \times (2M-1)}$ 中索引获取。</p>
+<p><strong>V2 Scaled Cosine Attention</strong>：</p>
+
+$$\text{Sim}(\mathbf{q}_i, \mathbf{k}_j) = \frac{\cos(\mathbf{q}_i, \mathbf{k}_j)}{\tau} + B_{ij}$$
+
+
+<p><strong>V2 Log-CPB</strong>：</p>
+
+$$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\Delta x|),\; \text{sign}(\Delta y) \cdot \log(1+|\Delta y|)\right)$$
+
+
+<p>其中 $\mathcal{G}$ 为 2 层 MLP（512 隐藏维度 + ReLU）。</p>
+<table>
+<thead>
+<tr>
+<th>V1 → V2 关键改动</th>
+<th>V1 配置</th>
+<th>V2 配置</th>
+<th>解决问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>归一化位置</td>
+<td>Pre-norm（LN 在残差前）</td>
+<td>Res-post-norm（LN 在残差后）</td>
+<td>激活值逐层累积导致训练不稳定</td>
+</tr>
+<tr>
+<td>注意力计算</td>
+<td>Dot-product &#x2F; √d</td>
+<td>Cosine &#x2F; τ（可学习）</td>
+<td>注意力值被少数 token 主导</td>
+</tr>
+<tr>
+<td>位置偏置</td>
+<td>参数化 $\hat{B}$ + 双三次插值</td>
+<td>MLP 生成 + 对数坐标</td>
+<td>跨窗口分辨率迁移效果差</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>代码来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer">microsoft&#x2F;Swin-Transformer</a> (MIT License)</p>
+<table>
+<thead>
+<tr>
+<th>函数&#x2F;类</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>window_partition</code></td>
+<td>将特征图切分为不重叠窗口</td>
+</tr>
+<tr>
+<td><code>window_reverse</code></td>
+<td>将窗口合并恢复为特征图</td>
+</tr>
+<tr>
+<td><code>WindowAttention</code></td>
+<td>窗口内多头自注意力（含相对位置偏置）</td>
+</tr>
+<tr>
+<td><code>SwinTransformerBlock.forward</code></td>
+<td>完整的移位窗口注意力前向传播</td>
+</tr>
+</tbody></table>
+<details>
+<summary>📄 点击展开 WindowAttention.forward 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models&#x2F;swin_transformer.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x, mask=<span class="literal">None</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        x: input features with shape of (num_windows*B, N, C)</span></span><br><span class="line"><span class="string">        mask: (0/-inf) mask with shape of (num_windows, Wh*Ww, Wh*Ww) or None</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    B_, N, C = x.shape</span><br><span class="line">    <span class="comment"># 线性投影得到 Q, K, V</span></span><br><span class="line">    qkv = <span class="variable language_">self</span>.qkv(x).reshape(B_, N, <span class="number">3</span>, <span class="variable language_">self</span>.num_heads, C // <span class="variable language_">self</span>.num_heads).permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">4</span>)</span><br><span class="line">    q, k, v = qkv[<span class="number">0</span>], qkv[<span class="number">1</span>], qkv[<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 缩放点积注意力</span></span><br><span class="line">    q = q * <span class="variable language_">self</span>.scale</span><br><span class="line">    attn = (q @ k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 添加相对位置偏置 B ∈ R^&#123;M²×M²&#125;</span></span><br><span class="line">    relative_position_bias = <span class="variable language_">self</span>.relative_position_bias_table[</span><br><span class="line">        <span class="variable language_">self</span>.relative_position_index.view(-<span class="number">1</span>)</span><br><span class="line">    ].view(<span class="variable language_">self</span>.window_size[<span class="number">0</span>] * <span class="variable language_">self</span>.window_size[<span class="number">1</span>],</span><br><span class="line">           <span class="variable language_">self</span>.window_size[<span class="number">0</span>] * <span class="variable language_">self</span>.window_size[<span class="number">1</span>], -<span class="number">1</span>)  <span class="comment"># Wh*Ww, Wh*Ww, nH</span></span><br><span class="line">    relative_position_bias = relative_position_bias.permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>).contiguous()  <span class="comment"># nH, Wh*Ww, Wh*Ww</span></span><br><span class="line">    attn = attn + relative_position_bias.unsqueeze(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 对移位窗口应用 attention mask（-100 屏蔽非相邻区域）</span></span><br><span class="line">    <span class="keyword">if</span> mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        nW = mask.shape[<span class="number">0</span>]</span><br><span class="line">        attn = attn.view(B_ // nW, nW, <span class="variable language_">self</span>.num_heads, N, N) + mask.unsqueeze(<span class="number">1</span>).unsqueeze(<span class="number">0</span>)</span><br><span class="line">        attn = attn.view(-<span class="number">1</span>, <span class="variable language_">self</span>.num_heads, N, N)</span><br><span class="line">        attn = <span class="variable language_">self</span>.softmax(attn)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        attn = <span class="variable language_">self</span>.softmax(attn)</span><br><span class="line"></span><br><span class="line">    attn = <span class="variable language_">self</span>.attn_drop(attn)</span><br><span class="line"></span><br><span class="line">    x = (attn @ v).transpose(<span class="number">1</span>, <span class="number">2</span>).reshape(B_, N, C)</span><br><span class="line">    x = <span class="variable language_">self</span>.proj(x)</span><br><span class="line">    x = <span class="variable language_">self</span>.proj_drop(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details>
+<summary>📄 点击展开 SwinTransformerBlock.forward 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models&#x2F;swin_transformer.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">    H, W = <span class="variable language_">self</span>.input_resolution</span><br><span class="line">    B, L, C = x.shape</span><br><span class="line">    <span class="keyword">assert</span> L == H * W, <span class="string">&quot;input feature has wrong size&quot;</span></span><br><span class="line"></span><br><span class="line">    shortcut = x</span><br><span class="line">    x = <span class="variable language_">self</span>.norm1(x)</span><br><span class="line">    x = x.view(B, H, W, C)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 循环移位（cyclic shift）实现移位窗口</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.shift_size &gt; <span class="number">0</span>:</span><br><span class="line">        shifted_x = torch.roll(x, shifts=(-<span class="variable language_">self</span>.shift_size, -<span class="variable language_">self</span>.shift_size), dims=(<span class="number">1</span>, <span class="number">2</span>))</span><br><span class="line">        x_windows = window_partition(shifted_x, <span class="variable language_">self</span>.window_size)  <span class="comment"># nW*B, ws, ws, C</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        shifted_x = x</span><br><span class="line">        x_windows = window_partition(shifted_x, <span class="variable language_">self</span>.window_size)</span><br><span class="line"></span><br><span class="line">    x_windows = x_windows.view(-<span class="number">1</span>, <span class="variable language_">self</span>.window_size * <span class="variable language_">self</span>.window_size, C)  <span class="comment"># nW*B, ws*ws, C</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 窗口内自注意力（W-MSA 或 SW-MSA）</span></span><br><span class="line">    attn_windows = <span class="variable language_">self</span>.attn(x_windows, mask=<span class="variable language_">self</span>.attn_mask)  <span class="comment"># nW*B, ws*ws, C</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 合并窗口</span></span><br><span class="line">    attn_windows = attn_windows.view(-<span class="number">1</span>, <span class="variable language_">self</span>.window_size, <span class="variable language_">self</span>.window_size, C)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 反向循环移位</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.shift_size &gt; <span class="number">0</span>:</span><br><span class="line">        shifted_x = window_reverse(attn_windows, <span class="variable language_">self</span>.window_size, H, W)  <span class="comment"># B H W C</span></span><br><span class="line">        x = torch.roll(shifted_x, shifts=(<span class="variable language_">self</span>.shift_size, <span class="variable language_">self</span>.shift_size), dims=(<span class="number">1</span>, <span class="number">2</span>))</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        shifted_x = window_reverse(attn_windows, <span class="variable language_">self</span>.window_size, H, W)</span><br><span class="line">        x = shifted_x</span><br><span class="line"></span><br><span class="line">    x = x.view(B, H * W, C)</span><br><span class="line">    <span class="comment"># 残差连接 + FFN</span></span><br><span class="line">    x = shortcut + <span class="variable language_">self</span>.drop_path(x)</span><br><span class="line">    x = x + <span class="variable language_">self</span>.drop_path(<span class="variable language_">self</span>.mlp(<span class="variable language_">self</span>.norm2(x)))</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<details>
+<summary>📄 点击展开 window_partition / window_reverse 代码</summary>
+
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models&#x2F;swin_transformer.py</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">window_partition</span>(<span class="params">x, window_size</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;将特征图按 window_size 切分为不重叠窗口</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        x: (B, H, W, C)</span></span><br><span class="line"><span class="string">        window_size (int): 窗口大小</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        windows: (num_windows*B, window_size, window_size, C)</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    B, H, W, C = x.shape</span><br><span class="line">    x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)</span><br><span class="line">    windows = x.permute(<span class="number">0</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>).contiguous().view(-<span class="number">1</span>, window_size, window_size, C)</span><br><span class="line">    <span class="keyword">return</span> windows</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">window_reverse</span>(<span class="params">windows, window_size, H, W</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;将窗口合并恢复为特征图</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        windows: (num_windows*B, window_size, window_size, C)</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        x: (B, H, W, C)</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    B = <span class="built_in">int</span>(windows.shape[<span class="number">0</span>] / (H * W / window_size / window_size))</span><br><span class="line">    x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -<span class="number">1</span>)</span><br><span class="line">    x = x.permute(<span class="number">0</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>).contiguous().view(B, H, W, -<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>ImageNet-1K 图像分类</strong>（Regular Training, 224²）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>参数量</th>
+<th>FLOPs</th>
+<th>top-1 acc</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>DeiT-S</td>
+<td>22M</td>
+<td>4.6G</td>
+<td>79.8%</td>
+</tr>
+<tr>
+<td>RegNetY-8G</td>
+<td>39M</td>
+<td>8.0G</td>
+<td>81.7%</td>
+</tr>
+<tr>
+<td>Swin-T</td>
+<td>29M</td>
+<td>4.5G</td>
+<td><strong>81.3%</strong></td>
+</tr>
+<tr>
+<td>DeiT-B</td>
+<td>86M</td>
+<td>17.5G</td>
+<td>81.8%</td>
+</tr>
+<tr>
+<td>Swin-S</td>
+<td>50M</td>
+<td>8.7G</td>
+<td><strong>83.0%</strong></td>
+</tr>
+<tr>
+<td>Swin-B (384²)</td>
+<td>88M</td>
+<td>47.0G</td>
+<td><strong>84.5%</strong></td>
+</tr>
+<tr>
+<td>Swin-L (384², 22K)</td>
+<td>197M</td>
+<td>103.9G</td>
+<td><strong>87.3%</strong></td>
+</tr>
+</tbody></table>
+<p><strong>COCO 目标检测</strong>（test-dev, HTC++ framework）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>box AP</th>
+<th>mask AP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Copy-paste</td>
+<td>—</td>
+<td>56.0</td>
+<td>48.5</td>
+</tr>
+<tr>
+<td>DetectoRS</td>
+<td>—</td>
+<td>—</td>
+<td>48.5</td>
+</tr>
+<tr>
+<td>Swin-L (22K)</td>
+<td>HTC++</td>
+<td><strong>58.7</strong></td>
+<td><strong>51.1</strong></td>
+</tr>
+<tr>
+<td>SwinV2-G (3B)</td>
+<td>HTC++</td>
+<td><strong>63.1</strong></td>
+<td><strong>54.4</strong></td>
+</tr>
+</tbody></table>
+<p><strong>ADE20K 语义分割</strong>（val, UperNet）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Backbone</th>
+<th>mIoU</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SETR</td>
+<td>ViT-L</td>
+<td>50.3</td>
+</tr>
+<tr>
+<td>Swin-L (22K)</td>
+<td>UperNet</td>
+<td><strong>53.5</strong></td>
+</tr>
+<tr>
+<td>BEiT</td>
+<td>—</td>
+<td>58.4</td>
+</tr>
+<tr>
+<td>SwinV2-G (3B)</td>
+<td>UperNet</td>
+<td><strong>59.9</strong></td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>Swin-T 在所有四个检测框架（Cascade Mask R-CNN, ATSS, RepPoints v2, Sparse RCNN）上一致性超越 ResNet-50 +3.4∼4.2 box AP</li>
+<li>相比 DeiT-S，Swin-T 同等参数规模下推理速度快 47%（15.3 FPS vs 10.4 FPS），box AP 高 +2.5</li>
+<li>SwinV2-G 仅用 1&#x2F;40 标注数据和 1&#x2F;40 训练时间即达到 COCO 63.1 AP，超越 Google 十亿参数级模型</li>
+</ol>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>V1 消融</strong>（基于 Swin-T）：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>ImageNet top-1</th>
+<th>COCO box AP</th>
+<th>ADE20K mIoU</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无移位窗口</td>
+<td>80.2%</td>
+<td>47.7</td>
+<td>43.3</td>
+<td>—</td>
+</tr>
+<tr>
+<td>移位窗口</td>
+<td><strong>81.3%</strong> (+1.1)</td>
+<td><strong>50.5</strong> (+2.8)</td>
+<td><strong>46.1</strong> (+2.8)</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>无位置编码</td>
+<td>80.1%</td>
+<td>49.2</td>
+<td>43.8</td>
+<td>—</td>
+</tr>
+<tr>
+<td>绝对位置</td>
+<td>80.5%</td>
+<td>49.0</td>
+<td>43.2</td>
+<td>—</td>
+</tr>
+<tr>
+<td>相对位置偏置</td>
+<td><strong>81.3%</strong> (+1.2)</td>
+<td><strong>50.5</strong> (+1.3)</td>
+<td><strong>46.1</strong> (+2.3)</td>
+<td>洞察 2 (位置编码)</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：绝对位置编码在分类上有 +0.4% 提升，但在检测和分割上均出现精度下降，说明翻译不变性归纳偏置对密集预测更重要。</p>
+</blockquote>
+<p><strong>V2 消融 — res-post-norm + cosine attention</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>Backbone</th>
+<th>无改进</th>
+<th>+post-norm</th>
+<th>+post-norm+cosine</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Swin-T</td>
+<td>81.5%</td>
+<td>81.6%</td>
+<td>81.7% (+0.2)</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>Swin-S</td>
+<td>83.2%</td>
+<td>83.3%</td>
+<td>83.6% (+0.4)</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>Swin-B</td>
+<td>83.6%</td>
+<td>83.8%</td>
+<td>84.1% (+0.5)</td>
+<td>洞察 3</td>
+</tr>
+</tbody></table>
+<p>改进幅度随规模增大而增长（+0.2 → +0.4 → +0.5），说明这些技术对大模型更重要。</p>
+<p><strong>V2 消融 — 跨分辨率迁移</strong>（预训练 W8&#x2F;I256，直接测试不同窗口大小, Swin-T）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>W8 (预训练)</th>
+<th>W12 (w&#x2F;o ft)</th>
+<th>W16 (w&#x2F;o ft)</th>
+<th>W24 (w&#x2F;o ft)</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>参数化偏置</td>
+<td>81.7%</td>
+<td>79.4%</td>
+<td>77.2%</td>
+<td>68.7%</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Log-CPB</td>
+<td>81.8%</td>
+<td><strong>82.4%</strong></td>
+<td><strong>81.7%</strong></td>
+<td><strong>79.1%</strong></td>
+<td>洞察 3</td>
+</tr>
+</tbody></table>
+<p>Log-CPB 在 W8→W24 的极端外推下仍保持 79.1%，而参数化偏置暴跌至 68.7%（差距 10.4%）。</p>
+<h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
+<li><strong>推理延迟</strong>：Swin Transformer 使用 PyTorch 内置算子实现，未经深度内核优化，与高度优化的 CuDNN ResNet 相比延迟略高</li>
+<li><strong>窗口大小限制</strong>：固定 $7 \times 7$ 窗口大小限制了单次注意力的感受野，需要多层累积才能覆盖全图</li>
+<li><strong>大模型内存</strong>：V2 的 3B 参数模型需要 ZeRO optimizer + activation checkpointing + 顺序自注意力计算三项技术才能在 A100-40G 上训练</li>
+</ul>
+<h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
+<li><strong>小窗口 vs 大目标</strong>：当目标跨越多个窗口时，需要足够多的层才能通过移位传播信息，对超大目标的全局关系建模能力不如全局注意力</li>
+<li><strong>跨窗口分辨率极端外推（V1）</strong>：V1 使用双三次插值，窗口从 8→24 时 top-1 从 81.7% 降至 68.7%，V2 的 Log-CPB 显著缓解但仍有 2.7% 降幅</li>
+<li><strong>Huge 模型训练崩溃（V1 配置）</strong>：原始 pre-norm 在 658M 参数的 Huge 模型上无法完成训练，激活值爆炸导致发散</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><p>**V1 ImageNet-1K (224²)**：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone: Swin-T/S/B</span><br><span class="line">Input: 224×224</span><br><span class="line">Optimizer: AdamW (lr=0.001, weight_decay=0.05)</span><br><span class="line">Scheduler: Cosine decay + 20-epoch warmup</span><br><span class="line">Batch size: 1024</span><br><span class="line">Epochs: 300</span><br><span class="line">Augmentation: RandAugment, Mixup, Cutmix, Random Erasing</span><br><span class="line">Regularization: Stochastic depth (0.2/0.3/0.5 for T/S/B)</span><br><span class="line">Gradient clipping: max_norm=1</span><br></pre></td></tr></table></figure>
+
+<p>**V1 COCO Detection (Cascade Mask R-CNN, 3× schedule)**：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Framework: mmdetection</span><br><span class="line">Multi-scale training: shorter side [480, 800], longer ≤ 1333</span><br><span class="line">Optimizer: AdamW (lr=0.0001, weight_decay=0.05)</span><br><span class="line">Batch size: 16</span><br><span class="line">Epochs: 36 (lr ×0.1 at epoch 27, 33)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>不使用 Repeated Augmentation 和 EMA</strong>：与 DeiT 不同，这两项在 Swin 上不提升性能</li>
+<li><strong>Stochastic depth 随模型增大</strong>：T&#x2F;S&#x2F;B 分别使用 0.2&#x2F;0.3&#x2F;0.5 的 drop rate</li>
+<li><strong>检测用 AdamW 而非 SGD</strong>：ResNet 骨干换用 AdamW 后也能提升 0.5−1.3 AP，确保公平对比</li>
+<li><strong>窗口大小可整除性</strong>：输入分辨率必须被窗口大小整除，否则需 padding</li>
+<li><strong>V2 大模型额外 LN</strong>：SwinV2-H&#x2F;G 在主干每 6 个 Transformer block 后加一层额外 LayerNorm</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>使用 ImageNet-22K 预训练可为 Swin-B 带来 +1.8∼1.9% top-1 提升，推荐在下游密集任务中使用 22K 预训练权重</li>
+<li>V2 的 Log-CPB 支持在测试时使用更大窗口，无需额外微调即可获得精度提升</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>循环移位（cyclic shift）比 naive padding 快 13%−18%，是默认实现</li>
+<li>Fused window process 内核可在单个 CUDA kernel 中完成移位+分窗+逆操作，进一步减少kernel launch 开销</li>
+<li>V2 的 sequential self-attention 计算在前两个阶段对速度影响较小，但能大幅降低大分辨率下的内存消耗</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>局部注意力 + 跨窗口连接是通用模式</strong>：可应用于视频理解（Video Swin）、点云处理、3D 医学图像等高分辨率场景，在保持线性复杂度的同时获得全局建模能力</li>
+<li><strong>层级特征对齐 CNN 设计范式</strong>：使 Transformer 骨干可以无缝接入已有的检测&#x2F;分割框架（FPN, UperNet），降低迁移成本</li>
+<li><strong>Post-norm + cosine attention 稳定训练</strong>：不仅适用于视觉 Transformer，也适用于 MLP-Mixer 等非注意力架构（Swin-Mixer 验证了这一点），可推广至任意需要深层残差训练的场景</li>
+<li><strong>对数坐标外推</strong>：Log-CPB 的对数坐标思想可迁移到任何需要跨分辨率&#x2F;跨尺度迁移位置编码的场景</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li>固定窗口大小的局部注意力在需要全局上下文的任务上不如全局注意力（如 ImageNet 分类只有 +1.5% over DeiT）</li>
+<li>V2 的 3B 模型训练仍需大规模 GPU 集群（A100-40G），ZeRO + checkpointing 带来额外工程复杂度</li>
+<li>V1 相对位置偏置的参数化方案无法处理可变窗口大小，V2 用 Log-CPB 解决但引入了额外的 MLP 参数</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li>确立了 <strong>Transformer 作为视觉通用骨干</strong> 的地位：Swin 是第一个在分类、检测、分割三任务上同时达到 SOTA 的 Transformer</li>
+<li>推动了 <strong>BEVDet、BEVFormer、Mask2Former</strong> 等后续工作采用 Swin 作为默认骨干</li>
+<li>层级设计 + 局部注意力的范式被 Focal Transformer、CSWin、Twins 等后续工作广泛采用</li>
+<li>V2 的大模型训练技术（post-norm, cosine attention, Log-CPB）成为后续大规模视觉模型的标准实践</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E7%AA%97%E5%8F%A3%E6%B3%A8%E6%84%8F%E5%8A%9B-%E7%A7%BB%E4%BD%8D%E7%AD%96%E7%95%A5-%E7%BA%BF%E6%80%A7%E5%A4%8D%E6%9D%82%E5%BA%A6-%E8%B7%A8%E7%AA%97%E5%8F%A3%E8%BF%9E%E6%8E%A5"><span class="toc-text">洞察 1：窗口注意力 + 移位策略 &#x3D; 线性复杂度 + 跨窗口连接</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9APatch-Merging-%E6%9E%84%E5%BB%BA%E5%B1%82%E7%BA%A7%E7%89%B9%E5%BE%81-%E2%80%94-Transformer-%E7%9A%84-%E2%80%9CFPN-%E5%85%BC%E5%AE%B9%E6%80%A7%E2%80%9D"><span class="toc-text">洞察 2：Patch Merging 构建层级特征 — Transformer 的 “FPN 兼容性”</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9AV2-%E2%80%94-Post-Norm-Cosine-Attention-Log-CPB-%E8%A7%A3%E5%86%B3%E5%A4%A7%E8%A7%84%E6%A8%A1%E8%AE%AD%E7%BB%83%E7%9A%84%E4%B8%89%E5%A4%A7%E9%9A%9C%E7%A2%8D"><span class="toc-text">洞察 3：V2 — Post-Norm + Cosine Attention + Log-CPB 解决大规模训练的三大障碍</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.3 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.4 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B/" class="tag">#目标检测</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

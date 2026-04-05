@@ -147,8 +147,8 @@ $$\text{Images} \xrightarrow{\text{Image Encoder}} \text{Image Features} \xright
 <div style="display:flex; justify-content:center; margin: 24px 0;">
 <pre>
 输入：6 张图像 (704×256 / 1600×640)
-              │
-              ▼
+                │
+                ▼
  ┌──────────────────────────────┐
  │  Image-view Encoder          │
  │  Backbone: SwinT/R50/R101    │
@@ -158,15 +158,15 @@ $$\text{Images} \xrightarrow{\text{Image Encoder}} \text{Image Features} \xright
                 ▼
  ┌──────────────────────────────┐
  │  View Transformer (LSS)      │
- │  depth ∈ [1, 60]m, Δ=1.25r  │
- │  深度分类 + 外积 + Pillar Pool│  IDA 在此被 A⁻¹ 抵消
+ │  depth ∈ [1, 60]m, Δ=1.25r   │
+ │  深度分类 + 外积 + Pillar Pool │  IDA 在此被 A⁻¹ 抵消
  └──────────────┬───────────────┘
                 │  BDA (BEV Data Aug)
                 │  翻转 + 旋转±22.5° + 缩放0.95~1.05
                 ▼
  ┌──────────────────────────────┐
  │  BEV Encoder                 │
- │  ResNet Basic Blocks          │
+ │  ResNet Basic Blocks         │
  │  128→256→512 + FPN-LSS       │
  └──────────────┬───────────────┘
                 │
@@ -174,7 +174,7 @@ $$\text{Images} \xrightarrow{\text{Image Encoder}} \text{Image Features} \xright
  ┌──────────────────────────────┐
  │  CenterPoint Head (Stage 1)  │
  │  heatmap + offset + size +   │
- │  rotation + velocity          │  Scale-NMS 后处理
+ │  rotation + velocity         │  Scale-NMS 后处理
  └──────────────────────────────┘
                 │
                 ▼
@@ -720,6 +720,8 @@ $$\mathcal{F}'(T-1, P^{e(T)}) = \mathcal{F}(T-1, T_{e(T)}^{e(T-1)} P^{e(T)})$$
                     <div class="post-tags">
                         
                             <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
                             
                             <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                             

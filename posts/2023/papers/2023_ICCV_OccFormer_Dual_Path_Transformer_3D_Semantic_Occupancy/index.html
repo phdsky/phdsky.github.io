@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            OccFormer Dual-path Transformer for Vision-based 3D Semantic Occupancy Prediction - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">OccFormer Dual-path Transformer for Vision-based 3D Semantic Occupancy Prediction</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2023年04月11日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: 3D Semantic Occupancy Prediction &#x2F; Semantic Scene Completion<br>Method: Dual-path Transformer, Mask Classification, Preserve-Pooling<br>Venue: ICCV<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2304.05316">https://arxiv.org/abs/2304.05316</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/zhangyp15/OccFormer">https://github.com/zhangyp15/OccFormer</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>自动驾驶的视觉感知正从鸟瞰图（BEV）表示向 3D 语义占用预测演进。相比 BEV 平面，3D 语义占用在高度方向上提供了额外的结构信息。本文提出 <strong>OccFormer</strong>，一种双路径 Transformer 网络，用于高效处理相机生成的 3D 体素特征并进行语义占用预测。<strong>编码器</strong>方面，OccFormer 将沉重的 3D 处理分解为沿水平面的<strong>局部路径</strong>（逐 BEV 切片的窗口注意力）和<strong>全局路径</strong>（BEV 级场景理解），二者通过 sigmoid 加权融合，实现长距离、动态且高效的 3D 特征编码。<strong>解码器</strong>方面，OccFormer 首次将 Mask2Former 的掩码分类范式适配到 3D 占用预测，提出 <strong>preserve-pooling</strong>（最大池化替代三线性插值降采样注意力掩码）和 <strong>class-guided sampling</strong>（按类别频率倒数采样），分别缓解 3D 空间中的稀疏性和类别不平衡问题。在 SemanticKITTI 语义场景补全任务上，OccFormer 以 12.32 mIoU 超越 MonoScene 1.24 个点（相对提升 11%），在所有单目方法中排名第一；在 nuScenes LiDAR 语义分割任务上，以 70.8 mIoU 超越 TPVFormer 1.4 个点。</p>
+<p><strong>核心论点</strong>：3D 体素特征的高效编码关键在于将 3D 推理分解为 2D——OccFormer 通过双路径（局部逐切片 + 全局 BEV）将 3D 注意力的二次复杂度降至可控范围，结合 Mask2Former 的掩码分类范式，首次实现了基于 Transformer 的端到端 3D 语义占用预测。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>3D 语义占用预测旨在以细粒度体素表示重建自车周围的 3D 环境，为自动驾驶提供比 BEV 更完整的场景理解。现有方案存在明显局限：</p>
+<table>
+<thead>
+<tr>
+<th>方法类型</th>
+<th>代表作</th>
+<th>核心问题</th>
+<th>SSC mIoU（KITTI）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>3D UNet</td>
+<td>MonoScene</td>
+<td>3D 卷积感受野固定、参数量大、无法处理稀疏特征</td>
+<td>11.08</td>
+</tr>
+<tr>
+<td>三平面表示</td>
+<td>TPVFormer</td>
+<td>三平面压缩丢失细粒度语义信息</td>
+<td>11.26</td>
+</tr>
+<tr>
+<td>3D 卷积 + LiDAR</td>
+<td>SSCNet, JS3C-Net</td>
+<td>依赖昂贵 LiDAR，非纯视觉方案</td>
+<td>—</td>
+</tr>
+<tr>
+<td>BEV 语义分割</td>
+<td>BEVFormer, LSS</td>
+<td>高度方向信息被压缩，无法描述不规则 3D 物体</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p>3D 卷积的三大局限：</p>
+<ol>
+<li><strong>感受野固定</strong>：不同语义类别分布模式差异大，固定卷积核无法自适应</li>
+<li><strong>空间不变性</strong>：无法很好处理 LSS 等方法产生的稀疏、不连续 3D 特征</li>
+<li><strong>参数量大</strong>：3D 卷积滤波器参数随体素分辨率立方增长</li>
+</ol>
+<p><strong>核心痛点</strong>：如何设计一种<strong>长距离、动态、高效</strong>的 3D 特征编码方法，替代传统 3D 卷积，同时处理 3D 占用预测中的稀疏性和类别不平衡问题。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：双路径分解——将-3D-推理拆分为-2D-局部-全局"><a href="#洞察-1：双路径分解——将-3D-推理拆分为-2D-局部-全局" class="headerlink" title="洞察 1：双路径分解——将 3D 推理拆分为 2D 局部+全局"></a>洞察 1：双路径分解——将 3D 推理拆分为 2D 局部+全局</h3><p><strong>传统做法</strong>：直接在 3D 体素上应用 3D 卷积或 3D 注意力，计算量和参数量都随体素数立方增长。</p>
+<p><strong>OccFormer 做法</strong>：将 3D 特征沿高度维度分解为两条路径并行处理：</p>
+<ul>
+<li><strong>局部路径</strong>：将高度维度合并到 batch 维度，对每个 BEV 切片独立应用共享的窗口自注意力（Swin-like），捕获细粒度语义结构</li>
+<li><strong>全局路径</strong>：沿高度维度平均池化得到 BEV 特征，用窗口注意力 + ASPP（空洞空间金字塔池化）捕获场景级语义布局</li>
+</ul>
+<p>融合公式：</p>
+
+$$\mathbf{F}_{\text{out}} = \mathbf{F}_{\text{local}} + \sigma(\mathbf{W} \cdot \mathbf{F}_{\text{local}}) \cdot \text{unsqueeze}(\mathbf{F}_{\text{global}}, -1)$$
+
+
+<p>其中 $\sigma$ 为 sigmoid 函数，$\mathbf{W}$ 为生成沿高度方向聚合权重的 FFN。</p>
+<p><strong>为什么更好</strong>：双路径编码器比 3D ResNet-16 参数少 39%（81.4M vs. 132.5M），计算量少 38%（515.3 vs. 825.8 GFLOPs），mIoU 反而更高（13.46 vs. 12.89）。局部和全局路径分别贡献了细粒度结构和场景级布局信息，两者互补。</p>
+<h3 id="洞察-2：Preserve-Pooling——最大池化保护稀疏-3D-掩码"><a href="#洞察-2：Preserve-Pooling——最大池化保护稀疏-3D-掩码" class="headerlink" title="洞察 2：Preserve-Pooling——最大池化保护稀疏 3D 掩码"></a>洞察 2：Preserve-Pooling——最大池化保护稀疏 3D 掩码</h3><p><strong>传统做法（Mask2Former）</strong>：用双线性插值降采样注意力掩码，在 2D 图像分割中有效，因为 2D 掩码通常连续完整。</p>
+<p><strong>OccFormer 做法</strong>：将降采样方法替换为<strong>最大池化</strong>（max-pooling）。在 3D 占用空间中，LiDAR 生成的分割掩码通常是部分的、稀疏的，三线性插值会平滑掉细小结构甚至整个物体。最大池化能保留局部极值，避免稀疏掩码被”冲淡”。</p>
+<p><strong>效果</strong>：将掩码降采样从三线性改为最大池化，mIoU 提升 0.52（12.13→12.13+0.52），尤其对小型&#x2F;稀疏类别（如 truck、bicycle）影响显著。</p>
+<h3 id="洞察-3：Class-Guided-Sampling——按类别频率加权采样"><a href="#洞察-3：Class-Guided-Sampling——按类别频率加权采样" class="headerlink" title="洞察 3：Class-Guided Sampling——按类别频率加权采样"></a>洞察 3：Class-Guided Sampling——按类别频率加权采样</h3><p><strong>传统做法（Mask2Former）</strong>：在计算匹配代价和损失时，均匀采样 $K$ 个点。在 2D 图像中可行，但 3D 体素空间中前景区域极为稀疏，均匀采样难以覆盖小类别。</p>
+<p><strong>OccFormer 做法</strong>：根据训练集中各类别的出现频率 $\mathbf{n}_c$ 计算采样权重 $\mathbf{w}_c = (1/\mathbf{n}_c)^\beta$（$\beta &#x3D; 0.25$），训练时按该权重进行多项式分布采样。</p>
+<p><strong>效果</strong>：class-guided sampling 带来 <strong>+1.33 mIoU</strong> 提升（12.13→13.46），其中稀有类别（truck: 7.10→25.53, traffic-sign: 0.00→2.86）提升最为显著。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>12.32 mIoU</strong>：SemanticKITTI test 上的 SSC 成绩，单目方法第一</li>
+<li><strong>70.8 mIoU</strong>：nuScenes test LiDAR 分割成绩，纯视觉方法首次超越 70%</li>
+<li><strong>81.4M</strong>：双路径编码器参数量，比 3D ResNet-16（132.5M）少 39%</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>OccFormer 的核心流程：</p>
+
+$$\text{多视图图像} \xrightarrow{\text{Image Encoder}} \text{2D 特征} \xrightarrow{\text{LSS}} \text{3D 体素} \xrightarrow{\text{双路径编码器}} \text{多尺度 3D 特征} \xrightarrow{\text{Mask2Former 解码器}} \text{3D 语义占用}$$
+
+
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2304.05316/assets/x1.png" alt="OccFormer 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+多视图 N cam
+      │
+      ▼
+┌──────────────┐
+│ Image Encoder│  EfficientNetB7(KITTI) / ResNet-101(nuScenes)
+│ + FPN Neck   │  输出：F_2d ∈ R^{N×C×H×W}
+└─────┬────────┘
+      │
+      ▼
+┌─────────────┐
+│   LSS       │  深度分布 × 上下文特征 → 体素池化
+│ Image→3D    │  输出：F_3d ∈ R^{128×128×16×C}
+└─────┬───────┘
+      │
+      ▼
+┌──────────────────────────────┐
+│  双路径 Transformer 编码器     │  4 stage × 2 blocks
+│  ┌────────┐  ┌──────────┐    │
+│  │ 局部路径 │ │  全局路径  │    │  局部：逐 BEV 切片窗口注意力
+│  │(逐切片) │  │(BEV+ASPP)│    │  全局：BEV 池化 + 窗口注意力 + ASPP
+│  └────┬───┘  └────┬─────┘    │
+│       └──sigmoid融合──┘       │  输出：多尺度 3D 特征
+└─────┬────────────────────────┘
+      │
+      ▼
+┌───────────────────────┐
+│ Mask2Former 占用解码器  │
+│ ├─ Pixel Decoder      │  3D 多尺度可变形注意力 → 逐体素嵌入
+│ └─ Transformer Dec.   │  掩码注意力 + 自注意力 → 查询→类别+掩码
+│    + Preserve-Pooling │  max-pool 替代 trilinear
+│    + Class-Guided Samp│  频率加权采样
+└─────┬─────────────────┘
+      │
+      ▼
+  3D 语义占用 Y = Σ p_i · M_i
+  (256×256×32, 21类)
+</pre>
+</div>
+
+<h3 id="关键组件"><a href="#关键组件" class="headerlink" title="关键组件"></a>关键组件</h3><table>
+<thead>
+<tr>
+<th>模块</th>
+<th>输入</th>
+<th>输出</th>
+<th>核心设计</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Image Encoder</td>
+<td>$N$ 视图 RGB</td>
+<td>$\mathbf{F}_{2d} \in \mathbb{R}^{N \times C \times H \times W}$</td>
+<td>Backbone + FPN Neck，1&#x2F;16 分辨率</td>
+</tr>
+<tr>
+<td>Image-to-3D</td>
+<td>$\mathbf{F}_{2d}$</td>
+<td>$\mathbf{F}_{3d} \in \mathbb{R}^{128 \times 128 \times 16 \times C}$</td>
+<td>LSS 深度分布 + 体素池化</td>
+</tr>
+<tr>
+<td>双路径编码器</td>
+<td>$\mathbf{F}_{3d}$</td>
+<td>多尺度 3D 特征</td>
+<td>局部窗口注意力 + 全局 BEV+ASPP</td>
+</tr>
+<tr>
+<td>Pixel Decoder</td>
+<td>多尺度 3D 特征</td>
+<td>逐体素嵌入 $\mathcal{E}_{\text{voxel}}$</td>
+<td>6 层 3D 多尺度可变形注意力</td>
+</tr>
+<tr>
+<td>Transformer Decoder</td>
+<td>查询 $\mathbf{Q}$ + 3D 特征</td>
+<td>类别 $\mathbf{p}_i$ + 掩码 $\mathbf{M}_i$</td>
+<td>掩码注意力 + 自注意力 + FFN</td>
+</tr>
+</tbody></table>
+<p><strong>损失函数</strong>：</p>
+
+$$\mathcal{L} = \mathcal{L}_{\text{mask-cls}} + \mathcal{L}_{\text{depth}}$$
+
+
+<ul>
+<li><strong>掩码分类损失</strong> $\mathcal{L}_{\text{mask-cls}}$：匈牙利匹配后的分类 + 二值掩码损失（CE + Dice），仅在 class-guided 采样点上计算</li>
+<li><strong>深度损失</strong> $\mathcal{L}_{\text{depth}}$：LiDAR 点云投影的 GT 深度图，BCE 损失监督深度分布（类似 BEVDepth）</li>
+</ul>
+<p>最终 3D 语义占用预测：</p>
+
+$$\mathbf{Y} = \sum_{i=1}^{N_q} \mathbf{p}_i \cdot \mathbf{M}_i$$
+
+
+其中 $N_q$ 为查询数，$\mathbf{p}_i$ 为类别 logits，$\mathbf{M}_i = \sigma(\mathcal{E}_{\text{mask}}^i \cdot \mathcal{E}_{\text{voxel}})$ 为二值 3D 掩码。
+
+<h3 id="关键代码"><a href="#关键代码" class="headerlink" title="关键代码"></a>关键代码</h3><p>双路径融合的核心逻辑（局部 + 全局路径的 sigmoid 加权）：</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/zhangyp15/OccFormer/tree/main/projects">projects&#x2F;</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 局部路径：将高度合入 batch，对每个 BEV 切片独立做窗口注意力</span></span><br><span class="line">B, C, X, Y, Z = feat_3d.shape</span><br><span class="line">feat_local = feat_3d.reshape(B * Z, C, X, Y)    <span class="comment"># 高度合入 batch</span></span><br><span class="line">feat_local = window_attention(feat_local)         <span class="comment"># 共享窗口注意力</span></span><br><span class="line">feat_local = feat_local.reshape(B, C, X, Y, Z)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 全局路径：沿高度平均池化 → BEV 级窗口注意力 + ASPP</span></span><br><span class="line">feat_bev = feat_3d.mean(dim=-<span class="number">1</span>)                   <span class="comment"># (B, C, X, Y)</span></span><br><span class="line">feat_global = window_attention(feat_bev)</span><br><span class="line">feat_global = aspp(feat_global)                    <span class="comment"># 全局上下文</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># sigmoid 加权融合</span></span><br><span class="line">weight = sigmoid(ffn(feat_local))                  <span class="comment"># (B, C, X, Y, Z)</span></span><br><span class="line">feat_out = feat_local + weight * feat_global.unsqueeze(-<span class="number">1</span>)</span><br></pre></td></tr></table></figure>
+
+<p>Preserve-Pooling 替代三线性插值降采样注意力掩码：</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/zhangyp15/OccFormer/tree/main/projects">projects&#x2F;</a>）</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># Mask2Former 原版：trilinear 降采样</span></span><br><span class="line"><span class="comment"># attn_mask = F.interpolate(mask_pred, size=target_size, mode=&#x27;trilinear&#x27;)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># OccFormer：max-pooling 保护稀疏掩码</span></span><br><span class="line">attn_mask = F.max_pool3d(mask_pred, kernel_size=<span class="number">2</span>, stride=<span class="number">2</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="主要结果"><a href="#主要结果" class="headerlink" title="主要结果"></a>主要结果</h3><h4 id="SemanticKITTI-test（语义场景补全）"><a href="#SemanticKITTI-test（语义场景补全）" class="headerlink" title="SemanticKITTI test（语义场景补全）"></a>SemanticKITTI test（语义场景补全）</h4><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>输入</th>
+<th>SC IoU</th>
+<th>SSC mIoU</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LMSCNet*</td>
+<td>Camera</td>
+<td>31.38</td>
+<td>7.07</td>
+</tr>
+<tr>
+<td>AICNet*</td>
+<td>Camera</td>
+<td>23.93</td>
+<td>7.09</td>
+</tr>
+<tr>
+<td>JS3C-Net*</td>
+<td>Camera</td>
+<td>34.00</td>
+<td>8.97</td>
+</tr>
+<tr>
+<td>MonoScene</td>
+<td>Camera</td>
+<td>34.16</td>
+<td>11.08</td>
+</tr>
+<tr>
+<td>TPVFormer</td>
+<td>Camera</td>
+<td>34.25</td>
+<td>11.26</td>
+</tr>
+<tr>
+<td><strong>OccFormer</strong></td>
+<td>Camera</td>
+<td><strong>34.53</strong></td>
+<td><strong>12.32</strong></td>
+</tr>
+</tbody></table>
+<h4 id="nuScenes-test（LiDAR-语义分割）"><a href="#nuScenes-test（LiDAR-语义分割）" class="headerlink" title="nuScenes test（LiDAR 语义分割）"></a>nuScenes test（LiDAR 语义分割）</h4><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>输入</th>
+<th>mIoU</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TPVFormer</td>
+<td>Camera</td>
+<td>69.4</td>
+</tr>
+<tr>
+<td><strong>OccFormer</strong></td>
+<td>Camera</td>
+<td><strong>70.8</strong></td>
+</tr>
+<tr>
+<td>PolarStream</td>
+<td>LiDAR</td>
+<td>73.4</td>
+</tr>
+<tr>
+<td>Cylinder3D++</td>
+<td>LiDAR</td>
+<td>77.9</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>OccFormer 在 SemanticKITTI SSC 上比 MonoScene 高 <strong>+1.24 mIoU</strong>（相对提升 11%），单目方法第一</li>
+<li>在 nuScenes 上首次以纯视觉方法达到 <strong>70%+ mIoU</strong> 的 LiDAR 分割精度，接近部分 LiDAR 方法水平</li>
+<li>仅需一个模型同时完成 LiDAR 分割和语义占用预测，而 TPVFormer 需要分别训练两个模型</li>
+</ol>
+<h3 id="消融实验：验证三个洞察"><a href="#消融实验：验证三个洞察" class="headerlink" title="消融实验：验证三个洞察"></a>消融实验：验证三个洞察</h3><h4 id="双路径编码器消融（洞察-1）"><a href="#双路径编码器消融（洞察-1）" class="headerlink" title="双路径编码器消融（洞察 1）"></a>双路径编码器消融（洞察 1）</h4><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>参数量</th>
+<th>GFLOPs</th>
+<th>SC IoU</th>
+<th>SSC mIoU</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>仅局部路径</td>
+<td>74.1M</td>
+<td>494.2</td>
+<td>36.42</td>
+<td>12.95</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>仅全局路径</td>
+<td>81.4M</td>
+<td>407.4</td>
+<td>36.37</td>
+<td>12.93</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td><strong>双路径（完整）</strong></td>
+<td><strong>81.4M</strong></td>
+<td><strong>515.3</strong></td>
+<td><strong>36.50</strong></td>
+<td><strong>13.46</strong></td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>3D ResNet-16</td>
+<td>132.5M</td>
+<td>825.8</td>
+<td>36.12</td>
+<td>12.89</td>
+<td>洞察 1</td>
+</tr>
+<tr>
+<td>3D Swin-T</td>
+<td>82.3M</td>
+<td>437.9</td>
+<td>36.32</td>
+<td>12.80</td>
+<td>洞察 1</td>
+</tr>
+</tbody></table>
+<h4 id="解码器消融（洞察-2-3）"><a href="#解码器消融（洞察-2-3）" class="headerlink" title="解码器消融（洞察 2+3）"></a>解码器消融（洞察 2+3）</h4><table>
+<thead>
+<tr>
+<th>掩码降采样</th>
+<th>采样方法</th>
+<th>SC IoU</th>
+<th>SSC mIoU</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tri-linear</td>
+<td>Uniform</td>
+<td>35.04</td>
+<td>11.61</td>
+<td>基线</td>
+</tr>
+<tr>
+<td><strong>Max-pool</strong></td>
+<td>Uniform</td>
+<td>35.41</td>
+<td>12.13</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>Tri-linear</td>
+<td><strong>Class-guided</strong></td>
+<td>36.21</td>
+<td>13.01</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td><strong>Max-pool</strong></td>
+<td><strong>Class-guided</strong></td>
+<td><strong>36.50</strong></td>
+<td><strong>13.46</strong></td>
+<td>洞察 2+3</td>
+</tr>
+</tbody></table>
+<h3 id="性能瓶颈分析"><a href="#性能瓶颈分析" class="headerlink" title="性能瓶颈分析"></a>性能瓶颈分析</h3><p>OccFormer 的主要计算瓶颈在于 3D 体素特征的分辨率：</p>
+<ul>
+<li>体素分辨率为 $128 \times 128 \times 16$，经编码器 4 个 stage 后下采样</li>
+<li>Pixel Decoder 使用 6 层 3D 多尺度可变形注意力（4.07M 参数，379.2 GFLOPs），是解码器中最重的模块</li>
+<li>最终预测需 2× 上采样至 $256 \times 256 \times 32$ 进行评估</li>
+</ul>
+<h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><ul>
+<li><strong>不可见区域</strong>：FOV 外的区域（如单目相机背后）依赖全局路径的 hallucination 能力，准确性有限</li>
+<li><strong>极稀疏类别</strong>：motorcyclist（0.05% 占比）即使使用 class-guided sampling 仍为 0.0 mIoU，训练样本过少</li>
+<li><strong>高度方向细节</strong>：双路径主要在水平面上推理，纯沿高度方向的细粒度结构（如电线杆上下分段）建模能力有限</li>
+<li><strong>远距离区域</strong>：单目深度估计误差随距离增大，远处体素特征质量下降</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        EfficientNetB7 (KITTI) / ResNet-101-DCN (nuScenes)</span><br><span class="line">Input:           单目 (KITTI) / 6 cameras (nuScenes)</span><br><span class="line">3D Volume:       128×128×16, 128 channels</span><br><span class="line">Encoder:         4 stages × 2 dual-path blocks</span><br><span class="line">Pixel Decoder:   6 layers 3D MsDeformAttn, 192 channels</span><br><span class="line">Sampling Points: 50176 (4× default Mask2Former)</span><br><span class="line">Class-Guided β:  0.25</span><br><span class="line">Batch Size:      8 (8× RTX 3090)</span><br><span class="line">Optimizer:       AdamW, lr=1e-4, weight decay=0.01</span><br><span class="line">Schedule:        30 epochs (KITTI) / 24 epochs (nuScenes), multi-step decay</span><br><span class="line">Augmentation:    Image: random resize/rotation/flip; 3D: flip</span><br><span class="line">Output:          256×256×32 (2× upsample), 21 classes</span><br></pre></td></tr></table></figure>
+
+<h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
+<li><strong>3D 数据增强至关重要</strong>：去掉 3D flip 增强后模型在第 9 epoch 即过拟合（总训练 30 epoch），Transformer 的强容量需要充分正则化</li>
+<li><strong>Pixel Decoder 层数</strong>：3 层 MsDeformAttn3D 比 6 层低 0.24 mIoU，6 层是精度饱和点</li>
+<li><strong>Class-guided 采样的 β 值</strong>：$\beta &#x3D; 0.25$ 控制类别权重的”尖锐度”，过大（如 1.0）会过度关注稀有类导致大类崩溃</li>
+<li><strong>Preserve-pooling 只需改一行</strong>：将 <code>F.interpolate(mode=&#39;trilinear&#39;)</code> 改为 <code>F.max_pool3d</code>，但在 3D 稀疏场景中效果显著</li>
+<li><strong>nuScenes 的稀疏监督</strong>：仅用 LiDAR 点做监督（非密集体素标注），采样时 LiDAR 点和随机坐标按 1:1 混合</li>
+</ol>
+<h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>引入时序信息聚合多帧体素特征，减少单帧遮挡和深度估计噪声</li>
+<li>使用更大 backbone（R101-DCN 比 R50 在 nuScenes 上高约 2 mIoU），代价是推理速度下降</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>降低体素分辨率（如 $64 \times 64 \times 8$）可大幅减少计算量，但会损失细粒度结构</li>
+<li>双路径编码器已比 3D 卷积高效，进一步优化可考虑减少编码器 stage 数或 block 数</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ul>
+<li><strong>3D 处理的 2D 分解策略</strong>：将 3D 注意力拆分为水平面 2D 推理 + 高度维度聚合，适用于任何需要高效处理大规模 3D 特征的任务（如 3D 医学图像分割、室内场景理解）</li>
+<li><strong>Mask2Former 的 3D 适配</strong>：掩码分类范式从 2D 迁移到 3D 时，关键在于处理稀疏性（preserve-pooling）和类别不平衡（class-guided sampling）</li>
+<li><strong>频率倒数加权采样</strong>：对任何存在严重类别不平衡的稀疏预测任务（如点云分割、稀疏目标检测），按类别频率加权采样比均匀采样更有效</li>
+<li><strong>sigmoid 加权融合</strong>：用可学习的 sigmoid 权重融合多路径特征，让网络自适应决定不同高度位置的全局&#x2F;局部信息配比</li>
+</ul>
+<h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
+<li>依赖 LSS 的深度估计质量，深度误差会直接传导到 3D 体素特征</li>
+<li>双路径仅在水平面推理，对纯高度方向的细粒度语义区分能力有限</li>
+<li>训练需要 LiDAR 点云或密集体素标注作为监督，纯图像自监督尚未探索</li>
+</ul>
+<h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
+<li>OccFormer 是首个将 Mask2Former 适配到 3D 占用预测的工作，为后续 Occ3D、SurroundOcc 等工作提供了解码器设计参考</li>
+<li>双路径分解思路证明了 3D Transformer 处理不必采用昂贵的全 3D 注意力，影响了后续 3D 占用&#x2F;场景补全方法的网络设计</li>
+<li>在 nuScenes 上首次以纯视觉达到 70%+ LiDAR 分割 mIoU，证明了基于相机的 3D 占用表示可以逼近 LiDAR 精度</li>
+<li>推动了自动驾驶感知从”BEV 2D 平面”到”3D 体素占用”的范式转变</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%8F%8C%E8%B7%AF%E5%BE%84%E5%88%86%E8%A7%A3%E2%80%94%E2%80%94%E5%B0%86-3D-%E6%8E%A8%E7%90%86%E6%8B%86%E5%88%86%E4%B8%BA-2D-%E5%B1%80%E9%83%A8-%E5%85%A8%E5%B1%80"><span class="toc-text">洞察 1：双路径分解——将 3D 推理拆分为 2D 局部+全局</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9APreserve-Pooling%E2%80%94%E2%80%94%E6%9C%80%E5%A4%A7%E6%B1%A0%E5%8C%96%E4%BF%9D%E6%8A%A4%E7%A8%80%E7%96%8F-3D-%E6%8E%A9%E7%A0%81"><span class="toc-text">洞察 2：Preserve-Pooling——最大池化保护稀疏 3D 掩码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9AClass-Guided-Sampling%E2%80%94%E2%80%94%E6%8C%89%E7%B1%BB%E5%88%AB%E9%A2%91%E7%8E%87%E5%8A%A0%E6%9D%83%E9%87%87%E6%A0%B7"><span class="toc-text">洞察 3：Class-Guided Sampling——按类别频率加权采样</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">主要结果</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#SemanticKITTI-test%EF%BC%88%E8%AF%AD%E4%B9%89%E5%9C%BA%E6%99%AF%E8%A1%A5%E5%85%A8%EF%BC%89"><span class="toc-text">SemanticKITTI test（语义场景补全）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#nuScenes-test%EF%BC%88LiDAR-%E8%AF%AD%E4%B9%89%E5%88%86%E5%89%B2%EF%BC%89"><span class="toc-text">nuScenes test（LiDAR 语义分割）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">消融实验：验证三个洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8F%8C%E8%B7%AF%E5%BE%84%E7%BC%96%E7%A0%81%E5%99%A8%E6%B6%88%E8%9E%8D%EF%BC%88%E6%B4%9E%E5%AF%9F-1%EF%BC%89"><span class="toc-text">双路径编码器消融（洞察 1）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%A7%A3%E7%A0%81%E5%99%A8%E6%B6%88%E8%9E%8D%EF%BC%88%E6%B4%9E%E5%AF%9F-2-3%EF%BC%89"><span class="toc-text">解码器消融（洞察 2+3）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

@@ -184,7 +184,7 @@ Multi-view Images (6×3×256×704)
            ▼                           │
 ┌─────────────────────┐    ┌───────────┴──────────┐
 │   Camera-Aware      │◄───│   MLP(27→512) +      │
-│   DepthNet          │    │   SE Reweight         │
+│   DepthNet          │    │   SE Reweight        │
 │                     │    └──────────────────────┘
 │  ┌───────┬────────┐ │
 │  │Depth  │Context │ │  Depth: 112ch, Context: 80ch
@@ -192,9 +192,9 @@ Multi-view Images (6×3×256×704)
 │  └───┬───┴────┬───┘ │
 └──────┼────────┼─────┘       Depth GT (LiDAR proj.)
        │        │                      │
-       │        │              BCE Loss │ ×3.0
+       │        │              BCE Loss│ ×3.0
        ▼        ▼                      │
-  D∈R^{112×H×W} C∈R^{80×H×W}         │
+  D∈R^{112×H×W} C∈R^{80×H×W}           │
        │        │                      │
        └───┬────┘                      │
     Outer Product                      │
