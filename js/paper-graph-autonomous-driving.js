@@ -35,6 +35,8 @@
       { id: 'sparse4d', label: 'Sparse4D\n(arXiv 2022)', color: '#1dd1a1', url: '/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/', x: 190, y: 175 },
       { id: 'streampetr', label: 'StreamPETR\n(ICCV 2023)', color: '#1dd1a1', url: '/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/', x: 130, y: 280 },
       // 骨干网络 (上方)
+      { id: 'resnet', label: 'ResNet\n(CVPR 2016)', color: '#636e72', font: { color: '#fff' }, url: '/posts/2026/papers/2016_CVPR_ResNet_Deep_Residual_Learning/', x: -260, y: -180 },
+      { id: 'vit', label: 'ViT\n(ICLR 2021)', color: '#636e72', font: { color: '#fff' }, url: '/posts/2026/papers/2021_ICLR_ViT_Vision_Transformer_Image_Recognition/', x: -180, y: -240 },
       { id: 'swin', label: 'Swin Transformer\n(ICCV 2021)', color: '#636e72', font: { color: '#fff' }, url: '/posts/2026/papers/2021_ICCV_Swin_Transformer_Series_Hierarchical_Vision_Transformer/', x: -100, y: -180 },
       // 车道线检测 (右上方独立)
       { id: 'laneaf', label: 'LaneAF\n(arXiv 2021)', color: '#5f27cd', font: { color: '#fff' }, url: '/posts/2021/papers/2021_arXiv_LaneAF_Robust_Multi_Lane_Detection_with_Affinity_Fields/', x: 310, y: -60 },
@@ -102,7 +104,12 @@
       { from: 'pointpillars', to: 'bevfusion', label: 'LiDAR 编码器', arrows: 'to', dashes: true },
       // Mask2Former 关系
       { from: 'defdetr', to: 'mask2former', label: 'MSDeformAttn 像素解码器', arrows: 'to' },
-      { from: 'mask2former', to: 'occformer', label: '掩码分类→3D 适配', arrows: 'to' }
+      { from: 'mask2former', to: 'occformer', label: '掩码分类→3D 适配', arrows: 'to' },
+      // 骨干网络演进
+      { from: 'resnet', to: 'vit', label: 'CNN→Transformer', arrows: 'to', dashes: true },
+      { from: 'vit', to: 'swin', label: '层级化改进', arrows: 'to' },
+      { from: 'resnet', to: 'centernet', label: '默认 backbone', arrows: 'to', dashes: true },
+      { from: 'resnet', to: 'detr', label: 'CNN backbone', arrows: 'to', dashes: true }
     ];
 
     var nodes = new vis.DataSet(

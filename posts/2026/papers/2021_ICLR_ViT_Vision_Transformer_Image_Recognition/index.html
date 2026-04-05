@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            ViT Vision Transformer Image Recognition at Scale - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">ViT Vision Transformer Image Recognition at Scale</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年04月06日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Image Classification &#x2F; Feature Backbone<br>Method: Vision Transformer, Patch Embedding<br>Venue: ICLR<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2010.11929">https://arxiv.org/abs/2010.11929</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer">https://github.com/google-research/vision_transformer</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Transformer 架构已成为自然语言处理的事实标准，但在计算机视觉中仍受限于与卷积网络结合或替换卷积的局部组件。本文表明这种对 CNN 的依赖并非必要：将纯 Transformer 直接应用于图像 patch 序列即可在分类任务上取得优异性能。在大规模数据上预训练后迁移到多个中小规模基准（ImageNet, CIFAR-100, VTAB 等），Vision Transformer (ViT) 达到了与 SOTA 卷积网络相当甚至更好的结果，同时所需预训练计算资源大幅减少。最佳模型 ViT-H&#x2F;14 在 ImageNet 上达到 88.55% top-1 准确率，CIFAR-100 上达到 94.55%。</p>
+<p><strong>核心论点</strong>：视觉识别不需要卷积——将图像切割为 16×16 的 patch 序列，直接输入标准 NLP Transformer，在足够大的数据集（14M-300M 图像）预训练下即可超越 CNN，证明了”大数据 + 大模型”的 scaling law 在视觉领域同样成立。</p>
+<h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2020 年前，计算机视觉中 Transformer 的应用面临根本性矛盾：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>代表作</th>
+<th>核心问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>局部注意力</td>
+<td>Image Transformer (Parmar 2018)</td>
+<td>仅在局部邻域计算注意力，丧失全局建模能力</td>
+</tr>
+<tr>
+<td>稀疏注意力</td>
+<td>Sparse Transformer (Child 2019)</td>
+<td>需要特殊注意力模式，硬件效率低</td>
+</tr>
+<tr>
+<td>CNN + Self-Attention</td>
+<td>Non-local Nets &#x2F; DETR</td>
+<td>仍依赖 CNN 特征提取，Transformer 仅做后处理</td>
+</tr>
+<tr>
+<td>像素级全注意力</td>
+<td>理论方案</td>
+<td>针对像素的二次复杂度 $O(n^2)$，224×224 图像就有 50176 个 token，完全不可行</td>
+</tr>
+</tbody></table>
+<p>当时的认知是：视觉任务需要 CNN 的<strong>归纳偏置</strong>（locality、translation equivariance、2D 结构），纯 Transformer 在视觉上无法工作。</p>
+<p><strong>核心痛点</strong>：能否像 NLP 一样，用最简单的标准 Transformer 直接处理视觉数据？CNN 的归纳偏置在大规模预训练下是否真的必要？</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：图像-Patch-序列，无需卷积"><a href="#洞察-1：图像-Patch-序列，无需卷积" class="headerlink" title="洞察 1：图像 &#x3D; Patch 序列，无需卷积"></a>洞察 1：图像 &#x3D; Patch 序列，无需卷积</h3><p>传统做法：图像 → CNN 提取特征 → 可能用 Transformer 做后处理。</p>
+<p>本文做法：将图像 $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ 切割为 $N$ 个固定大小的 patch $\mathbf{x}_p \in \mathbb{R}^{N \times (P^2 \cdot C)}$，其中 $N &#x3D; HW&#x2F;P^2$，每个 patch 通过一个线性投影映射为 token embedding：</p>
+
+$$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mathbf{x}_p^2 \mathbf{E};\, \cdots;\, \mathbf{x}_p^N \mathbf{E}] + \mathbf{E}_{pos}$$
+
+
+<p>其中 $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$ 是可学习的线性投影，$\mathbf{E}_{pos} \in \mathbb{R}^{(N+1) \times D}$ 是可学习的 1D 位置嵌入。对于 $P&#x3D;16$, $224 \times 224$ 图像仅产生 $14 \times 14 &#x3D; 196$ 个 token，计算完全可行。</p>
+<h3 id="洞察-2：大数据弥补归纳偏置缺失"><a href="#洞察-2：大数据弥补归纳偏置缺失" class="headerlink" title="洞察 2：大数据弥补归纳偏置缺失"></a>洞察 2：大数据弥补归纳偏置缺失</h3><p>传统认知：CNN 的局部性（locality）和平移等变性（translation equivariance）是视觉任务不可或缺的归纳偏置。</p>
+<p>本文发现：ViT 几乎不含视觉归纳偏置——仅在 patch 切割时使用了 2D 结构信息。在小数据集（ImageNet-1k）上，ViT 确实不如同等规模的 ResNet。但在大数据集上预训练后，情况逆转：</p>
+<ul>
+<li>ImageNet-1k 预训练：ViT-B&#x2F;16 仅 77.91%，不如 ResNet</li>
+<li>ImageNet-21k 预训练（14M）：ViT-L&#x2F;16 达到 85.15%</li>
+<li>JFT-300M 预训练（303M）：ViT-H&#x2F;14 达到 88.55%，超越所有 CNN</li>
+</ul>
+<p>数据量越大，ViT 的优势越明显。论文在 JFT 子集实验（9M&#x2F;30M&#x2F;90M）中证明：CNN 在小数据集上更好但很快饱和，ViT 随数据量增长持续提升。</p>
+<h3 id="洞察-3：Transformer-在视觉上的-Scaling-更高效"><a href="#洞察-3：Transformer-在视觉上的-Scaling-更高效" class="headerlink" title="洞察 3：Transformer 在视觉上的 Scaling 更高效"></a>洞察 3：Transformer 在视觉上的 Scaling 更高效</h3><p>传统做法：增大 CNN（ResNet-200x3 等）可以提升性能，但计算代价急剧增长。</p>
+<p>本文做法：ViT 在 performance&#x2F;compute trade-off 上显著优于 ResNet。相同精度下，ViT 使用约 2-4× 更少的计算：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>预训练 exaFLOPs</th>
+<th>ImageNet top-1</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ResNet152x2 (14ep)</td>
+<td>1126</td>
+<td>85.56%</td>
+</tr>
+<tr>
+<td>ViT-L&#x2F;16 (14ep)</td>
+<td>1567</td>
+<td>87.12%</td>
+</tr>
+<tr>
+<td>ResNet200x3 (14ep)</td>
+<td>3306</td>
+<td>87.22%</td>
+</tr>
+<tr>
+<td>ViT-H&#x2F;14 (14ep)</td>
+<td>4262</td>
+<td>88.08%</td>
+</tr>
+</tbody></table>
+<p>ViT-L&#x2F;16 用不到 ResNet200x3 一半的计算就接近其精度。且 ViT 在测试范围内未出现饱和趋势，暗示继续 scaling 还能获益。</p>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li>**88.55%**：ViT-H&#x2F;14 在 ImageNet 上的 top-1 准确率（JFT-300M 预训练），刷新 SOTA</li>
+<li><strong>16×16</strong>：标准 patch 大小，将 224×224 图像转化为 196 个 token</li>
+<li><strong>2-4×</strong>：ViT 相比 ResNet 达到相同精度所需的更少计算量</li>
+</ul>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>核心流程：输入图像 → Patch 切割 + 线性投影 → 加位置嵌入 + class token → Transformer Encoder → class token 输出 → MLP 分类头</p>
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2010.11929/assets/x1.png" alt="ViT 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+  输入 (224×224×3)
+       │
+  ┌────┴─────────┐
+  │  Patch 切割   │  P=16 → 14×14 = 196 个 patch
+  │  + 线性投影   │  (P²·C) × D 映射
+  └────┬─────────┘
+       │  (196 × D)
+  ┌────┴─────────┐
+  │  [CLS] token │  前置可学习分类 token
+  │ + Pos Embed  │  (N+1) × D 可学习位置嵌入
+  └────┬─────────┘
+       │  (197 × D)
+  ┌────┴─────────────────┐
+  │  Transformer Encoder │  L 层
+  │  ┌─────────────────┐ │
+  │  │ LN → MSA → +res │ │  多头自注意力
+  │  │ LN → MLP → +res │ │  2 层 MLP (GELU)
+  │  └─────────────────┘ │
+  │  × L 层              │
+  └────┬─────────────────┘
+       │
+  ┌────┴────┐
+  │ LN      │  取 [CLS] token 输出
+  │ MLP Head│  → 分类概率
+  └─────────┘
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><p><strong>ViT 模型变体</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>变体</th>
+<th>层数 L</th>
+<th>隐藏维度 D</th>
+<th>MLP 维度</th>
+<th>注意力头数</th>
+<th>参数量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ViT-Base</td>
+<td>12</td>
+<td>768</td>
+<td>3072</td>
+<td>12</td>
+<td>86M</td>
+</tr>
+<tr>
+<td>ViT-Large</td>
+<td>24</td>
+<td>1024</td>
+<td>4096</td>
+<td>16</td>
+<td>307M</td>
+</tr>
+<tr>
+<td>ViT-Huge</td>
+<td>32</td>
+<td>1280</td>
+<td>5120</td>
+<td>16</td>
+<td>632M</td>
+</tr>
+</tbody></table>
+<p><strong>Transformer Encoder 各层组件</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>功能</th>
+<th>公式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Layer Norm</td>
+<td>每个子层前归一化</td>
+<td>LN(x)</td>
+</tr>
+<tr>
+<td>Multi-Head Self-Attention</td>
+<td>全局 token 交互</td>
+<td>$\text{MSA}(\text{LN}(\mathbf{z}<em>{\ell-1})) + \mathbf{z}</em>{\ell-1}$</td>
+</tr>
+<tr>
+<td>MLP</td>
+<td>逐 token 非线性变换</td>
+<td>$\text{MLP}(\text{LN}(\mathbf{z}’<em>{\ell})) + \mathbf{z}’</em>{\ell}$</td>
+</tr>
+<tr>
+<td>[CLS] token</td>
+<td>聚合全局信息用于分类</td>
+<td>$\mathbf{y} &#x3D; \text{LN}(\mathbf{z}_L^0)$</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>以下为 Google 官方 JAX&#x2F;Flax 实现中的核心组件。</p>
+<p><strong>Transformer Encoder Block</strong>（来源：<a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_vit.py">vit_jax&#x2F;models_vit.py</a>）</p>
+<details><summary>📄 点击展开 Encoder1DBlock 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Encoder1DBlock</span>(nn.Module):</span><br><span class="line">  <span class="string">&quot;&quot;&quot;Transformer encoder layer.&quot;&quot;&quot;</span></span><br><span class="line">  mlp_dim: <span class="built_in">int</span></span><br><span class="line">  num_heads: <span class="built_in">int</span></span><br><span class="line">  dtype: Dtype = jnp.float32</span><br><span class="line">  dropout_rate: <span class="built_in">float</span> = <span class="number">0.1</span></span><br><span class="line">  attention_dropout_rate: <span class="built_in">float</span> = <span class="number">0.1</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  @nn.compact</span></span><br><span class="line">  <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, inputs, *, deterministic</span>):</span><br><span class="line">    <span class="comment"># inputs.shape = (batch, seq_len, hidden_dim)</span></span><br><span class="line">    <span class="keyword">assert</span> inputs.ndim == <span class="number">3</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 注意力子层：LN → MSA → Dropout → 残差</span></span><br><span class="line">    x = nn.LayerNorm(dtype=<span class="variable language_">self</span>.dtype)(inputs)</span><br><span class="line">    x = nn.MultiHeadDotProductAttention(</span><br><span class="line">        dtype=<span class="variable language_">self</span>.dtype,</span><br><span class="line">        kernel_init=nn.initializers.xavier_uniform(),</span><br><span class="line">        broadcast_dropout=<span class="literal">False</span>,</span><br><span class="line">        deterministic=deterministic,</span><br><span class="line">        dropout_rate=<span class="variable language_">self</span>.attention_dropout_rate,</span><br><span class="line">        num_heads=<span class="variable language_">self</span>.num_heads)(x, x)</span><br><span class="line">    x = nn.Dropout(rate=<span class="variable language_">self</span>.dropout_rate)(x, deterministic=deterministic)</span><br><span class="line">    x = x + inputs  <span class="comment"># 残差连接</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># MLP 子层：LN → MLP(GELU) → Dropout → 残差</span></span><br><span class="line">    y = nn.LayerNorm(dtype=<span class="variable language_">self</span>.dtype)(x)</span><br><span class="line">    y = MlpBlock(</span><br><span class="line">        mlp_dim=<span class="variable language_">self</span>.mlp_dim,</span><br><span class="line">        dtype=<span class="variable language_">self</span>.dtype,</span><br><span class="line">        dropout_rate=<span class="variable language_">self</span>.dropout_rate)(y, deterministic=deterministic)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> x + y  <span class="comment"># 残差连接</span></span><br></pre></td></tr></table></figure>
+
+</details>
+
+<p><strong>VisionTransformer 主体</strong>（来源：<a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_vit.py">vit_jax&#x2F;models_vit.py</a>）</p>
+<details><summary>📄 点击展开 VisionTransformer 代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">VisionTransformer</span>(nn.Module):</span><br><span class="line">  <span class="string">&quot;&quot;&quot;VisionTransformer.&quot;&quot;&quot;</span></span><br><span class="line">  num_classes: <span class="built_in">int</span></span><br><span class="line">  patches: <span class="type">Any</span>          <span class="comment"># patch 大小配置</span></span><br><span class="line">  transformer: <span class="type">Any</span>      <span class="comment"># Transformer 超参数</span></span><br><span class="line">  hidden_size: <span class="built_in">int</span></span><br><span class="line">  representation_size: <span class="type">Optional</span>[<span class="built_in">int</span>] = <span class="literal">None</span></span><br><span class="line">  classifier: <span class="built_in">str</span> = <span class="string">&#x27;token&#x27;</span>  <span class="comment"># &#x27;token&#x27; 使用 [CLS]，&#x27;gap&#x27; 使用全局平均池化</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  @nn.compact</span></span><br><span class="line">  <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, inputs, *, train</span>):</span><br><span class="line">    x = inputs</span><br><span class="line">    n, h, w, c = x.shape</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Patch Embedding：等价于一个大 kernel 的卷积</span></span><br><span class="line">    <span class="comment"># kernel_size = stride = patch_size，将每个 patch 线性投影到 D 维</span></span><br><span class="line">    x = nn.Conv(</span><br><span class="line">        features=<span class="variable language_">self</span>.hidden_size,</span><br><span class="line">        kernel_size=<span class="variable language_">self</span>.patches.size,     <span class="comment"># (16, 16)</span></span><br><span class="line">        strides=<span class="variable language_">self</span>.patches.size,         <span class="comment"># (16, 16)</span></span><br><span class="line">        padding=<span class="string">&#x27;VALID&#x27;</span>,</span><br><span class="line">        name=<span class="string">&#x27;embedding&#x27;</span>)(x)</span><br><span class="line"></span><br><span class="line">    n, h, w, c = x.shape</span><br><span class="line">    x = jnp.reshape(x, [n, h * w, c])  <span class="comment"># (B, N, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 前置 [CLS] token</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.classifier <span class="keyword">in</span> [<span class="string">&#x27;token&#x27;</span>, <span class="string">&#x27;token_unpooled&#x27;</span>]:</span><br><span class="line">      cls = <span class="variable language_">self</span>.param(<span class="string">&#x27;cls&#x27;</span>, nn.initializers.zeros, (<span class="number">1</span>, <span class="number">1</span>, c))</span><br><span class="line">      cls = jnp.tile(cls, [n, <span class="number">1</span>, <span class="number">1</span>])</span><br><span class="line">      x = jnp.concatenate([cls, x], axis=<span class="number">1</span>)  <span class="comment"># (B, N+1, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Transformer Encoder（内含位置嵌入添加）</span></span><br><span class="line">    x = <span class="variable language_">self</span>.encoder(name=<span class="string">&#x27;Transformer&#x27;</span>, **<span class="variable language_">self</span>.transformer)(</span><br><span class="line">        x, train=train)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 分类：取 [CLS] token</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.classifier == <span class="string">&#x27;token&#x27;</span>:</span><br><span class="line">      x = x[:, <span class="number">0</span>]</span><br><span class="line">    <span class="keyword">elif</span> <span class="variable language_">self</span>.classifier == <span class="string">&#x27;gap&#x27;</span>:</span><br><span class="line">      x = jnp.mean(x, axis=<span class="built_in">list</span>(<span class="built_in">range</span>(<span class="number">1</span>, x.ndim - <span class="number">1</span>)))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 分类头</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.representation_size <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">      x = nn.Dense(features=<span class="variable language_">self</span>.representation_size,</span><br><span class="line">                   name=<span class="string">&#x27;pre_logits&#x27;</span>)(x)</span><br><span class="line">      x = nn.tanh(x)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.num_classes:</span><br><span class="line">      x = nn.Dense(</span><br><span class="line">          features=<span class="variable language_">self</span>.num_classes,</span><br><span class="line">          name=<span class="string">&#x27;head&#x27;</span>,</span><br><span class="line">          kernel_init=nn.initializers.zeros)(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p><strong>与 SOTA 对比</strong>（JFT-300M 预训练，多数据集迁移）：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>ImageNet</th>
+<th>ImageNet ReaL</th>
+<th>CIFAR-100</th>
+<th>VTAB (19 tasks)</th>
+<th>预训练计算 (TPUv3-core-days)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BiT-L (ResNet152x4)</td>
+<td>87.54</td>
+<td>90.54</td>
+<td>93.51</td>
+<td>76.3</td>
+<td>9.9k</td>
+</tr>
+<tr>
+<td>Noisy Student (EfficientNet-L2)</td>
+<td>88.4</td>
+<td>90.55</td>
+<td>-</td>
+<td>-</td>
+<td>12.3k</td>
+</tr>
+<tr>
+<td>ViT-L&#x2F;16</td>
+<td>87.76</td>
+<td>90.54</td>
+<td>93.90</td>
+<td>76.28</td>
+<td>0.68k</td>
+</tr>
+<tr>
+<td>ViT-H&#x2F;14</td>
+<td>88.55</td>
+<td>90.72</td>
+<td>94.55</td>
+<td>77.63</td>
+<td>2.5k</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>ViT-H&#x2F;14 以 2.5k TPUv3-core-days 的预训练成本超越了 BiT-L 的 9.9k 和 Noisy Student 的 12.3k，计算效率优势显著</li>
+<li>即使用开源 ImageNet-21k 预训练的 ViT-L&#x2F;16 也表现出色，仅需 8 个 TPU 核约 30 天即可训练</li>
+<li>ViT 在 VTAB 的 Natural 和 Structured 任务组上优于 BiT，在 Specialized 上持平</li>
+</ol>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>数据规模实验</strong>（验证洞察 2：大数据弥补归纳偏置）：</p>
+<table>
+<thead>
+<tr>
+<th>预训练数据</th>
+<th>ViT-B&#x2F;16</th>
+<th>ViT-L&#x2F;16</th>
+<th>趋势</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ImageNet-1k</td>
+<td>77.91</td>
+<td>76.53</td>
+<td>ViT-L 不如 ViT-B（过拟合）</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>ImageNet-21k</td>
+<td>83.97</td>
+<td>85.15</td>
+<td>ViT-L 开始超越 ViT-B</td>
+<td>洞察 2</td>
+</tr>
+<tr>
+<td>JFT-300M</td>
+<td>84.15</td>
+<td>87.12</td>
+<td>ViT-L 大幅领先</td>
+<td>洞察 2</td>
+</tr>
+</tbody></table>
+<p><strong>位置嵌入消融</strong>（验证洞察 1：序列化足够）：</p>
+<table>
+<thead>
+<tr>
+<th>位置编码方式</th>
+<th>ImageNet 5-shot linear</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无位置嵌入</td>
+<td>0.61382</td>
+</tr>
+<tr>
+<td>1D 位置嵌入</td>
+<td>0.64206</td>
+</tr>
+<tr>
+<td>2D 位置嵌入</td>
+<td>0.64001</td>
+</tr>
+<tr>
+<td>相对位置嵌入</td>
+<td>0.64032</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：有无位置嵌入差距大，但 1D&#x2F;2D&#x2F;相对之间差异极小，说明 patch 级别输入的空间分辨率已经足够低（14×14），不同编码方式同样容易学习。</p>
+</blockquote>
+<p><strong>Scaling 实验</strong>（验证洞察 3：计算效率优势）：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>预训练 exaFLOPs</th>
+<th>ImageNet top-1</th>
+<th>验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ResNet50x1</td>
+<td>50</td>
+<td>77.54</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>ViT-B&#x2F;32</td>
+<td>55</td>
+<td>80.73</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>ResNet152x2</td>
+<td>563</td>
+<td>84.97</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>ViT-L&#x2F;16</td>
+<td>783</td>
+<td>86.30</td>
+<td>洞察 3</td>
+</tr>
+<tr>
+<td>R50+ViT-B&#x2F;16 (混合)</td>
+<td>274</td>
+<td>85.58</td>
+<td>洞察 3</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>洞察 1 验证</strong>：仅用简单 1D 位置嵌入即可有效编码空间信息，2D 感知编码无额外收益</li>
+<li><strong>洞察 2 验证</strong>：ViT-L 在 ImageNet-1k 上不如 ViT-B，但在 JFT-300M 上大幅领先——数据越多，ViT 越强</li>
+<li><strong>洞察 3 验证</strong>：相同 exaFLOPs 预算下，ViT 系统性地优于 ResNet；混合模型在小规模时有优势，大规模时差距消失</li>
+</ul>
+<h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
+<li>在 ImageNet-1k（无额外数据）上训练 ViT-B&#x2F;16，即使加入 dropout 和 label smoothing，也不如 ResNet-50（归纳偏置在小数据下仍重要）</li>
+<li>自监督预训练（masked patch prediction）的 ViT-B&#x2F;16 达到 79.9%，虽然比从头训练好 2%，但仍落后有监督预训练 4%</li>
+<li>注意力距离分析表明：低层部分 head 已有全局注意力（替代了 CNN 早期的局部接收域），但也有 head 保持局部关注，说明网络自适应地学习了局部和全局模式</li>
+</ul>
+<h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
+<li><strong>数据不足场景</strong>：在 ImageNet-1k（1.3M 图像）上从头训练，ViT 显著不如同计算量的 ResNet，缺乏归纳偏置导致需要更大数据量</li>
+<li><strong>小 patch 计算爆炸</strong>：patch 从 16 减小到 8 时，序列长度增长 4 倍，计算量显著上升</li>
+<li><strong>自监督预训练差距</strong>：masked patch prediction 仍比有监督预训练落后 4%（当时 MAE 等方案尚未提出）</li>
+</ul>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:      ViT-B/16, ViT-L/16, ViT-H/14</span><br><span class="line">Input:         224×224 预训练, 384/512 微调</span><br><span class="line">Batch Size:    4096 (预训练), 512 (微调)</span><br><span class="line">Optimizer:     Adam (β1=0.9, β2=0.999) 预训练; SGD+momentum 微调</span><br><span class="line">LR Schedule:   线性 warmup (10k steps) + 线性/cosine 衰减</span><br><span class="line">Weight Decay:  0.1 (预训练)</span><br><span class="line">Augmentation:  无特殊增强 (仅标准裁剪翻转)</span><br><span class="line">Dropout:       仅 ImageNet-from-scratch 使用 (rate=0.1)</span><br><span class="line">Training Time: ViT-L/16 ImageNet-21k 约 30 天 (8 TPUv3 cores)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>预训练数据必须足够大</strong>：ViT 在 ImageNet-1k 上从头训练效果差，至少需 ImageNet-21k（14M）预训练才能发挥优势</li>
+<li><strong>Adam 优于 SGD 做预训练</strong>：论文发现 Adam 在大规模预训练中优于 SGD，即使对 ResNet 也是如此</li>
+<li><strong>高分辨率微调</strong>：预训练用 224×224，微调时用 384 或更高分辨率，位置嵌入通过 2D 插值适配</li>
+<li><strong>Weight Decay 设为 0.1</strong>：远高于 CNN 常用的 0.0001，对 ViT 的迁移性能至关重要</li>
+<li><strong>微调时替换分类头</strong>：移除预训练的 MLP 头，替换为零初始化的单层线性层</li>
+<li><strong>[CLS] 与 GAP 效果相同</strong>：论文发现二者区别仅在于最佳学习率不同，性能无实质差异</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
+<ul>
+<li>DeiT（Touvron et al., 2021）引入知识蒸馏和更强数据增强，使 ViT 在 ImageNet-1k 上无需大规模预训练也能达到竞争力</li>
+<li>MAE（He et al., 2022）引入 masked autoencoder 自监督预训练，大幅缩小自监督与有监督预训练的差距</li>
+</ul>
+<p><strong>速度优化</strong>：</p>
+<ul>
+<li>使用窗口注意力（Swin Transformer）将 $O(n^2)$ 降为 $O(n)$，适配高分辨率密集预测任务</li>
+<li>FlashAttention 等硬件友好的注意力实现可在不改变模型的前提下加速 2-3 倍</li>
+<li>轻量级变体（MobileViT 等）面向移动端部署</li>
+</ul>
+<h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>“图像 &#x3D; 序列”的统一表示</strong>：这一洞察使视觉模型可以直接复用 NLP Transformer 的架构、训练技巧和工程基础设施，催生了多模态统一模型（CLIP, GPT-4V 等）</li>
+<li><strong>Scaling Law 从 NLP 到 Vision 的验证</strong>：证明了”大数据 + 大模型”在视觉中同样适用，归纳偏置并非不可替代，而是数据不足时的一种补偿</li>
+<li><strong>Patch Embedding 是一种通用序列化手段</strong>：不仅适用于图像，也被扩展到视频（ViViT）、点云（PCT）、音频（AST）等模态</li>
+<li><strong>预训练-微调范式的视觉扩展</strong>：借鉴 BERT 的训练范式，大模型预训练 + 下游任务微调成为视觉领域的标准流程</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li>在小数据集上需要大量正则化才能避免过拟合，丧失了 CNN 天然的局部归纳偏置优势</li>
+<li>标准 ViT 无法高效处理高分辨率图像（$O(n^2)$ 注意力），不适合密集预测任务（检测&#x2F;分割）</li>
+<li>依赖大规模私有数据集（JFT-300M）预训练，公开可用数据下的复现存在差距</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li><strong>开启了 Vision Transformer 时代</strong>：直接催生了 DeiT、Swin Transformer、BEiT、MAE 等一系列后续工作，Transformer 迅速取代 CNN 成为视觉主流架构</li>
+<li><strong>统一了 NLP 和 Vision 的技术栈</strong>：使得 CLIP、Flamingo、GPT-4V 等多模态大模型成为可能</li>
+<li><strong>推动了自动驾驶感知架构变革</strong>：BEVFormer、PETR 等 BEV 感知方法的 backbone 从 ResNet 切换为 Swin&#x2F;ViT，获得显著性能提升</li>
+<li><strong>改变了学术界对归纳偏置的认知</strong>：从”必须精心设计任务特定的归纳偏置”转向”让模型从数据中学习”，推动了 foundation model 范式</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%9B%BE%E5%83%8F-Patch-%E5%BA%8F%E5%88%97%EF%BC%8C%E6%97%A0%E9%9C%80%E5%8D%B7%E7%A7%AF"><span class="toc-text">洞察 1：图像 &#x3D; Patch 序列，无需卷积</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%A4%A7%E6%95%B0%E6%8D%AE%E5%BC%A5%E8%A1%A5%E5%BD%92%E7%BA%B3%E5%81%8F%E7%BD%AE%E7%BC%BA%E5%A4%B1"><span class="toc-text">洞察 2：大数据弥补归纳偏置缺失</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9ATransformer-%E5%9C%A8%E8%A7%86%E8%A7%89%E4%B8%8A%E7%9A%84-Scaling-%E6%9B%B4%E9%AB%98%E6%95%88"><span class="toc-text">洞察 3：Transformer 在视觉上的 Scaling 更高效</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.3 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9A%E9%AA%8C%E8%AF%81%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F"><span class="toc-text">5.2 消融实验：验证三个洞察</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.3 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.4 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                    </div>
+                </footer>
+                
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>
