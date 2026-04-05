@@ -60,7 +60,7 @@
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>在多相机 3D 感知中，如何将多视图图像特征统一到鸟瞰图（BEV）表示是核心问题。以 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 为代表的显式深度范式需要预测逐像素深度分布，其性能严重依赖深度估计质量（<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 对此有系统性验证）。本文提出 <strong>BEVFormer</strong>，采用完全不同的思路——通过<strong>时空 Transformer</strong> 学习 BEV 表示，不显式依赖深度信息。BEVFormer 的核心是一组可学习的<strong>栅格状 BEV Queries</strong>，它们通过<strong>空间交叉注意力（Spatial Cross-Attention）</strong> 从多视图图像中自适应采样空间特征，通过<strong>时序自注意力（Temporal Self-Attention）</strong> 以类 RNN 方式递归融合历史 BEV 特征。6 层编码器堆叠后，输出的统一 BEV 特征可同时支持 3D 目标检测和地图分割任务。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>在多相机 3D 感知中，如何将多视图图像特征统一到鸟瞰图（BEV）表示是核心问题。以 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 为代表的显式深度范式需要预测逐像素深度分布，其性能严重依赖深度估计质量（<a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 对此有系统性验证）。本文提出 <strong>BEVFormer</strong>，采用完全不同的思路——通过<strong>时空 Transformer</strong> 学习 BEV 表示，不显式依赖深度信息。BEVFormer 的核心是一组可学习的<strong>栅格状 BEV Queries</strong>，它们通过<strong>空间交叉注意力（Spatial Cross-Attention）</strong> 从多视图图像中自适应采样空间特征，通过<strong>时序自注意力（Temporal Self-Attention）</strong> 以类 RNN 方式递归融合历史 BEV 特征。6 层编码器堆叠后，输出的统一 BEV 特征可同时支持 3D 目标检测和地图分割任务。</p>
 <p>在 nuScenes test 集上，BEVFormer 达到 <strong>56.9% NDS</strong>，比此前最优的 DETR3D 高出 9.0 个点，首次使纯相机方法逼近 LiDAR 基线。时序融合大幅改善了速度估计（mAVE 0.378 m&#x2F;s）和低可见度目标召回率。</p>
 <p><strong>核心论点</strong>：BEV 特征的生成不必依赖显式深度估计——通过可学习的 BEV Queries 配合可变形注意力，Transformer 可以自适应地从多视图图像中”查询”所需的空间信息；而 BEV 空间天然适合作为时序融合的桥梁，以递归方式引入历史帧几乎不增加计算量，却显著提升运动估计和遮挡检测能力。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2022 年初，多相机 BEV 感知存在两条主要技术路线，各有核心瓶颈：</p>
@@ -76,7 +76,7 @@
 </thead>
 <tbody><tr>
 <td>LSS-based</td>
-<td><a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>, <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a></td>
+<td><a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>, <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a></td>
 <td>像素级深度分布 → 视锥体投影</td>
 <td>依赖深度估计质量，对标定敏感</td>
 <td>28.2&#x2F;32.7 ~ 41.6&#x2F;51.7</td>
@@ -639,7 +639,7 @@ Det Head   Seg Head
 <ul>
 <li><strong>更大感受野的 Backbone</strong>：V2-99（DD3D 预训练）比 R101 提升 3.4 NDS（56.9 vs 53.5），更强的 backbone 直接提升图像特征质量</li>
 <li><strong>增加 BEV 分辨率</strong>：当前 200×200（0.512m&#x2F;格），提升到 0.25m&#x2F;格 可改善小目标检测精度，但计算量和显存二次增长</li>
-<li><strong>引入深度先验</strong>：BEVFormer 不使用显式深度，但 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 证明显式深度监督能显著改善 mATE，两种路线的融合（如在 SCA 中引入深度引导采样）是有潜力的方向</li>
+<li><strong>引入深度先验</strong>：BEVFormer 不使用显式深度，但 <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 证明显式深度监督能显著改善 mATE，两种路线的融合（如在 SCA 中引入深度引导采样）是有潜力的方向</li>
 </ul>
 <p><strong>速度优化</strong>：</p>
 <ul>

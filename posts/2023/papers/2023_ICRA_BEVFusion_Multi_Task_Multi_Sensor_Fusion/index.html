@@ -47,7 +47,7 @@
             <h1 class="post-title">BEVFusion Multi-Task Multi-Sensor Fusion with Unified Bird-Eye-View Representation</h1>
             <div class="post-meta">
                 <span class="post-date">
-                    2022年05月26日
+                    2023年05月26日
                 </span>
                 
             </div>
@@ -572,7 +572,7 @@ $$\mathcal{L}_{seg} = \sum_{c=1}^{6} \text{FocalLoss}(\hat{y}_c, y_c)$$
 <p>冻结图像 backbone（现有融合方法的默认做法）导致分割 mIoU 暴跌 10%（52.8 vs 62.7）——因为点级融合中图像仅提供辅助信息，而在 BEV 融合中图像是语义的主要来源。端到端训练 + 双模态数据增强是充分发挥 BEV 融合潜力的关键。</p>
 <h3 id="5-3-性能瓶颈与失效场景"><a href="#5-3-性能瓶颈与失效场景" class="headerlink" title="5.3 性能瓶颈与失效场景"></a>5.3 性能瓶颈与失效场景</h3><p><strong>性能瓶颈</strong>：</p>
 <ul>
-<li><strong>深度估计质量</strong>：Camera-to-BEV 的精度依赖深度预测，当前仅用 1×1 Conv 无 LiDAR 深度监督，导致 Camera BEV 特征与 LiDAR BEV 存在局部空间错位——作者指出引入显式深度监督（如 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>）是有潜力的改进方向</li>
+<li><strong>深度估计质量</strong>：Camera-to-BEV 的精度依赖深度预测，当前仅用 1×1 Conv 无 LiDAR 深度监督，导致 Camera BEV 特征与 LiDAR BEV 存在局部空间错位——作者指出引入显式深度监督（如 <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>）是有潜力的改进方向</li>
 <li><strong>多任务负迁移</strong>：联合训练检测 + 分割时存在性能下降（NDS 70.4 → 69.7），即使用分开的 BEV 编码器也仅缓解部分（69.9）</li>
 </ul>
 <p><strong>失效场景</strong>：</p>
@@ -592,7 +592,7 @@ $$\mathcal{L}_{seg} = \sum_{c=1}^{6} \text{FocalLoss}(\hat{y}_c, y_c)$$
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
-<li><strong>引入 LiDAR 深度监督</strong>：当前 DepthNet 无深度 GT 监督，引入 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 风格的深度 loss 可改善 Camera BEV 特征质量</li>
+<li><strong>引入 LiDAR 深度监督</strong>：当前 DepthNet 无深度 GT 监督，引入 <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 风格的深度 loss 可改善 Camera BEV 特征质量</li>
 <li><strong>更强 Backbone</strong>：test 集 BEVFusion-base (71.72% mAP) 使用更大模型，验证了 backbone 扩展的收益</li>
 <li><strong>缓解多任务负迁移</strong>：使用分开的 BEV 编码器 + 更精细的 loss 权重调节（当前 pilot study 仅初步验证）</li>
 </ul>
@@ -608,7 +608,7 @@ $$\mathcal{L}_{seg} = \sum_{c=1}^{6} \text{FocalLoss}(\hat{y}_c, y_c)$$
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ol>
 <li><strong>无时序建模</strong>：BEVFusion 仅处理单帧数据，未利用多帧信息。后续 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 和 <a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a> 表明时序融合可大幅改善速度估计和遮挡目标检测</li>
-<li><strong>Camera 分支无深度监督</strong>：DepthNet 仅通过下游任务 loss 间接学习深度，深度预测质量远低于 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 等有显式监督的方法</li>
+<li><strong>Camera 分支无深度监督</strong>：DepthNet 仅通过下游任务 loss 间接学习深度，深度预测质量远低于 <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 等有显式监督的方法</li>
 <li><strong>多任务训练尚未解决</strong>：联合训练存在负迁移，当前只能分任务训练多个模型，未能真正实现”一个模型多任务”的愿景</li>
 </ol>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>

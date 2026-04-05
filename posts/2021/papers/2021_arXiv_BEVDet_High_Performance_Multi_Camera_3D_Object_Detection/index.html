@@ -486,7 +486,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
-<li><strong>显式深度监督 + Camera-Aware</strong>：<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 利用 LiDAR 投影深度 + 相机内参 SE 编码显著提升定位精度（同配置 NDS +14.8）</li>
+<li><strong>显式深度监督 + Camera-Aware</strong>：<a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 利用 LiDAR 投影深度 + 相机内参 SE 编码显著提升定位精度（同配置 NDS +14.8）</li>
 <li><strong>时序融合</strong>：BEVDet4D 引入历史帧 BEV 特征对齐和融合，获取运动信息和深度线索</li>
 </ul>
 <p><strong>速度优化 &#x2F; 部署优化（BEVPool 系列演进）</strong>：</p>
@@ -507,7 +507,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <td>最慢</td>
 </tr>
 <tr>
-<td><strong><a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> BEVPool</strong></td>
+<td><strong><a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> BEVPool</strong></td>
 <td>显式构建 $(N,D,H,W,C)$ → 多线程聚合</td>
 <td>仍需存储完整视锥体特征</td>
 <td>81 FPS</td>
@@ -543,7 +543,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <li><strong>确立 BEV 3D 检测范式</strong>：BEVDet 是首个系统性地将 LSS 框架应用于 3D 目标检测并达到 SOTA 的工作，直接催生了 BEVDet4D、BEVDepth、BEVStereo 等系列演进；与之并行的 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 则走向了 query-based Transformer 路线，两大技术流派的竞争推动了 BEV 感知的快速发展</li>
 <li><strong>BEV 数据增强成为标配</strong>：BDA 策略被后续几乎所有 BEV 检测方法采用，成为训练 BEV 模型的标准操作</li>
 <li><strong>推动 BEV 感知生态</strong>：BEVDet 代码库（mmdetection3d 风格）成为 BEV 感知研究的标准 codebase 之一，BEVPoolv2 成为工业部署的标准算子</li>
-<li><strong>工业量产落地</strong>：BEVDet 系列（尤其 dev2.0 分支）被国内多家 OEM 采纳为量产方案的基础，其模块化 + TensorRT 导出 + BEVPoolv2 优化的完整链路成为 BEV 感知部署的参考标准。其中 BEVDet → <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 的跃升尤其关键——同等 R50 &#x2F; 256×704 配置下 NDS 从 32.7 到 47.5（+14.8），仅通过补强深度估计环节就实现，证明了 BEVDet 框架的性能天花板不在架构本身而在深度质量</li>
+<li><strong>工业量产落地</strong>：BEVDet 系列（尤其 dev2.0 分支）被国内多家 OEM 采纳为量产方案的基础，其模块化 + TensorRT 导出 + BEVPoolv2 优化的完整链路成为 BEV 感知部署的参考标准。其中 BEVDet → <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 的跃升尤其关键——同等 R50 &#x2F; 256×704 配置下 NDS 从 32.7 到 47.5（+14.8），仅通过补强深度估计环节就实现，证明了 BEVDet 框架的性能天花板不在架构本身而在深度质量</li>
 </ul>
 <p>BEVDet 系列演进时间线：</p>
 <table>
@@ -568,7 +568,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <td>~50</td>
 </tr>
 <tr>
-<td><a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a></td>
+<td><a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a></td>
 <td>2022.06</td>
 <td>LiDAR 深度监督 + Camera-Aware DepthNet</td>
 <td>~50+</td>

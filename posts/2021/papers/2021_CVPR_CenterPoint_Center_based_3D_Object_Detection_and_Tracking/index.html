@@ -350,7 +350,7 @@ $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F
 </li>
 </ol>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li><strong>BEV center-based 范式</strong>：CenterPoint 证明 BEV 空间下 anchor-free 检测全面优于 anchor-based，直接影响了 <a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 检测头的设计选择</li>
+<li><strong>BEV center-based 范式</strong>：CenterPoint 证明 BEV 空间下 anchor-free 检测全面优于 anchor-based，直接影响了 <a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 检测头的设计选择</li>
 <li><strong>Velocity-based 跟踪</strong>：将速度作为检测属性直接回归，消除了跟踪对外部运动模型的依赖，后续几乎所有 3D 检测器均提供 velocity 输出</li>
 <li><strong>二阶段 point-feature 细化</strong>：从预测 box 表面采样点提取特征做修正，比 RoI-Pool 轻量，被 TransFusion 等后续工作采用</li>
 </ul>

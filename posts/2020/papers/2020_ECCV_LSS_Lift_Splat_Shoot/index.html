@@ -61,7 +61,7 @@
 <!-- toc -->
 
 <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>自动驾驶感知系统的目标是从多个传感器中提取语义表示，并将其融合到统一的鸟瞰图（BEV）坐标系中供运动规划使用。本文提出了一种端到端架构 <strong>Lift-Splat-Shoot (LSS)<strong>，能够从任意数量摄像头的图像数据中直接提取 BEV 表示。该方法的核心思路分三步：</strong>Lift</strong>——为每张图像的每个像素预测一个离散深度分布，将 2D 特征”提升”为视锥体形状的 3D 点云；<strong>Splat</strong>——利用相机内外参将所有视锥体”投射”到统一的 BEV 栅格上，通过 Pillar Pooling 进行聚合；<strong>Shoot</strong>——在 BEV 代价图上”射出”模板轨迹进行可解释的端到端运动规划。在 nuScenes 和 Lyft 数据集上的物体分割与地图分割任务中，LSS 超越了所有基线和同期工作。此外，该模型展现出了对标定误差和传感器失效的鲁棒性，以及跨相机配置的零样本迁移能力。</p>
-<p><strong>核心论点</strong>：多视图 BEV 感知的关键在于如何将 2D 图像特征”升维”到 3D 空间并融合——LSS 通过为每个像素预测隐式深度分布，以外积方式生成视锥体特征，开创了”Lift-Splat”这一从图像到 BEV 的通用转换范式，成为后续 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>、<a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 等一系列 BEV 感知方法的基础。</p>
+<p><strong>核心论点</strong>：多视图 BEV 感知的关键在于如何将 2D 图像特征”升维”到 3D 空间并融合——LSS 通过为每个像素预测隐式深度分布，以外积方式生成视锥体特征，开创了”Lift-Splat”这一从图像到 BEV 的通用转换范式，成为后续 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>、<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 等一系列 BEV 感知方法的基础。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>自动驾驶感知系统需要将多相机图像融合到 BEV 坐标系中进行下游规划。现有方案面临核心挑战：如何从 2D 图像空间变换到 3D&#x2F;BEV 空间。</p>
 <table>
 <thead>
@@ -111,7 +111,7 @@ $$\mathbf{c}_d = \alpha_d \cdot \mathbf{c}$$
 <p><strong>算子层面的设计选择</strong>：外积运算 <code>depth_prob.unsqueeze(1) * image_feat.unsqueeze(2)</code> 是纯粹的 broadcast + elementwise multiply，刻意避开了 <code>F.grid_sample</code>。原因在于：若对全分辨率特征图做 $D$ 次连续坐标插值采样（$H \times W \times D$ 个采样点），<code>grid_sample</code> 的双线性插值会产生大量随机内存访问（non-coalesced access），cache 命中率极低；而 broadcast 是连续内存的规则 tensor 运算，GPU warp 利用率远高。这一取舍是 LSS 能以 35 Hz 运行的关键原因之一。</p>
 <h3 id="洞察-2：Pillar-Pooling-Cumsum-Trick——高效的视锥体到-BEV-转换"><a href="#洞察-2：Pillar-Pooling-Cumsum-Trick——高效的视锥体到-BEV-转换" class="headerlink" title="洞察 2：Pillar Pooling + Cumsum Trick——高效的视锥体到 BEV 转换"></a>洞察 2：Pillar Pooling + Cumsum Trick——高效的视锥体到 BEV 转换</h3><p>将每个像素提升到 $|D|$ 个深度点后，$n$ 个相机共生成 $n \times D \times H \times W$ 个 3D 点。如何将如此大规模的稀疏点云高效聚合到 BEV 栅格上是关键的工程挑战。</p>
 <p><strong>传统做法</strong>：对每个 pillar 分别收集落入的点，需要 padding 和变长索引操作<br><strong>LSS 做法</strong>：借鉴 PointPillars，将所有点按照 pillar 编号排序，利用 cumulative sum 技巧实现零填充的 sum pooling</p>
-<p>从 PyTorch 算子角度看，Splat 本质上是 <strong>voxel pooling</strong>（体素池化）：将不规则分布的视锥体点离散聚合到规则 BEV 网格，等价于 <code>torch.scatter_add</code>。QuickCumsum 是 <code>scatter_add</code> 的高效替代实现——通过排序 + 累积求和 + 差分避免了 scatter 的原子操作竞争，在 CUDA 上更快。后续 <a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 的 <code>QuickCumsumCuda</code> 进一步将 voxelization + pooling 融合为单一 kernel。</p>
+<p>从 PyTorch 算子角度看，Splat 本质上是 <strong>voxel pooling</strong>（体素池化）：将不规则分布的视锥体点离散聚合到规则 BEV 网格，等价于 <code>torch.scatter_add</code>。QuickCumsum 是 <code>scatter_add</code> 的高效替代实现——通过排序 + 累积求和 + 差分避免了 scatter 的原子操作竞争，在 CUDA 上更快。后续 <a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 的 <code>QuickCumsumCuda</code> 进一步将 voxelization + pooling 融合为单一 kernel。</p>
 <p>具体步骤：</p>
 <ol>
 <li>将所有 3D 点映射到对应的 pillar（无限高度的体素）</li>
@@ -493,7 +493,7 @@ $$p(\tau_i | o) = \frac{\exp(-\sum_{x_i, y_i \in \tau_i} c_o(x_i, y_i))}{\sum_{\
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
 <li><strong>时序融合</strong>：引入多帧图像，通过时序信息提升深度估计精度（论文结论明确指出这是未来方向）</li>
-<li><strong>深度监督</strong>：利用 LiDAR 投影深度对深度分布进行显式监督（后续 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 已验证有效）</li>
+<li><strong>深度监督</strong>：利用 LiDAR 投影深度对深度分布进行显式监督（后续 <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 已验证有效）</li>
 <li><strong>更高分辨率 BEV 网格</strong>：增大 BEV 分辨率可提升小物体检测，但会增加 Frustum Pooling 的计算量</li>
 </ul>
 <p><strong>速度优化</strong>：</p>
@@ -504,7 +504,7 @@ $$p(\tau_i | o) = \frac{\exp(-\sum_{x_i, y_i \in \tau_i} c_o(x_i, y_i))}{\sum_{\
 <li><strong>BEVPoolv2 算子优化</strong>：通过索引间接访问替代显式外积存储，避免计算和缓存完整的 $(N,D,H,W,C)$ 视锥体特征张量，速度可提升 3.1×<del>15.1×，显存降至原先的 2%</del>5.7%（详见 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet 系列论文笔记</a>）</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li><strong>“Lift-Splat” 范式</strong>：将任意 2D 传感器特征通过深度分布提升到 3D 再投射到 BEV 的流程，已成为多视图 BEV 感知的标准方案，被 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>、<a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 等大量后续工作采用</li>
+<li><strong>“Lift-Splat” 范式</strong>：将任意 2D 传感器特征通过深度分布提升到 3D 再投射到 BEV 的流程，已成为多视图 BEV 感知的标准方案，被 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>、<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 等大量后续工作采用</li>
 <li><strong>隐式深度分布建模</strong>：用 softmax 将深度概率分布与上下文特征外积的思想，可推广到任何需要处理深度不确定性的任务（如 3D 语义分割、占据栅格预测）</li>
 <li><strong>Cumsum Trick</strong>：基于排序的 scatter_add 替代方案（参见洞察 2），不仅适用于 pillar pooling，也可用于其他需要对稀疏数据按组求和的场景（如点云分割中的 voxel 特征聚合）</li>
 <li><strong>几何归纳偏置</strong>：在模型中显式嵌入已知的物理&#x2F;几何约束（如相机投影模型），比让网络从数据中隐式学习更高效、更可泛化</li>
@@ -516,10 +516,10 @@ $$p(\tau_i | o) = \frac{\exp(-\sum_{x_i, y_i \in \tau_i} c_o(x_i, y_i))}{\sum_{\
 <li>BEV 表示为固定范围栅格（100m×100m），难以高效处理更大范围或更精细分辨率的需求</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
-<li><strong>开创 BEV 感知范式</strong>：LSS 是首个提出完整的”图像→视锥体→BEV”端到端流程的工作，直接催生了 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>（2021）、<a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>（2022）、<a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>（2022）等显式深度路线，同时也启发了 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>（2022）等 query-based 路线，进而演化出 <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a>（2022）等 sparse query 方法——两条路线共同构成了当前 BEV 感知的技术版图</li>
+<li><strong>开创 BEV 感知范式</strong>：LSS 是首个提出完整的”图像→视锥体→BEV”端到端流程的工作，直接催生了 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>（2021）、<a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>（2022）、<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>（2022）等显式深度路线，同时也启发了 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>（2022）等 query-based 路线，进而演化出 <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a>（2022）等 sparse query 方法——两条路线共同构成了当前 BEV 感知的技术版图</li>
 <li><strong>推动纯视觉自动驾驶方案</strong>：证明了不依赖 LiDAR 进行 BEV 感知的可行性，对降低自动驾驶硬件成本具有重要意义（Tesla 纯视觉方案的理论基础之一）</li>
 <li><strong>Frustum Pooling 工程实践</strong>：QuickCumsum（scatter_add 的高效替代，参见洞察 2）及其 CUDA 实现被广泛复用，成为 BEV 感知 codebase 的标准组件</li>
-<li><strong>引发 BEV 深度估计研究</strong>：LSS 暴露的深度估计瓶颈直接催生了 <a href="/posts/2022/papers/2022_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>（LiDAR 深度监督）、STS（时空立体匹配）等一系列改进工作</li>
+<li><strong>引发 BEV 深度估计研究</strong>：LSS 暴露的深度估计瓶颈直接催生了 <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>（LiDAR 深度监督）、STS（时空立体匹配）等一系列改进工作</li>
 <li><strong>工业界偏好 LSS 范式</strong>：尽管 dense lift 产生大量空体素，但全流程均为连续内存的 dense tensor 计算（参见洞察 1），GPU 利用率高、TensorRT 易量化、延迟稳定；静态计算图利于 GPU&#x2F;NPU 算子融合，BEVPoolv2 等工程优化进一步抵消空体素开销。相比之下，<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 的 query-driven attention 是 memory-bound 的随机访存，落地困难得多。因此 LSS 仍是 Tesla、NVIDIA 及国内多家 OEM 量产方案的主流架构——<em>算得多但算得规整，比算得少但算得零散更适合 GPU</em></li>
 </ul>
 

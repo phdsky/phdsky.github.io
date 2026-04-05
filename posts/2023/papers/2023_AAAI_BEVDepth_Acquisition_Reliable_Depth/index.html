@@ -47,7 +47,7 @@
             <h1 class="post-title">BEVDepth Acquisition of Reliable Depth for Multi-view 3D Object Detection</h1>
             <div class="post-meta">
                 <span class="post-date">
-                    2022年06月21日
+                    2023年06月21日
                 </span>
                 
             </div>
@@ -699,7 +699,7 @@ Multi-view Images (6×3×256×704)
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li><strong>奠定了 LSS 管线的深度优化范式</strong>：BEVDepth 首次系统性地证明”深度估计质量是 LSS 管线的核心瓶颈”，后续 BEVStereo（时序立体深度）、FB-BEV（前后向投影互补深度）等工作均以此为基础展开</li>
 <li><strong>NDS 60% 里程碑</strong>：首个纯相机方案突破 nuScenes NDS 60%，大幅缩小了与 LiDAR 方法（CenterPoint 64.8%）的差距，推动了工业界对纯视觉 BEV 方案的信心</li>
-<li><strong>Efficient Voxel Pooling 推动工程落地</strong>：80 倍 Pooling 加速使 BEV 方案的训练从”一周级”降到”两天级”，后续被 BEVDet、<a href="/posts/2022/papers/2022_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 等工作广泛复用</li>
+<li><strong>Efficient Voxel Pooling 推动工程落地</strong>：80 倍 Pooling 加速使 BEV 方案的训练从”一周级”降到”两天级”，后续被 BEVDet、<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 等工作广泛复用</li>
 <li><strong>Camera-Aware 设计成为标配</strong>：在 BEVDepth 之后，几乎所有 LSS-based 方法都采纳了将相机参数注入 DepthNet 的设计，成为该方向的标准实践</li>
 <li><strong>从 <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a> 到 BEVDepth，量化了“深度补强”的价值</strong>：同配置（R50, 256×704）NDS 从 32.7 到 47.5（+14.8），仅通过补强深度环节实现，使“点云老师教视觉学生看深度”的显式监督思路成为工业界标配</li>
 </ul>
