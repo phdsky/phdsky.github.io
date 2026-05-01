@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            端到端自动驾驶的范式跃迁与路线之争 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">端到端自动驾驶的范式跃迁与路线之争</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年05月01日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Topic: End-to-End Autonomous Driving Paradigm Evolution<br>Keywords: UniAD, VAD, VADv2, SparseDrive, SparseDriveV2, DiffusionDrive, Trajectory Vocabulary, Diffusion Policy, Score-based vs Generation-based</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="知识图谱"><a href="#知识图谱" class="headerlink" title="知识图谱"></a>知识图谱</h2><p>下面这张交互式图谱串起本文涉及的端到端自动驾驶论文与上下游依赖。<strong>点击节点可跳转到对应论文笔记</strong>；右下角按钮支持缩放、适应窗口和全屏。</p>
+<div id="e2e-graph-wrapper" style="position:relative;width:100%;margin:1.5rem 0;">
+  <div id="e2e-graph" style="width:100%;height:640px;border:1px solid #e0e0e0;border-radius:8px;background:#fafbfc;"></div>
+  <div id="e2e-graph-toolbar" style="position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10;">
+    <button id="e2e-graph-zoom-in" type="button" title="放大" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">＋</button>
+    <button id="e2e-graph-zoom-out" type="button" title="缩小" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">－</button>
+    <button id="e2e-graph-fit" type="button" title="适应窗口" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">⊙</button>
+    <button id="e2e-graph-fullscreen" type="button" title="全屏" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">⛶</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+<script src="/js/paper-graph-helper.js"></script>
+<script src="/js/paper-graph-e2e.js"></script>
+
+<p style="font-size:0.9em;line-height:1.8;margin-top:0.5rem;">
+🟣 端到端规划主链（UniAD → VAD → VADv2 → SparseDrive 系列 / DiffusionDrive）<br>
+🔵 评分派阵营（VADv2 / SparseDriveV2）<br>
+🔴 生成派阵营（DiffusionDrive）<br>
+🩵 上游 BEV / 地图依赖（BEVFormer / MapTR，详见 <a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">《BEV+Transformer 感知统一框架》</a>）
+</p>
+
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>2023 年的 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> 拿下 CVPR Best Paper 之后，<strong>端到端自动驾驶（End-to-End Autonomous Driving，E2E AD）</strong>成为学术界与工业界共同押注的新范式。短短三年，这条路线快速分化、自我否定、再次融合，已经走完了”多任务级联 → 向量化场景 → 概率分布建模 → 稀疏 token 化 → 生成式扩散”五个清晰的阶段，并在 2025 年形成了 <strong>评分派 vs 生成派</strong> 的路线之争。</p>
+<p>本文以一条主线串起这段演进：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">UniAD (2023)  →  VAD (2023)  →  VADv2 (2024)  →  SparseDrive (2024) ─┐</span><br><span class="line">                                                                        ├─ NAVSIM 评分派</span><br><span class="line">                                                            SparseDriveV2 (2025) ─┘</span><br><span class="line">                                                            </span><br><span class="line">                                                       DiffusionDrive (2025) ──── 生成派</span><br></pre></td></tr></table></figure>
+
+<p>每一次跳迁都对应一个具体的”被否定”假设：UniAD 被认为太重 → VAD 砍掉中间表示；VAD 被认为不够多模态 → VADv2 引入概率词汇表；VADv2 被认为离不开 BEV → SparseDrive 全 token 化；SparseDrive 词表不够 → SparseDriveV2 拆成路径×速度组合 26 万候选；评分派整体被嫌弃”穷举不优雅” → DiffusionDrive 用扩散生成多模态。</p>
+<p>读这篇文章前，建议先看一遍 <a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">BEV+Transformer 感知统一框架</a> 中的”map query”小节，理解”任务 query 在同一 attention 中互相读写”这一基础范式。本文是它在<strong>决策层</strong>的延展。</p>
+<blockquote>
+<p>与本文配套的论文笔记：<a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a>、<a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD&#x2F;VADv2</a>、<a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive&#x2F;SparseDriveV2</a>、<a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a>。本文聚焦”演进逻辑”，论文细节请到对应笔记中查阅。</p>
+</blockquote>
+<h2 id="1-起点：为什么需要端到端？"><a href="#1-起点：为什么需要端到端？" class="headerlink" title="1. 起点：为什么需要端到端？"></a>1. 起点：为什么需要端到端？</h2><h3 id="1-1-模块化时代的两个原罪"><a href="#1-1-模块化时代的两个原罪" class="headerlink" title="1.1 模块化时代的两个原罪"></a>1.1 模块化时代的两个原罪</h3><p>在 E2E 之前，自动驾驶的主流架构是 <strong>感知 → 预测 → 规划 → 控制</strong> 的串联流水线。每个模块独立训练、独立优化，模块之间通过结构化接口（3D box、轨迹、占用栅格）传递信息。这种架构的两个根本缺陷：</p>
+<ul>
+<li><strong>信息瓶颈（Information Bottleneck）</strong>：感知输出的”3D box + 类别”是对原始传感器信号的一次极端压缩，规划器无法访问原始的视觉&#x2F;几何不确定性，被迫做出过于保守的决策；</li>
+<li><strong>目标错位（Objective Misalignment）</strong>：感知模块用 mAP 优化、规划模块用 collision rate &#x2F; L2 优化，两者梯度互不可见，感知过拟合于”框得准”而非”对规划有用”。</li>
+</ul>
+<h3 id="1-2-端到端的承诺"><a href="#1-2-端到端的承诺" class="headerlink" title="1.2 端到端的承诺"></a>1.2 端到端的承诺</h3><p>E2E 的承诺非常直接：<strong>让规划损失反向传播到原始像素</strong>。这意味着：</p>
+<ul>
+<li>感知特征会自动学会”对规划重要的部分”，而不是均匀分配表示能力；</li>
+<li>模块间的信息流以可微分的特征张量传递，而不是离散的结构化对象；</li>
+<li>整个系统只有一个训练目标，工程上可以一次性优化。</li>
+</ul>
+<p>这个承诺在 2022 年之前一直停留在纸面上，因为没人知道<strong>怎么把这么多任务塞进一个可训练的网络</strong>。直到 UniAD 给出了第一份可工作的答卷。</p>
+<h2 id="2-第一代：UniAD-——-多任务级联的全栈端到端"><a href="#2-第一代：UniAD-——-多任务级联的全栈端到端" class="headerlink" title="2. 第一代：UniAD —— 多任务级联的全栈端到端"></a>2. 第一代：UniAD —— 多任务级联的全栈端到端</h2><h3 id="2-1-核心思想：planning-oriented-的级联监督"><a href="#2-1-核心思想：planning-oriented-的级联监督" class="headerlink" title="2.1 核心思想：planning-oriented 的级联监督"></a>2.1 核心思想：planning-oriented 的级联监督</h3><p>UniAD 的核心贡献不是”端到端”这个想法本身，而是给出了<strong>一个把所有任务串成可微分级联的具体架构</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">BEV Encoder (BEVFormer)</span><br><span class="line">    │</span><br><span class="line">    ├── TrackFormer  (multi-object tracking query)</span><br><span class="line">    ├── MapFormer    (online HD map query)</span><br><span class="line">    ├── MotionFormer (motion forecasting query)</span><br><span class="line">    ├── OccFormer    (occupancy prediction query)</span><br><span class="line">    └── Planner      (planning query) ◄── 全部上游 query 在 attention 中读写</span><br></pre></td></tr></table></figure>
+
+<p>五个模块全部用 query-based Transformer 实现，前序模块的输出 query 直接作为后续模块的输入 token。<strong>Planning loss 通过这五层级联反向传播到 BEV encoder</strong>，是名副其实的端到端。</p>
+<h3 id="2-2-性能与代价"><a href="#2-2-性能与代价" class="headerlink" title="2.2 性能与代价"></a>2.2 性能与代价</h3><table>
+<thead>
+<tr>
+<th align="left">指标</th>
+<th align="center">UniAD</th>
+<th align="center">当时 SOTA 模块化 baseline</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">nuScenes avg L2 (m)</td>
+<td align="center">1.03</td>
+<td align="center">1.40+</td>
+</tr>
+<tr>
+<td align="left">Collision rate (%)</td>
+<td align="center">0.31</td>
+<td align="center">0.50+</td>
+</tr>
+<tr>
+<td align="left">推理 FPS (A100)</td>
+<td align="center">1.8</td>
+<td align="center">2.5–3.0</td>
+</tr>
+</tbody></table>
+<p>UniAD 拿到了 CVPR 2023 Best Paper，但也暴露了三个明显问题：</p>
+<ol>
+<li><strong>太重</strong>：dense BEV + 5 个 Transformer 头，1.8 FPS 在量产车上无法接受；</li>
+<li><strong>planning 仍是单轨迹回归</strong>：没有多模态建模，安全裕度全靠 collision loss 兜底；</li>
+<li><strong>track &#x2F; occupancy 是否必要存疑</strong>：这两个模块占了大量算力，但消融发现去掉它们 planning 性能几乎不变。</li>
+</ol>
+<p>这三个问题直接催生了下一代：<strong>VAD</strong>。</p>
+<h2 id="3-第二代：VAD-——-把场景”向量化”"><a href="#3-第二代：VAD-——-把场景”向量化”" class="headerlink" title="3. 第二代：VAD —— 把场景”向量化”"></a>3. 第二代：VAD —— 把场景”向量化”</h2><h3 id="3-1-关键洞察：dense-BEV-是冗余的"><a href="#3-1-关键洞察：dense-BEV-是冗余的" class="headerlink" title="3.1 关键洞察：dense BEV 是冗余的"></a>3.1 关键洞察：dense BEV 是冗余的</h3><p><a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD (Vectorized Autonomous Driving)</a> 由 hustvl + Horizon Robotics 在 2023 年 ICCV 发表，核心思想是<strong>用 vector 表示替代 dense BEV，并砍掉 tracking &#x2F; occupancy 两个”看似必要但实际无用”的中间任务</strong>。</p>
+<p>VAD 的场景表示只有三类向量化对象：</p>
+<ul>
+<li><strong>Map</strong>：polyline 形式的车道线 &#x2F; 路沿（来自 <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> 系列的输出）；</li>
+<li><strong>Agent</strong>：每个动态目标用一个 query 表示，包含位置 + 多模态未来轨迹；</li>
+<li><strong>Ego</strong>：一条 ego query，通过 cross-attention 与 map &#x2F; agent 全 attention 交互，最后 MLP 出未来 3 秒轨迹。</li>
+</ul>
+<blockquote>
+<p>“MapTR + Planning &#x3D; VAD” 是这条线上最干净的工程公式。</p>
+</blockquote>
+<h3 id="3-2-三项几何约束：把规则”焊”进损失函数"><a href="#3-2-三项几何约束：把规则”焊”进损失函数" class="headerlink" title="3.2 三项几何约束：把规则”焊”进损失函数"></a>3.2 三项几何约束：把规则”焊”进损失函数</h3><p>VAD 最聪明的设计是把三条交通规则改写成<strong>可微分的几何损失</strong>，而不是后处理的硬约束：</p>
+<p>$$<br>\mathcal{L}<em>{\text{vad}} &#x3D; \mathcal{L}</em>{\text{reg}} + \lambda_1 \mathcal{L}<em>{\text{collision}} + \lambda_2 \mathcal{L}</em>{\text{boundary}} + \lambda_3 \mathcal{L}_{\text{direction}}<br>$$</p>
+<ul>
+<li><strong>Collision Loss</strong>：ego 未来轨迹的每个点对所有 agent 未来轨迹的最近距离，小于安全半径就罚；</li>
+<li><strong>Boundary Loss</strong>：ego 轨迹点与最近车道边界 polyline 的距离，越界就罚；</li>
+<li><strong>Direction Loss</strong>：ego 轨迹切向量与所在车道中心线切向量的夹角余弦，方向不一致就罚。</li>
+</ul>
+<p>这三项把”安全 + 合规 + 合理”三个直觉编码进梯度，是 VAD 性能跃升的关键。</p>
+<h3 id="3-3-性能对比"><a href="#3-3-性能对比" class="headerlink" title="3.3 性能对比"></a>3.3 性能对比</h3><table>
+<thead>
+<tr>
+<th align="left">模型</th>
+<th align="center">avg L2 (m)</th>
+<th align="center">Collision (%)</th>
+<th align="center">FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">UniAD</td>
+<td align="center">1.03</td>
+<td align="center">0.31</td>
+<td align="center">1.8</td>
+</tr>
+<tr>
+<td align="left"><strong>VAD-Tiny</strong></td>
+<td align="center">0.78</td>
+<td align="center">0.38</td>
+<td align="center"><strong>16.8</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>VAD-Base</strong></td>
+<td align="center"><strong>0.72</strong></td>
+<td align="center"><strong>0.22</strong></td>
+<td align="center">4.5</td>
+</tr>
+</tbody></table>
+<p>VAD-Base 在 avg L2 上比 UniAD 降了 30%，FPS 提升 2.5×；VAD-Tiny 直接做到 16.8 FPS，第一次让 E2E 进入了”可量产”的算力区间。</p>
+<h3 id="3-4-VAD-的两个未解之谜"><a href="#3-4-VAD-的两个未解之谜" class="headerlink" title="3.4 VAD 的两个未解之谜"></a>3.4 VAD 的两个未解之谜</h3><p>VAD 用回归输出<strong>单条</strong>确定性轨迹，回避了一个根本问题：<strong>驾驶决策天然是多模态的</strong>（左转&#x2F;直行&#x2F;右转通常都安全）。这导致：</p>
+<ul>
+<li>训练数据中”专家走中间”的偏置会被模型学成”永远走中间”，遇到分叉路口表现僵硬；</li>
+<li>agent 预测虽然是多模态的，但 ego 不是，多模态预测的信息无法被 ego 充分利用。</li>
+</ul>
+<p>VADv2 正是为解决这两个问题而生。</p>
+<h2 id="4-第三代：VADv2-——-把规划变成”-p-a-mid-o-分布建模”"><a href="#4-第三代：VADv2-——-把规划变成”-p-a-mid-o-分布建模”" class="headerlink" title="4. 第三代：VADv2 —— 把规划变成”$p(a\mid o)$ 分布建模”"></a>4. 第三代：VADv2 —— 把规划变成”$p(a\mid o)$ 分布建模”</h2><h3 id="4-1-核心思想：从回归到分类，再到分布"><a href="#4-1-核心思想：从回归到分类，再到分布" class="headerlink" title="4.1 核心思想：从回归到分类，再到分布"></a>4.1 核心思想：从回归到分类，再到分布</h3><p><a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VADv2</a>（2024 年 arXiv）做了一个看似激进、实则非常自然的概念跳迁：</p>
+<blockquote>
+<p>不再回归一条轨迹，而是在一个<strong>固定的轨迹词汇表（trajectory vocabulary）</strong>上学习概率分布 $p(a \mid o)$。</p>
+</blockquote>
+<p>具体做法：</p>
+<ol>
+<li><strong>离线聚类</strong>：在 nuScenes &#x2F; CARLA 训练集上，对所有专家轨迹做 K-means 聚类，得到 <strong>4096 条</strong> 代表性轨迹作为词汇表 ${a_1, a_2, \dots, a_{4096}}$；</li>
+<li><strong>概率场编码</strong>：每条候选轨迹 $a_i$ 由 6 个未来 waypoint 组成，每个 waypoint 用 NeRF 风格的位置编码 $\Gamma(x)$ 投到高维空间，再用 Transformer 聚合成一个 token：</li>
+</ol>
+<p>$$<br>E(a_i) &#x3D; \mathrm{Transformer}\Bigl(\bigl[\Gamma(x_1^i), \Gamma(y_1^i), \dots, \Gamma(x_6^i), \Gamma(y_6^i)\bigr]\Bigr)<br>$$</p>
+<ol start="3">
+<li><strong>环境 + 导航 + 状态条件建模</strong>：把环境特征 $E_{\text{env}}$、导航指令 $E_{\text{navi}}$、自车状态 $E_{\text{state}}$ 拼到 $E(a_i)$ 上，再过一层 MLP 给出每条轨迹的得分：</li>
+</ol>
+<p>$$<br>p(a_i \mid o) &#x3D; \mathrm{softmax}<em>i\Bigl(\mathrm{MLP}\bigl(\mathrm{Transformer}(E(a_i), E</em>{\text{env}}) + E_{\text{navi}} + E_{\text{state}}\bigr)\Bigr)<br>$$</p>
+<ol start="4">
+<li><strong>训练损失</strong>：用 KL 散度让预测分布对齐”专家轨迹近邻分配出的软标签分布”，再叠加 conflict loss（专家轨迹的临近候选不能被罚得过低）。</li>
+</ol>
+<h3 id="4-2-为什么这个改动是范式级的"><a href="#4-2-为什么这个改动是范式级的" class="headerlink" title="4.2 为什么这个改动是范式级的"></a>4.2 为什么这个改动是范式级的</h3><p>回归 → 分类看起来只是”换了个 head”，但实际带来的影响是范式级的：</p>
+<table>
+<thead>
+<tr>
+<th align="left">维度</th>
+<th align="left">VAD（回归）</th>
+<th align="left">VADv2（分布）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">输出</td>
+<td align="left">1 条确定性轨迹</td>
+<td align="left">4096 条候选 + 概率</td>
+</tr>
+<tr>
+<td align="left">多模态</td>
+<td align="left">不支持</td>
+<td align="left">天然支持（top-k 采样即多模态）</td>
+</tr>
+<tr>
+<td align="left">安全裕度</td>
+<td align="left">靠 collision loss 训练时约束</td>
+<td align="left">推理时可基于 $p$ 加任意约束</td>
+</tr>
+<tr>
+<td align="left">与 LLM 思路</td>
+<td align="left">完全不同</td>
+<td align="left">同构——都是在固定 token 词汇表上学 $p(\cdot \mid \text{context})$</td>
+</tr>
+</tbody></table>
+<p>最后一点尤其重要：<strong>VADv2 把 LLM 的”在词汇表上建模条件分布”思想引进了端到端规划</strong>。这条线另一头的 <a href="/posts/2026/Autonomous_Driving_Evolution_From_Perception_to_World_Model/">VLA 路线</a>（DriveVLA、AutoVLA 等）从同一个思想原点出发，只是把轨迹词汇表换成了语言 token。可以说，VADv2 是后续所有”评分派”端到端规划方法的<strong>范式基线</strong>。</p>
+<h3 id="4-3-性能与限制"><a href="#4-3-性能与限制" class="headerlink" title="4.3 性能与限制"></a>4.3 性能与限制</h3><p>VADv2 在 CARLA Town05 Long 闭环测试上：</p>
+<table>
+<thead>
+<tr>
+<th align="left">模型</th>
+<th align="center">Driving Score</th>
+<th align="center">Route Completion</th>
+<th align="center">Infraction</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">DriveMLM (LLM-based)</td>
+<td align="center">76.1</td>
+<td align="center">95.5</td>
+<td align="center">0.78</td>
+</tr>
+<tr>
+<td align="left"><strong>VADv2</strong></td>
+<td align="center"><strong>85.1</strong></td>
+<td align="center"><strong>98.4</strong></td>
+<td align="center"><strong>0.87</strong></td>
+</tr>
+</tbody></table>
+<p>并且消融发现：去掉 distribution loss 改回 single-trajectory regression，<strong>avg L2 会恶化 17 倍</strong>，证明分布建模是性能的真正来源。</p>
+<p>但 VADv2 也有两个明显限制：</p>
+<ol>
+<li><strong>词汇表 4096 固定不可扩充</strong>：聚类粒度决定了表达力上限，路径形状的细微差异无法被表达；</li>
+<li><strong>只在 CARLA 验证</strong>：nuScenes 因为是开环 replay，无法体现概率规划的多模态优势。</li>
+</ol>
+<p>针对这两点，2024–2025 年出现了两条相反的路线：<strong>SparseDrive 把词表做得更密</strong>，<strong>DiffusionDrive 干脆用扩散生成代替穷举</strong>。</p>
+<h2 id="5-第四代分支-A：SparseDrive-系列-——-评分派的极致"><a href="#5-第四代分支-A：SparseDrive-系列-——-评分派的极致" class="headerlink" title="5. 第四代分支 A：SparseDrive 系列 —— 评分派的极致"></a>5. 第四代分支 A：SparseDrive 系列 —— 评分派的极致</h2><h3 id="5-1-SparseDrive：去-BEV，全-token-化"><a href="#5-1-SparseDrive：去-BEV，全-token-化" class="headerlink" title="5.1 SparseDrive：去 BEV，全 token 化"></a>5.1 SparseDrive：去 BEV，全 token 化</h3><p><a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a>（2024 年）对 VAD 系列做了进一步的”减法”：连 BEV 也去掉，整个网络全程 sparse query。</p>
+<ul>
+<li><strong>检测、跟踪、地图全部 token 化</strong>：每个对象一个 query，没有任何 dense feature map；</li>
+<li><strong>并行 motion-planner</strong>：motion 和 planning 共享 query，并行预测而不是 UniAD 式的串联；</li>
+<li><strong>碰撞感知重评分</strong>：对候选轨迹基于预测出的 agent 轨迹做碰撞检测，碰撞概率作为评分修正项。</li>
+</ul>
+<p>性能上 SparseDrive 训练快 7.2×、参数量降 50%，且 nuScenes avg L2 略优于 VAD。但它仍然继承了 VADv2 的”评分派”基因——候选集是固定的，只是用 sparse query 加快了评分速度。</p>
+<h3 id="5-2-SparseDriveV2：超密分解词表"><a href="#5-2-SparseDriveV2：超密分解词表" class="headerlink" title="5.2 SparseDriveV2：超密分解词表"></a>5.2 SparseDriveV2：超密分解词表</h3><p><a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDriveV2</a>（2025 年）把”评分派”推到了极致：</p>
+<blockquote>
+<p>把轨迹词汇表从 4096 拆成 <strong>路径 × 速度</strong> 两个维度，分别有 <strong>1024 条路径 × 256 个速度剖面 &#x3D; 262,144 (≈ 26 万)</strong> 候选组合。</p>
+</blockquote>
+<p>为了让 26 万候选可计算，SparseDriveV2 引入：</p>
+<ol>
+<li><strong>粗到细分解评分</strong>：先在 1024 条路径上选 top-K，再在所选路径的 256 个速度剖面上细评，最终实际评分量压缩到 ~400 条；</li>
+<li><strong>分解评分</strong>：路径评分只看几何与障碍物，速度评分只看动力学与舒适性，两个评分独立训练；</li>
+<li><strong>重排列正则</strong>：相似候选的评分必须接近，避免训练不稳定。</li>
+</ol>
+<p>性能上 SparseDriveV2 在 NAVSIM 闭环榜单上拿到 <strong>PDMS 92.0</strong>，超过同期所有生成式方法。</p>
+<h3 id="5-3-评分派的优势与瓶颈"><a href="#5-3-评分派的优势与瓶颈" class="headerlink" title="5.3 评分派的优势与瓶颈"></a>5.3 评分派的优势与瓶颈</h3><p><strong>优势</strong>：</p>
+<ul>
+<li>推理可控，候选集封闭，安全审计容易；</li>
+<li>与 LLM&#x2F;VLA 思路同构，迁移到大模型时代代价低；</li>
+<li>工程稳定，候选集可以人工审计、人工增删。</li>
+</ul>
+<p><strong>瓶颈</strong>：</p>
+<ul>
+<li>候选集表达力受词表大小线性限制，提升精度只能堆词表；</li>
+<li>26 万候选的评分本身需要大量 attention，推理时延难压；</li>
+<li>极端场景（如绕障）需要词表外的轨迹，候选集天然失效。</li>
+</ul>
+<p>针对最后一点，”生成派”给出了完全相反的答案。</p>
+<h2 id="6-第四代分支-B：DiffusionDrive-——-生成派的轻量化"><a href="#6-第四代分支-B：DiffusionDrive-——-生成派的轻量化" class="headerlink" title="6. 第四代分支 B：DiffusionDrive —— 生成派的轻量化"></a>6. 第四代分支 B：DiffusionDrive —— 生成派的轻量化</h2><h3 id="6-1-截断扩散：只去噪-2-步"><a href="#6-1-截断扩散：只去噪-2-步" class="headerlink" title="6.1 截断扩散：只去噪 2 步"></a>6.1 截断扩散：只去噪 2 步</h3><p><a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a>（CVPR 2025）走了完全相反的路线：</p>
+<blockquote>
+<p>不要词汇表，用 <strong>截断扩散策略（Truncated Diffusion Policy）</strong> 直接生成多模态轨迹，且只需 <strong>20 个锚点 + 2 步去噪</strong>。</p>
+</blockquote>
+<p>核心设计：</p>
+<ul>
+<li><strong>20 个锚点（vs VADv2 的 4096）</strong>：用 K-means 在数据集上聚类 20 条代表性轨迹作为扩散起点，覆盖驾驶意图的粗粒度模态（直行&#x2F;左变道&#x2F;右变道&#x2F;…）；</li>
+<li><strong>截断扩散</strong>：传统扩散需要几十步去噪，DiffusionDrive 把扩散过程截断到 <strong>2 步</strong>，每一步把锚点细化一次，最终输出连续的多模态轨迹分布；</li>
+<li><strong>场景条件去噪器</strong>：去噪网络把 BEV&#x2F;sparse 场景特征作为条件，每步去噪都参考当前场景做局部调整。</li>
+</ul>
+<h3 id="6-2-性能与意义"><a href="#6-2-性能与意义" class="headerlink" title="6.2 性能与意义"></a>6.2 性能与意义</h3><p>DiffusionDrive 在 NAVSIM 上：</p>
+<table>
+<thead>
+<tr>
+<th align="left">模型</th>
+<th align="center">PDMS</th>
+<th align="center">NC</th>
+<th align="center">DAC</th>
+<th align="center">EP</th>
+<th align="center">TTC</th>
+<th align="center">Comf</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">VADv2</td>
+<td align="center">80.9</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+</tr>
+<tr>
+<td align="left"><strong>DiffusionDrive</strong></td>
+<td align="center"><strong>88.1</strong></td>
+<td align="center">98.2</td>
+<td align="center">96.2</td>
+<td align="center">82.2</td>
+<td align="center">94.7</td>
+<td align="center">100</td>
+</tr>
+</tbody></table>
+<p>意义不在于绝对分数（SparseDriveV2 后来反超到 92.0），而在于：</p>
+<ul>
+<li>证明了<strong>生成式方法在 E2E AD 上可以做到实时（45 FPS）</strong>，扩散不必然慢；</li>
+<li>证明了<strong>多模态轨迹不需要超大词表</strong>，20 个锚点 + 去噪足以覆盖驾驶意图；</li>
+<li>引入了 LLM 之外的另一条”生成式建模”路线（diffusion vs autoregressive）。</li>
+</ul>
+<h3 id="6-3-生成派的优势与瓶颈"><a href="#6-3-生成派的优势与瓶颈" class="headerlink" title="6.3 生成派的优势与瓶颈"></a>6.3 生成派的优势与瓶颈</h3><p><strong>优势</strong>：</p>
+<ul>
+<li>锚点数量小，推理快；</li>
+<li>自然支持多模态，且模态边界平滑；</li>
+<li>与机器人 &#x2F; 通用 diffusion policy 的工具链共享，可受益于大模型社区进展。</li>
+</ul>
+<p><strong>瓶颈</strong>：</p>
+<ul>
+<li>截断 2 步后仍要精调，对超参敏感；</li>
+<li>缺乏可解释的”候选集”概念，安全审计较难；</li>
+<li>极端场景下扩散可能生成不合理轨迹，需要额外的安全后处理。</li>
+</ul>
+<h2 id="7-评分派-vs-生成派：当前的路线之争"><a href="#7-评分派-vs-生成派：当前的路线之争" class="headerlink" title="7. 评分派 vs 生成派：当前的路线之争"></a>7. 评分派 vs 生成派：当前的路线之争</h2><p>到 2025 年，端到端规划已经清晰分化为两条路线：</p>
+<table>
+<thead>
+<tr>
+<th align="left">维度</th>
+<th align="left">评分派（VADv2 &#x2F; SparseDriveV2）</th>
+<th align="left">生成派（DiffusionDrive）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">输出建模</td>
+<td align="left">在固定词表上学 $p(a\mid o)$</td>
+<td align="left">用扩散从噪声生成轨迹</td>
+</tr>
+<tr>
+<td align="left">词表大小</td>
+<td align="left">4K – 260K</td>
+<td align="left">20 锚点</td>
+</tr>
+<tr>
+<td align="left">多模态</td>
+<td align="left">显式（top-k）</td>
+<td align="left">隐式（去噪结果分布）</td>
+</tr>
+<tr>
+<td align="left">推理可控性</td>
+<td align="left">高（候选集封闭）</td>
+<td align="left">低（生成结果不可枚举）</td>
+</tr>
+<tr>
+<td align="left">安全审计</td>
+<td align="left">容易</td>
+<td align="left">困难</td>
+</tr>
+<tr>
+<td align="left">NAVSIM 当前最优</td>
+<td align="left">SparseDriveV2 92.0</td>
+<td align="left">DiffusionDrive 88.1</td>
+</tr>
+<tr>
+<td align="left">与大模型生态</td>
+<td align="left">与 LLM&#x2F;VLA 同构</td>
+<td align="left">与机器人 diffusion policy 同构</td>
+</tr>
+</tbody></table>
+<p><strong>这场路线之争还远没有结束</strong>。2025 年下半年出现的 Hydra-MDP、GoalFlow 等工作开始尝试”评分 + 生成”的混合范式：用扩散生成候选，再用评分器精排。这条混合路线很可能是下一代的主流。</p>
+<h2 id="8-五代演进的统一视角"><a href="#8-五代演进的统一视角" class="headerlink" title="8. 五代演进的统一视角"></a>8. 五代演进的统一视角</h2><p>把五代方法摆在一起，可以看到三条清晰的演进轴线：</p>
+<h3 id="8-1-表示在变轻：dense-BEV-→-vector-→-sparse-token"><a href="#8-1-表示在变轻：dense-BEV-→-vector-→-sparse-token" class="headerlink" title="8.1 表示在变轻：dense BEV → vector → sparse token"></a>8.1 表示在变轻：dense BEV → vector → sparse token</h3><table>
+<thead>
+<tr>
+<th align="left">代次</th>
+<th align="left">场景表示</th>
+<th align="center">单帧特征量级</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">UniAD</td>
+<td align="left">dense BEV (200×200×256)</td>
+<td align="center">$10^7$</td>
+</tr>
+<tr>
+<td align="left">VAD</td>
+<td align="left">vectorized polylines + agent queries</td>
+<td align="center">$10^4$</td>
+</tr>
+<tr>
+<td align="left">SparseDrive</td>
+<td align="left">sparse query tokens（无 dense feature）</td>
+<td align="center">$10^3$</td>
+</tr>
+</tbody></table>
+<p>这条轴线与 <a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">BEV+Transformer 文章 §6.1 的 map 表示演进</a> 完全同构——“绕过中间表示”是 BEV+Transformer 时代的主旋律。</p>
+<h3 id="8-2-决策在变多模态：single-trajectory-→-anchor-scoring-→-distribution"><a href="#8-2-决策在变多模态：single-trajectory-→-anchor-scoring-→-distribution" class="headerlink" title="8.2 决策在变多模态：single trajectory → anchor scoring → distribution"></a>8.2 决策在变多模态：single trajectory → anchor scoring → distribution</h3><table>
+<thead>
+<tr>
+<th align="left">代次</th>
+<th align="left">决策建模</th>
+<th align="center">模态数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">UniAD &#x2F; VAD</td>
+<td align="left">回归一条确定性轨迹</td>
+<td align="center">1</td>
+</tr>
+<tr>
+<td align="left">VADv2 &#x2F; SparseDrive</td>
+<td align="left">在固定词表上评分</td>
+<td align="center">4K</td>
+</tr>
+<tr>
+<td align="left">SparseDriveV2</td>
+<td align="left">路径 × 速度分解评分</td>
+<td align="center">260K</td>
+</tr>
+<tr>
+<td align="left">DiffusionDrive</td>
+<td align="left">扩散生成多模态分布</td>
+<td align="center">连续</td>
+</tr>
+</tbody></table>
+<p>VADv2 是这条轴线上<strong>唯一的概念跳迁</strong>——从”输出一个最优”变成”输出一个分布”。后续无论评分派还是生成派，都建立在这个跳迁之上。</p>
+<h3 id="8-3-与大模型的关系在变近"><a href="#8-3-与大模型的关系在变近" class="headerlink" title="8.3 与大模型的关系在变近"></a>8.3 与大模型的关系在变近</h3><table>
+<thead>
+<tr>
+<th align="left">代次</th>
+<th align="left">与 LLM&#x2F;Diffusion 生态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">UniAD</td>
+<td align="left">完全独立的 CV 范式</td>
+</tr>
+<tr>
+<td align="left">VAD</td>
+<td align="left">仍是 CV 范式，但开始用 attention 做规划</td>
+</tr>
+<tr>
+<td align="left">VADv2</td>
+<td align="left">思想上与 LLM 同构（词汇表 + 条件概率）</td>
+</tr>
+<tr>
+<td align="left">SparseDriveV2</td>
+<td align="left">与 LLM 同构 + 工程化分解</td>
+</tr>
+<tr>
+<td align="left">DiffusionDrive</td>
+<td align="left">与 robot diffusion policy 同构</td>
+</tr>
+</tbody></table>
+<p>这条轴线意味着：<strong>端到端自动驾驶正在加速融入大模型生态</strong>。VADv2 之后的工作可以直接复用 LLM&#x2F;diffusion 的训练 trick（KL 散度、guidance、CFG、scheduler 等），社区的进展会以越来越快的速度迁移到 AD 上。</p>
+<h2 id="9-工程视角：选型决策树"><a href="#9-工程视角：选型决策树" class="headerlink" title="9. 工程视角：选型决策树"></a>9. 工程视角：选型决策树</h2><p>如果你在工业界做 E2E AD 选型，下面这棵决策树或许有用：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">是否需要量产部署？</span><br><span class="line">├── 否（学术研究，追求 SOTA）</span><br><span class="line">│   ├── 偏好 NAVSIM 高分 → SparseDriveV2（评分派）</span><br><span class="line">│   └── 偏好生成式范式  → DiffusionDrive</span><br><span class="line">│</span><br><span class="line">└── 是（量产部署）</span><br><span class="line">    ├── 算力充足（A100+） → VADv2 / SparseDriveV2</span><br><span class="line">    │   └── 优势：候选集封闭，安全审计容易</span><br><span class="line">    │</span><br><span class="line">    └── 算力受限（车规 SoC）</span><br><span class="line">        ├── 不需要多模态 → VAD-Tiny（16.8 FPS）</span><br><span class="line">        └── 需要多模态  → DiffusionDrive（45 FPS，但需要安全后处理）</span><br></pre></td></tr></table></figure>
+
+<p>实际选型中还要考虑：</p>
+<ul>
+<li><strong>数据规模</strong>：评分派受益于大数据（词表越大越好），生成派对数据量需求较小；</li>
+<li><strong>可解释性需求</strong>：监管严格的市场（如欧盟）建议评分派；</li>
+<li><strong>大模型团队基础</strong>：已有 VLA&#x2F;LLM 团队建议评分派（思路同构，工具链共享）。</li>
+</ul>
+<h2 id="10-总结与展望"><a href="#10-总结与展望" class="headerlink" title="10. 总结与展望"></a>10. 总结与展望</h2><p>E2E 自动驾驶在三年内走完了”模块级联 → 向量化 → 概率分布 → 稀疏 token → 扩散生成”五个阶段，每一次跳迁都对应着对前一代核心假设的否定。当前的”评分派 vs 生成派”路线之争还没有定论，但混合范式（生成候选 + 评分精排）已经显出主流潜质。</p>
+<p>更宏观地看，E2E AD 已经不再是一个孤立的 CV 课题，而是与 <strong>LLM、VLA、Diffusion Policy</strong> 共享同一套思想框架。下一代 E2E 方法很可能会以下列形态出现：</p>
+<ul>
+<li><strong>Vocabulary scaling</strong>：词汇表从 4K 扩展到 100M（与 LLM token 数量级齐平）；</li>
+<li><strong>Multi-modality fusion</strong>：场景特征 + 语言指令 + 历史轨迹联合编码；</li>
+<li><strong>World model 反馈</strong>：用世界模型生成的反事实轨迹作为评分器的训练信号；</li>
+<li><strong>闭环数据飞轮</strong>：仿真 → 真实路测 → 反馈训练，与 LLM 的 RLHF 同构。</li>
+</ul>
+<blockquote>
+<p>想看 E2E AD 在更宏观的”自动驾驶五次跃迁”中所处位置，请阅读 <a href="/posts/2026/Autonomous_Driving_Evolution_From_Perception_to_World_Model/">自动驾驶的觉醒：从感知像素到重构世界的五次跃迁</a>。<br>想看本文涉及论文的完整知识图谱与推荐阅读顺序，请阅读 <a href="/posts/2026/Paper_Knowledge_Graph_Autonomous_Driving_Perception/">自动驾驶感知论文知识图谱</a>。</p>
+</blockquote>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9F%A5%E8%AF%86%E5%9B%BE%E8%B0%B1"><span class="toc-text">知识图谱</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E8%B5%B7%E7%82%B9%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E7%AB%AF%E5%88%B0%E7%AB%AF%EF%BC%9F"><span class="toc-text">1. 起点：为什么需要端到端？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E6%A8%A1%E5%9D%97%E5%8C%96%E6%97%B6%E4%BB%A3%E7%9A%84%E4%B8%A4%E4%B8%AA%E5%8E%9F%E7%BD%AA"><span class="toc-text">1.1 模块化时代的两个原罪</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%9A%84%E6%89%BF%E8%AF%BA"><span class="toc-text">1.2 端到端的承诺</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%AC%AC%E4%B8%80%E4%BB%A3%EF%BC%9AUniAD-%E2%80%94%E2%80%94-%E5%A4%9A%E4%BB%BB%E5%8A%A1%E7%BA%A7%E8%81%94%E7%9A%84%E5%85%A8%E6%A0%88%E7%AB%AF%E5%88%B0%E7%AB%AF"><span class="toc-text">2. 第一代：UniAD —— 多任务级联的全栈端到端</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3%EF%BC%9Aplanning-oriented-%E7%9A%84%E7%BA%A7%E8%81%94%E7%9B%91%E7%9D%A3"><span class="toc-text">2.1 核心思想：planning-oriented 的级联监督</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%80%A7%E8%83%BD%E4%B8%8E%E4%BB%A3%E4%BB%B7"><span class="toc-text">2.2 性能与代价</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E7%AC%AC%E4%BA%8C%E4%BB%A3%EF%BC%9AVAD-%E2%80%94%E2%80%94-%E6%8A%8A%E5%9C%BA%E6%99%AF%E2%80%9D%E5%90%91%E9%87%8F%E5%8C%96%E2%80%9D"><span class="toc-text">3. 第二代：VAD —— 把场景”向量化”</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%85%B3%E9%94%AE%E6%B4%9E%E5%AF%9F%EF%BC%9Adense-BEV-%E6%98%AF%E5%86%97%E4%BD%99%E7%9A%84"><span class="toc-text">3.1 关键洞察：dense BEV 是冗余的</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%B8%89%E9%A1%B9%E5%87%A0%E4%BD%95%E7%BA%A6%E6%9D%9F%EF%BC%9A%E6%8A%8A%E8%A7%84%E5%88%99%E2%80%9D%E7%84%8A%E2%80%9D%E8%BF%9B%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0"><span class="toc-text">3.2 三项几何约束：把规则”焊”进损失函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="toc-text">3.3 性能对比</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-VAD-%E7%9A%84%E4%B8%A4%E4%B8%AA%E6%9C%AA%E8%A7%A3%E4%B9%8B%E8%B0%9C"><span class="toc-text">3.4 VAD 的两个未解之谜</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E7%AC%AC%E4%B8%89%E4%BB%A3%EF%BC%9AVADv2-%E2%80%94%E2%80%94-%E6%8A%8A%E8%A7%84%E5%88%92%E5%8F%98%E6%88%90%E2%80%9D-p-a-mid-o-%E5%88%86%E5%B8%83%E5%BB%BA%E6%A8%A1%E2%80%9D"><span class="toc-text">4. 第三代：VADv2 —— 把规划变成”$p(a\mid o)$ 分布建模”</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3%EF%BC%9A%E4%BB%8E%E5%9B%9E%E5%BD%92%E5%88%B0%E5%88%86%E7%B1%BB%EF%BC%8C%E5%86%8D%E5%88%B0%E5%88%86%E5%B8%83"><span class="toc-text">4.1 核心思想：从回归到分类，再到分布</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E4%B8%AA%E6%94%B9%E5%8A%A8%E6%98%AF%E8%8C%83%E5%BC%8F%E7%BA%A7%E7%9A%84"><span class="toc-text">4.2 为什么这个改动是范式级的</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%80%A7%E8%83%BD%E4%B8%8E%E9%99%90%E5%88%B6"><span class="toc-text">4.3 性能与限制</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%AC%AC%E5%9B%9B%E4%BB%A3%E5%88%86%E6%94%AF-A%EF%BC%9ASparseDrive-%E7%B3%BB%E5%88%97-%E2%80%94%E2%80%94-%E8%AF%84%E5%88%86%E6%B4%BE%E7%9A%84%E6%9E%81%E8%87%B4"><span class="toc-text">5. 第四代分支 A：SparseDrive 系列 —— 评分派的极致</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-SparseDrive%EF%BC%9A%E5%8E%BB-BEV%EF%BC%8C%E5%85%A8-token-%E5%8C%96"><span class="toc-text">5.1 SparseDrive：去 BEV，全 token 化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-SparseDriveV2%EF%BC%9A%E8%B6%85%E5%AF%86%E5%88%86%E8%A7%A3%E8%AF%8D%E8%A1%A8"><span class="toc-text">5.2 SparseDriveV2：超密分解词表</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E8%AF%84%E5%88%86%E6%B4%BE%E7%9A%84%E4%BC%98%E5%8A%BF%E4%B8%8E%E7%93%B6%E9%A2%88"><span class="toc-text">5.3 评分派的优势与瓶颈</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E7%AC%AC%E5%9B%9B%E4%BB%A3%E5%88%86%E6%94%AF-B%EF%BC%9ADiffusionDrive-%E2%80%94%E2%80%94-%E7%94%9F%E6%88%90%E6%B4%BE%E7%9A%84%E8%BD%BB%E9%87%8F%E5%8C%96"><span class="toc-text">6. 第四代分支 B：DiffusionDrive —— 生成派的轻量化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E6%88%AA%E6%96%AD%E6%89%A9%E6%95%A3%EF%BC%9A%E5%8F%AA%E5%8E%BB%E5%99%AA-2-%E6%AD%A5"><span class="toc-text">6.1 截断扩散：只去噪 2 步</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E6%80%A7%E8%83%BD%E4%B8%8E%E6%84%8F%E4%B9%89"><span class="toc-text">6.2 性能与意义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E7%94%9F%E6%88%90%E6%B4%BE%E7%9A%84%E4%BC%98%E5%8A%BF%E4%B8%8E%E7%93%B6%E9%A2%88"><span class="toc-text">6.3 生成派的优势与瓶颈</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E8%AF%84%E5%88%86%E6%B4%BE-vs-%E7%94%9F%E6%88%90%E6%B4%BE%EF%BC%9A%E5%BD%93%E5%89%8D%E7%9A%84%E8%B7%AF%E7%BA%BF%E4%B9%8B%E4%BA%89"><span class="toc-text">7. 评分派 vs 生成派：当前的路线之争</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E4%BA%94%E4%BB%A3%E6%BC%94%E8%BF%9B%E7%9A%84%E7%BB%9F%E4%B8%80%E8%A7%86%E8%A7%92"><span class="toc-text">8. 五代演进的统一视角</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E8%A1%A8%E7%A4%BA%E5%9C%A8%E5%8F%98%E8%BD%BB%EF%BC%9Adense-BEV-%E2%86%92-vector-%E2%86%92-sparse-token"><span class="toc-text">8.1 表示在变轻：dense BEV → vector → sparse token</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E5%86%B3%E7%AD%96%E5%9C%A8%E5%8F%98%E5%A4%9A%E6%A8%A1%E6%80%81%EF%BC%9Asingle-trajectory-%E2%86%92-anchor-scoring-%E2%86%92-distribution"><span class="toc-text">8.2 决策在变多模态：single trajectory → anchor scoring → distribution</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-%E4%B8%8E%E5%A4%A7%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%85%B3%E7%B3%BB%E5%9C%A8%E5%8F%98%E8%BF%91"><span class="toc-text">8.3 与大模型的关系在变近</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E5%B7%A5%E7%A8%8B%E8%A7%86%E8%A7%92%EF%BC%9A%E9%80%89%E5%9E%8B%E5%86%B3%E7%AD%96%E6%A0%91"><span class="toc-text">9. 工程视角：选型决策树</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E6%80%BB%E7%BB%93%E4%B8%8E%E5%B1%95%E6%9C%9B"><span class="toc-text">10. 总结与展望</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

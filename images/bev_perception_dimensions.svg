@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+  </defs>
+  <text x="360" y="22" text-anchor="middle" font-weight="600" fill="#333">表示（Representation）</text>
+
+  <rect x="40"  y="50" width="180" height="120" rx="8" fill="#eef5ff" stroke="#4a90e2"/>
+  <text x="130" y="72" text-anchor="middle" font-weight="600" fill="#1f5fa8">Object</text>
+  <text x="130" y="98" text-anchor="middle" fill="#333">Sparse4D</text>
+  <text x="130" y="118" text-anchor="middle" fill="#333">PETR</text>
+  <text x="130" y="138" text-anchor="middle" fill="#333">StreamPETR</text>
+
+  <rect x="270" y="50" width="180" height="120" rx="8" fill="#eefaee" stroke="#4caf50"/>
+  <text x="360" y="72" text-anchor="middle" font-weight="600" fill="#2e7d32">BEV</text>
+  <text x="360" y="98" text-anchor="middle" fill="#333">LSS / BEVDet</text>
+  <text x="360" y="118" text-anchor="middle" fill="#333">BEVDepth</text>
+  <text x="360" y="138" text-anchor="middle" fill="#333">BEVFormer</text>
+
+  <rect x="500" y="50" width="180" height="120" rx="8" fill="#fff4e6" stroke="#f0932b"/>
+  <text x="590" y="72" text-anchor="middle" font-weight="600" fill="#a85c12">Occupancy</text>
+  <text x="590" y="98" text-anchor="middle" fill="#333">OccFormer</text>
+  <text x="590" y="118" text-anchor="middle" fill="#333">4D 世界模型</text>
+
+  <text x="180" y="210" text-anchor="middle" font-weight="600" fill="#333">几何（Geometry）</text>
+  <rect x="60" y="225" width="240" height="100" rx="8" fill="#fafafa" stroke="#999"/>
+  <text x="80" y="252" fill="#333"><tspan font-weight="600">projection</tspan>　算位置（BEVFormer / DETR3D）</text>
+  <text x="80" y="278" fill="#333"><tspan font-weight="600">embedding</tspan>　学位置（PETR）</text>
+  <text x="80" y="304" fill="#333">↑ 把 2D 特征对齐到 3D / BEV</text>
+
+  <text x="540" y="210" text-anchor="middle" font-weight="600" fill="#333">时序（Temporal）</text>
+  <rect x="420" y="225" width="240" height="100" rx="8" fill="#fafafa" stroke="#999"/>
+  <text x="440" y="252" fill="#333"><tspan font-weight="600">warp</tspan>　　BEV 对齐（量产主流）</text>
+  <text x="440" y="278" fill="#333"><tspan font-weight="600">attention</tspan>　融合历史特征</text>
+  <text x="440" y="304" fill="#333"><tspan font-weight="600">state</tspan>　　传播 query 状态</text>
+
+  <line x1="180" y1="170" x2="180" y2="225" stroke="#888" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="540" y1="170" x2="540" y2="225" stroke="#888" stroke-width="1.5" marker-end="url(#arr)"/>
+</svg>

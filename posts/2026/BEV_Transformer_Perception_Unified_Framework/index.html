@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            BEV 与 Transformer 自动驾驶感知方法的统一视角 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">BEV 与 Transformer 自动驾驶感知方法的统一视角</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年05月01日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Topic: BEV &#x2F; Transformer Perception<br>Keywords: LSS, BEVFormer, PETR, Sparse4D, Occupancy, UniAD, TensorRT</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="知识图谱"><a href="#知识图谱" class="headerlink" title="知识图谱"></a>知识图谱</h2><p>下面这张交互式图谱展示本文涉及的 BEV + Transformer 感知论文之间的演进关系。<strong>点击节点可跳转到对应论文笔记</strong>；右下角按钮支持缩放、适应窗口和全屏。</p>
+<div id="bev-graph-wrapper" style="position:relative;width:100%;margin:1.5rem 0;">
+  <div id="bev-graph" style="width:100%;height:560px;border:1px solid #e0e0e0;border-radius:8px;background:#fafbfc;"></div>
+  <div id="bev-graph-toolbar" style="position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10;">
+    <button id="bev-graph-zoom-in" type="button" title="放大" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">＋</button>
+    <button id="bev-graph-zoom-out" type="button" title="缩小" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">－</button>
+    <button id="bev-graph-fit" type="button" title="适应窗口" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">⊙</button>
+    <button id="bev-graph-fullscreen" type="button" title="全屏" style="width:30px;height:30px;border:1px solid #ccc;border-radius:6px;background:rgba(255,255,255,0.9);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">⛶</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+<script src="/js/paper-graph-helper.js"></script>
+<script src="/js/paper-graph-bev.js"></script>
+
+<p style="font-size:0.9em;line-height:1.8;margin-top:0.5rem;">
+🟢 显式 BEV 投影派（LSS / BEVDet / BEVDepth / BEVFusion）<br>
+🩵 Query / 隐式 BEV 派（DETR3D / PETR / BEVFormer / Sparse4D / StreamPETR / MapTR 系列）<br>
+🟡 上游通用检测（DETR / Deformable DETR）<br>
+🔵 占用 / 分割（Mask2Former / OccFormer）<br>
+🟣 端到端入口（UniAD，详见 <a href="/posts/2026/E2E_Autonomous_Driving_Paradigm_Evolution/">《端到端自动驾驶的范式跃迁与路线之争》</a>）
+</p>
+
+<h2 id="引言：在脱离单篇论文后重建体系"><a href="#引言：在脱离单篇论文后重建体系" class="headerlink" title="引言：在脱离单篇论文后重建体系"></a>引言：在脱离单篇论文后重建体系</h2><p>读完几篇 BEV 论文，再去看 Sparse4D、PETR、Occupancy，很容易陷入一种感觉：<strong>每个方法都看懂了，但合在一起又分不清谁解决了谁的问题</strong>。论文笔记里记录了大量”做了什么”，却很少串起”为什么这么做”。</p>
+<p>本文不再做单篇方法的拆解，而是退后一步，把当前主流的多相机 3D 感知方法放到同一个坐标系下，回答三件事：</p>
+<ol>
+<li>它们在解同一个什么问题？</li>
+<li>各自在哪个维度上做了取舍？</li>
+<li>工程落地时真正卡脖子的是什么？</li>
+</ol>
+<p>适合的场景：脉络已经熟了，但碰到一个新方法时仍然要重新理一遍它属于哪条路线、和已有方法差在哪——这篇用来给自己做一次”维度对齐”。</p>
+<h2 id="0-方法全景：三个正交维度与演进时间线"><a href="#0-方法全景：三个正交维度与演进时间线" class="headerlink" title="0. 方法全景：三个正交维度与演进时间线"></a>0. 方法全景：三个正交维度与演进时间线</h2><p>先把全文涉及的方法按”表示 × 几何 × 时序”三个维度铺开，本文剩余章节都是在解释这张图里每一格为什么这么填：</p>
+<p><img src="/images/bev_perception_dimensions.svg" alt="BEV 感知方法的三维度划分"></p>
+<p>时间线上，三条主线大致是这样并行演进、最终在端到端阶段汇合：</p>
+<p><img src="/images/bev_perception_timeline.svg" alt="BEV / Transformer 感知方法演进时间线"></p>
+<h2 id="1-问题抽象：多相机-3D-感知的三个独立决策维度"><a href="#1-问题抽象：多相机-3D-感知的三个独立决策维度" class="headerlink" title="1. 问题抽象：多相机 3D 感知的三个独立决策维度"></a>1. 问题抽象：多相机 3D 感知的三个独立决策维度</h2><p>把多相机 3D 感知拆开看，本质是回答三个独立的问题：</p>
+<table>
+<thead>
+<tr>
+<th align="center">维度</th>
+<th align="left">问题</th>
+<th align="left">设计选择</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><strong>表示（Representation）</strong></td>
+<td align="left">用什么数据结构表达世界</td>
+<td align="left">Object &#x2F; BEV &#x2F; Occupancy</td>
+</tr>
+<tr>
+<td align="center"><strong>几何（Geometry）</strong></td>
+<td align="left">如何把 2D 图像信息对齐到该表示</td>
+<td align="left">显式投影 &#x2F; 隐式 embedding</td>
+</tr>
+<tr>
+<td align="center"><strong>时序（Temporal）</strong></td>
+<td align="left">如何让前后帧保持一致与可预测</td>
+<td align="left">Warp &#x2F; Attention &#x2F; State</td>
+</tr>
+</tbody></table>
+<p>不同论文之所以看起来差异巨大，本质都是在这三件事上做不同组合。一旦把方法套到这张表里，就不会再被”又一个新模块”绕晕。</p>
+<h2 id="2-三条主线：表示-几何的组合"><a href="#2-三条主线：表示-几何的组合" class="headerlink" title="2. 三条主线：表示 + 几何的组合"></a>2. 三条主线：表示 + 几何的组合</h2><h3 id="2-1-LSS-系：显式几何-稠密-BEV"><a href="#2-1-LSS-系：显式几何-稠密-BEV" class="headerlink" title="2.1 LSS 系：显式几何 + 稠密 BEV"></a>2.1 LSS 系：显式几何 + 稠密 BEV</h3><p>代表：<a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> → <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a> → <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>。</p>
+<p>数据流可以一句话概括：</p>
+<p>$$\text{image} \xrightarrow{\text{depth}} \text{3D frustum} \xrightarrow{\text{splat}} \text{BEV} \rightarrow \text{task head}$$</p>
+<p>关键变量是 <strong>depth 分布</strong>。每个像素预测一个离散深度概率，与 2D 特征做外积”举”到 3D 视锥体（lift），再按相机参数投影到 BEV 网格累加（splat）。</p>
+<h4 id="三代演进的本质"><a href="#三代演进的本质" class="headerlink" title="三代演进的本质"></a>三代演进的本质</h4><ul>
+<li><strong>LSS</strong>：奠定了 lift-splat-shoot 的范式，但 depth 完全靠隐式监督学习，误差较大；</li>
+<li><strong>BEVDet</strong>：把 LSS 工程化（模块解耦 + BEV 数据增强），在 nuScenes 上验证了路线可行性；</li>
+<li><strong>BEVDepth</strong>：把整条 pipeline 里最不稳定的一环——depth——从”猜”变成”教”，引入 LiDAR 的显式深度监督，让 BEV 对齐质量上一个台阶。</li>
+</ul>
+<h4 id="路线评价"><a href="#路线评价" class="headerlink" title="路线评价"></a>路线评价</h4><ul>
+<li>优点：几何过程可解释，BEV 特征稠密、易于多任务复用；</li>
+<li>缺点：depth 误差会沿 <code>image → depth → 3D → BEV</code> 链路被放大，是典型的乘法误差链；</li>
+<li>定位：<strong>量产主流</strong>，工程链路最可控。</li>
+</ul>
+<h3 id="2-2-BEVFormer：BEV-空间-query"><a href="#2-2-BEVFormer：BEV-空间-query" class="headerlink" title="2.2 BEVFormer：BEV 空间 query"></a>2.2 BEVFormer：BEV 空间 query</h3><p>代表：<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>。数据流：</p>
+<p>$$\text{BEV grid query} \xrightarrow{\text{spatial cross-attn}} \text{multi-view image} \rightarrow \text{BEV feature}$$</p>
+<p>它不再算 depth，而是让 BEV 网格上每个位置主动去图像里”找”自己的特征——通过相机参数生成参考点，再用 deformable attention 采样。</p>
+<h4 id="一个常见分类辨析：BEVFormer-是否属于-query-based"><a href="#一个常见分类辨析：BEVFormer-是否属于-query-based" class="headerlink" title="一个常见分类辨析：BEVFormer 是否属于 query-based"></a>一个常见分类辨析：BEVFormer 是否属于 query-based</h4><p>算，但<strong>不是 DETR 那种 object query</strong>。BEVFormer 的 query 是 BEV grid 上的每个位置（数量级 200×200 ≈ 4 万），表达的是”这个空间位置应该是什么特征”，而不是”图里有哪些物体”。</p>
+<p>更精确的分类是：</p>
+<table>
+<thead>
+<tr>
+<th align="left">路线</th>
+<th align="left">Query 含义</th>
+<th align="center">数量</th>
+<th align="left">任务形式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">DETR</td>
+<td align="left">object（语义）</td>
+<td align="center">~100</td>
+<td align="left">set prediction</td>
+</tr>
+<tr>
+<td align="left">BEVFormer</td>
+<td align="left">BEV grid（空间）</td>
+<td align="center">~4 万</td>
+<td align="left">dense feature</td>
+</tr>
+<tr>
+<td align="left">PETR &#x2F; Sparse4D</td>
+<td align="left">object（3D）</td>
+<td align="center">~几百</td>
+<td align="left">3D set prediction</td>
+</tr>
+</tbody></table>
+<p>三者都用 Transformer + query，但 query 的语义和粒度完全不同。</p>
+<h4 id="路线评价-1"><a href="#路线评价-1" class="headerlink" title="路线评价"></a>路线评价</h4><ul>
+<li>优点：表达能力强，几何不依赖深度估计；时序自注意力天然融合历史 BEV；</li>
+<li>缺点：dense BEV query × multi-view image 的注意力开销很大，scaling 性较差；</li>
+<li>定位：研究友好，工程上常被简化或裁剪。</li>
+</ul>
+<h3 id="2-3-Sparse-Query-系：对象级稀疏表示"><a href="#2-3-Sparse-Query-系：对象级稀疏表示" class="headerlink" title="2.3 Sparse Query 系：对象级稀疏表示"></a>2.3 Sparse Query 系：对象级稀疏表示</h3><p>代表：<a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a> → <a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a> → <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a> &#x2F; <a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a>。数据流：</p>
+<p>$$\text{object query} \xrightarrow{\text{sample image features}} \text{3D object &#x2F; state}$$</p>
+<p>跳过了”建一张完整地图”这一步，直接用一组稀疏 query（几十到几百个）表征潜在物体。</p>
+<h4 id="Sparse-Query-的三个进化阶段"><a href="#Sparse-Query-的三个进化阶段" class="headerlink" title="Sparse Query 的三个进化阶段"></a>Sparse Query 的三个进化阶段</h4><table>
+<thead>
+<tr>
+<th align="center">阶段</th>
+<th align="center">代表</th>
+<th align="left">Query 含义</th>
+<th align="left">关键能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Detection query</td>
+<td align="center"><a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a> &#x2F; <a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a></td>
+<td align="left">单帧 3D object</td>
+<td align="left">跳过 BEV 直接预测 3D box</td>
+</tr>
+<tr>
+<td align="center">Tracking query</td>
+<td align="center">StreamPETR &#x2F; MOTR</td>
+<td align="left">跨帧 track</td>
+<td align="left">query 跨帧延续，时序稳定</td>
+</tr>
+<tr>
+<td align="center">Stateful query</td>
+<td align="center">Sparse4D</td>
+<td align="left">带状态的 object</td>
+<td align="left">显式建模位置 + 速度 + 历史</td>
+</tr>
+</tbody></table>
+<p>升级路径可以总结为：</p>
+<p>$$\text{object} \rightarrow \text{track} \rightarrow \text{state}$$</p>
+<p>从单帧目标，到跨帧 ID，再到带速度&#x2F;加速度的状态向量——本质上越来越像一个可学习的 Kalman Filter（这一点放到 §5 详细展开）。</p>
+<h4 id="路线评价-2"><a href="#路线评价-2" class="headerlink" title="路线评价"></a>路线评价</h4><ul>
+<li>优点：稀疏、scaling 好、贴近下游任务（检测、跟踪、规划）；</li>
+<li>缺点：recall 依赖 query 数量与初始化策略，cold start 问题真实存在；</li>
+<li>定位：<strong>当前学术前沿与端到端方案的主力</strong>。</li>
+</ul>
+<h3 id="2-4-三条主线的横向对比"><a href="#2-4-三条主线的横向对比" class="headerlink" title="2.4 三条主线的横向对比"></a>2.4 三条主线的横向对比</h3><table>
+<thead>
+<tr>
+<th align="center">维度</th>
+<th align="center">LSS 系</th>
+<th align="center">BEVFormer</th>
+<th align="center">Sparse Query 系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">表示</td>
+<td align="center">稠密 BEV</td>
+<td align="center">稠密 BEV</td>
+<td align="center">稀疏 object</td>
+</tr>
+<tr>
+<td align="center">几何</td>
+<td align="center">显式 depth + splat</td>
+<td align="center">投影参考点 + attn</td>
+<td align="center">投影或 embedding + attn</td>
+</tr>
+<tr>
+<td align="center">时序</td>
+<td align="center">BEV warp</td>
+<td align="center">BEV self-attn</td>
+<td align="center">query 状态传播</td>
+</tr>
+<tr>
+<td align="center">工程友好度</td>
+<td align="center">高</td>
+<td align="center">中</td>
+<td align="center">高</td>
+</tr>
+<tr>
+<td align="center">表达能力</td>
+<td align="center">中</td>
+<td align="center">高</td>
+<td align="center">高</td>
+</tr>
+<tr>
+<td align="center">Scaling</td>
+<td align="center">中</td>
+<td align="center">较差</td>
+<td align="center">较好</td>
+</tr>
+</tbody></table>
+<h2 id="3-几何建模的两条路线：显式投影-vs-隐式编码"><a href="#3-几何建模的两条路线：显式投影-vs-隐式编码" class="headerlink" title="3. 几何建模的两条路线：显式投影 vs 隐式编码"></a>3. 几何建模的两条路线：显式投影 vs 隐式编码</h2><p>主线之外，还有一个常被忽略但很关键的维度：<strong>3D 位置信息是”算”出来的，还是”学”出来的？</strong></p>
+<h3 id="3-1-Projection-based（显式几何）"><a href="#3-1-Projection-based（显式几何）" class="headerlink" title="3.1 Projection-based（显式几何）"></a>3.1 Projection-based（显式几何）</h3><p>代表：<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>、<a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a>。直接利用相机内外参把 query 投影到图像平面，再做采样。</p>
+<ul>
+<li>几何约束强，几何关系可解释；</li>
+<li>对标定误差敏感——震动、温漂、安装偏差都会让多视角对齐崩坏；</li>
+<li>跨车型、跨标定迁移困难。</li>
+</ul>
+<h3 id="3-2-Embedding-based（隐式几何）"><a href="#3-2-Embedding-based（隐式几何）" class="headerlink" title="3.2 Embedding-based（隐式几何）"></a>3.2 Embedding-based（隐式几何）</h3><p>代表：PETR。把 3D 坐标通过 MLP 编码成 positional embedding，注入 2D 特征里，让网络自己学如何对齐。</p>
+<ul>
+<li>几何约束弱，但泛化更好；</li>
+<li>对标定不那么敏感，更容易跨设备部署；</li>
+<li>表达力依赖于 embedding 设计。</li>
+</ul>
+<h3 id="3-3-两条路线的本质区别"><a href="#3-3-两条路线的本质区别" class="headerlink" title="3.3 两条路线的本质区别"></a>3.3 两条路线的本质区别</h3><table>
+<thead>
+<tr>
+<th align="center">路线</th>
+<th align="left">本质</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Projection</td>
+<td align="left">算位置</td>
+</tr>
+<tr>
+<td align="center">Embedding</td>
+<td align="left">学位置</td>
+</tr>
+</tbody></table>
+<p>这条暗线决定了一个方法能否优雅地处理跨车型、跨标定的部署问题，是 BEV Transformer 设计中独立于”表示选择”的另一维度。</p>
+<h2 id="4-表示层级的演进：Object-→-BEV-→-Occupancy"><a href="#4-表示层级的演进：Object-→-BEV-→-Occupancy" class="headerlink" title="4. 表示层级的演进：Object → BEV → Occupancy"></a>4. 表示层级的演进：Object → BEV → Occupancy</h2><table>
+<thead>
+<tr>
+<th align="center">表示</th>
+<th align="center">代表</th>
+<th align="left">特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Object</td>
+<td align="center"><a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a></td>
+<td align="left">稀疏、语义强、面向任务</td>
+</tr>
+<tr>
+<td align="center">BEV</td>
+<td align="center"><a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> &#x2F; <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a></td>
+<td align="left">空间结构清晰，便于多任务共享</td>
+</tr>
+<tr>
+<td align="center">Occupancy</td>
+<td align="center"><a href="/posts/2023/papers/2023_ICCV_OccFormer_Dual_Path_Transformer_3D_Semantic_Occupancy/">OccFormer</a> 及后续</td>
+<td align="left">不依赖类别定义，更接近物理世界</td>
+</tr>
+</tbody></table>
+<h3 id="Occupancy-为什么重要"><a href="#Occupancy-为什么重要" class="headerlink" title="Occupancy 为什么重要"></a>Occupancy 为什么重要</h3><p>它把问题从”那是辆什么车”退回到更原始的”那块空间是否被占用”：</p>
+<p>$$\text{predict space, not objects}$$</p>
+<p>这一退反而补上了基于类别的检测器面对<strong>异形 &#x2F; 未见过物体</strong>时的兜底能力——翻倒的货车、散落的纸箱，都不必先识别成某个已知类别。再加一个时间维，”未来 T 秒这个空间是否会被占用”就是 4D Occupancy &#x2F; Occupancy World Model 的雏形。</p>
+<p>可以把这三层看作表达世界的不同抽象粒度：object 最稀疏、最贴任务；BEV 居中；occupancy 最稠密、最接近物理。</p>
+<h2 id="5-时序建模的三种范式"><a href="#5-时序建模的三种范式" class="headerlink" title="5. 时序建模的三种范式"></a>5. 时序建模的三种范式</h2><p>时序部分常常被论文一笔带过，但它是 demo 与量产之间最大的鸿沟之一。</p>
+<h3 id="5-1-Warp：工程主流"><a href="#5-1-Warp：工程主流" class="headerlink" title="5.1 Warp：工程主流"></a>5.1 Warp：工程主流</h3><p>$$\text{prev BEV} \xrightarrow{\text{ego motion}} \text{aligned BEV at } t$$</p>
+<p>代表：BEVDet4D。用自车位姿把上一帧 BEV 特征几何对齐到当前帧。</p>
+<ul>
+<li>计算开销极低；</li>
+<li>几何稳定，不依赖学习；</li>
+<li>是大多数量产线的默认选项。</li>
+</ul>
+<h3 id="5-2-Attention（Memory）：BEVFormer-StreamPETR"><a href="#5-2-Attention（Memory）：BEVFormer-StreamPETR" class="headerlink" title="5.2 Attention（Memory）：BEVFormer &#x2F; StreamPETR"></a>5.2 Attention（Memory）：BEVFormer &#x2F; StreamPETR</h3><p>把历史特征（BEV feature 或 query）存到 memory 里，用注意力融合。表达更强，但有几个隐性问题：</p>
+<ul>
+<li>memory 存的是 feature，没有物理意义；</li>
+<li>attention 不区分 1 帧前还是 10 帧前，时间是隐式的；</li>
+<li>长时间遮挡时容易漂移。</li>
+</ul>
+<h3 id="5-3-State-Propagation：Sparse4D-的本质升级"><a href="#5-3-State-Propagation：Sparse4D-的本质升级" class="headerlink" title="5.3 State Propagation：Sparse4D 的本质升级"></a>5.3 State Propagation：Sparse4D 的本质升级</h3><p>不传特征，传<strong>带状态的 query</strong>——位置、速度、尺寸、朝向、历史 embedding 一起携带。每一帧做的不是 attention 融合，而是”predict + update”：</p>
+<ul>
+<li><strong>Predict</strong>：用上一帧 state 加速度推一步，得到先验位置；</li>
+<li><strong>Update</strong>：用当前图像观测做修正，更新状态。</li>
+</ul>
+<p>这个范式可以直接类比 Kalman Filter，但扩展到非线性、非高斯、且观测来自高维图像特征——一个<strong>可学习的 Kalman Filter</strong>。</p>
+<h4 id="Memory-与-State-的本质差别"><a href="#Memory-与-State-的本质差别" class="headerlink" title="Memory 与 State 的本质差别"></a>Memory 与 State 的本质差别</h4><table>
+<thead>
+<tr>
+<th align="center">能力</th>
+<th align="center">Memory（attention）</th>
+<th align="center">State（Sparse4D）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">表达</td>
+<td align="center">feature</td>
+<td align="center">物理量（位置&#x2F;速度）</td>
+</tr>
+<tr>
+<td align="center">时间</td>
+<td align="center">隐式</td>
+<td align="center">显式</td>
+</tr>
+<tr>
+<td align="center">运动建模</td>
+<td align="center">无</td>
+<td align="center">有</td>
+</tr>
+<tr>
+<td align="center">遮挡处理</td>
+<td align="center">弱</td>
+<td align="center">强</td>
+</tr>
+<tr>
+<td align="center">可解释性</td>
+<td align="center">低</td>
+<td align="center">高</td>
+</tr>
+</tbody></table>
+<p>直观比喻：memory 在”记过去”，state 在”推未来”。前者只会说”它刚才在那儿”，后者会说”它在以 10 m&#x2F;s 往前开，所以现在应该在这儿”。</p>
+<h4 id="三种范式横评"><a href="#三种范式横评" class="headerlink" title="三种范式横评"></a>三种范式横评</h4><table>
+<thead>
+<tr>
+<th align="center">范式</th>
+<th align="center">传递的对象</th>
+<th align="left">类比</th>
+<th align="left">适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Warp</td>
+<td align="center">几何对齐的特征图</td>
+<td align="left">坐标变换</td>
+<td align="left">量产、低算力</td>
+</tr>
+<tr>
+<td align="center">Attention</td>
+<td align="center">历史特征</td>
+<td align="left">加权融合</td>
+<td align="left">dense 表达 + 中短时序</td>
+</tr>
+<tr>
+<td align="center">State</td>
+<td align="center">物体状态向量</td>
+<td align="left">滤波器</td>
+<td align="left">sparse 表达 + 长时序 &#x2F; 遮挡</td>
+</tr>
+</tbody></table>
+<h3 id="5-4-与经典-Kalman-Filter-的本质差异"><a href="#5-4-与经典-Kalman-Filter-的本质差异" class="headerlink" title="5.4 与经典 Kalman Filter 的本质差异"></a>5.4 与经典 Kalman Filter 的本质差异</h3><p>经典 Kalman 把”感知”和”跟踪”完全切开：检测器单帧出框，Kalman 单独做数值滤波。两个模块的误差不能互相回传，整体不是端到端。Sparse4D 的真正提升不在”替代 Kalman”，而在三件事一起做到了：</p>
+<ol>
+<li><strong>观测更强</strong>：观测不再是 bbox 中心，而是高维图像特征，attention 自动挑可信区域；</li>
+<li><strong>动态模型更真实</strong>：转移函数是网络学出来的，不再被”匀速 + 高斯”假设限制；</li>
+<li><strong>可端到端优化</strong>：检测损失、轨迹一致性、速度约束统一回传，模型自己学”什么时候该信观测、什么时候该信预测”。</li>
+</ol>
+<p>代价是它失去了 Kalman 在”分布外场景”下的强先验保证——这是学习方法共同的脆弱点。</p>
+<h2 id="6-多任务统一：query-的语义升级"><a href="#6-多任务统一：query-的语义升级" class="headerlink" title="6. 多任务统一：query 的语义升级"></a>6. 多任务统一：query 的语义升级</h2><p><a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> 之后，”query”的含义又变了一次：不再只是 object 或 BEV grid，而是<strong>任务导向的载体</strong>——detection &#x2F; map &#x2F; track &#x2F; motion &#x2F; planning 各有自己的 query，并通过 attention 互相读写。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">detection query  ──┐</span><br><span class="line">map query        ──┼──► shared attention ──► planning</span><br><span class="line">motion query     ──┤</span><br><span class="line">track query      ──┘</span><br></pre></td></tr></table></figure>
+
+<p>这一步的意义在于：感知—预测—规划真正在同一个可微分网络里流动，过去模块化 pipeline 中的”信息瓶颈”被打通，是端到端路线的真正起点。沿这条线进一步发展的 SparseDrive 系列干脆把 BEV 也砍掉，让任务 query 直接在稀疏表示上互相读写。</p>
+<h3 id="6-1-在线矢量化建图：从栅格分割到-polyline-query-的四步演进"><a href="#6-1-在线矢量化建图：从栅格分割到-polyline-query-的四步演进" class="headerlink" title="6.1 在线矢量化建图：从栅格分割到 polyline query 的四步演进"></a>6.1 在线矢量化建图：从栅格分割到 polyline query 的四步演进</h3><p>在多任务统一的语境里，<strong>地图（map）</strong>是和检测、跟踪并列的一类 query。它的演进史是 BEV+Transformer 时代最干净的一条范式跃迁线，正好串起本文反复强调的”表示 → 几何 → 监督”三件套：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">HDMapNet (2022)  →  VectorMapNet (2023)  →  MapTR (2023)  →  MapTRv2 (2024)</span><br><span class="line">栅格 + DBSCAN     端到端栅格→矢量          一次性并行            +四把斧</span><br><span class="line">                  (DETR + 自回归生成)        polyline query        (解耦+o2m+密集+3D)</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="left">阶段</th>
+<th align="left">关键洞察</th>
+<th align="left">代价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><a href="/posts/2022/papers/2022_ICRA_HDMapNet_Online_HD_Map_Construction/">HDMapNet</a></td>
+<td align="left">三分支（语义+实例+方向）让 BEV 分割可启发式向量化；MLP 视图变换替代 IPM&#x2F;LSS</td>
+<td align="left">后处理 pipeline 长，DBSCAN 失败模式难追溯</td>
+</tr>
+<tr>
+<td align="left"><a href="/posts/2023/papers/2023_ICML_VectorMapNet_End_to_end_Vectorized_HD_Map_Learning/">VectorMapNet</a></td>
+<td align="left">跳过栅格中介，DETR-style 关键点检测 + 自回归 polyline 生成（离散 200×100 token）</td>
+<td align="left">自回归推理串行，仅 2.9 FPS</td>
+</tr>
+<tr>
+<td align="left"><a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a></td>
+<td align="left"><strong>置换等价建模</strong>消除点序歧义；分层查询（实例 × 部件因子化）+ 分层匹配；一次前向并行预测 polyline</td>
+<td align="left">一对一匹配收敛慢、全局 self-attn 显存高</td>
+</tr>
+<tr>
+<td align="left"><a href="/posts/2024/papers/2024_IJCV_MapTRv2_End_to_End_Vectorized_HD_Map/">MapTRv2</a></td>
+<td align="left">解耦自注意力（$O(N^2 + N_v^2)$）+ 辅助一对多匹配（GT × K&#x3D;6）+ 密集监督（depth&#x2F;PV seg&#x2F;BEV seg）+ centerline &#x2F; 3D 扩展</td>
+<td align="left">训练显存翻倍（19 GB），但推理无代价</td>
+</tr>
+</tbody></table>
+<p>值得记住的几个跨论文规律：</p>
+<ul>
+<li><strong>“绕过中间表示”是这条线的主旋律</strong>：HDMapNet 还需要 DBSCAN，MapTR 把后处理彻底删掉，与 DETR 当年绕过 NMS 是同构动作；</li>
+<li><strong>稀疏 query 的两难</strong>：一对一匹配收敛慢、显存高（MapTR 的瓶颈），MapTRv2 用”一对多匹配 + 密集监督 + 解耦注意力”组合拳化解，这套配方对所有 DETR-like 任务都通用；</li>
+<li><strong>置换等价建模的可迁移性</strong>：任何”有序点集”的几何任务（路径、骨架、轮廓）都存在点序模糊问题，MapTR 的”置换组 + 最优匹配选择”是通用模板；</li>
+<li><strong>矢量化建图直接喂到端到端规划</strong>：<a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a> &#x2F; <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a> 等工作都把 MapTR&#x2F;MapTRv2 的输出当作可微分的”地图 query”，进一步验证了 §6 的”任务 query 互相读写”模型。</li>
+</ul>
+<p>把这条线加进来后，§6 的”detection &#x2F; map &#x2F; track &#x2F; motion &#x2F; planning query 在同一个 attention 中流动”才是完整的图——<code>map query</code> 不是抽象口号，而是已经被 MapTR 系列实现得很扎实的一类具体 query。</p>
+<blockquote>
+<p><strong>关于 planning query</strong>：UniAD → VAD&#x2F;VADv2 → SparseDrive → DiffusionDrive 这条端到端规划路线已经超出 BEV 感知范畴，单独成文。详见 <a href="/posts/2026/E2E_Autonomous_Driving_Paradigm_Evolution/">《端到端自动驾驶的范式跃迁与路线之争》</a>，其中”评分派 vs 生成派”的对比与本节的”任务 query 互相读写”模型互为镜像。</p>
+</blockquote>
+<h2 id="7-多传感器融合：工业现实"><a href="#7-多传感器融合：工业现实" class="headerlink" title="7. 多传感器融合：工业现实"></a>7. 多传感器融合：工业现实</h2><p>学术上纯视觉路线热度很高，但工业落地的主流仍是 <strong>camera + LiDAR</strong>，融合方式以 BEV 级融合为主（<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 是范式代表）：</p>
+<ul>
+<li>LiDAR 提供准确深度，弥补视觉的几何不确定性；</li>
+<li>Camera 提供语义和远处细节；</li>
+<li>BEV 是两者天然的公共坐标系，比 early fusion 更工程友好。</li>
+</ul>
+<p>这条路线的存在提醒我们：纯视觉方法的 SOTA 数字与可量产方案之间，还隔着一个”传感器现实”。</p>
+<h2 id="8-工程落地：TensorRT-视角下的真问题"><a href="#8-工程落地：TensorRT-视角下的真问题" class="headerlink" title="8. 工程落地：TensorRT 视角下的真问题"></a>8. 工程落地：TensorRT 视角下的真问题</h2><p>模型结构画在 PPT 上很美，但部署时遇到的瓶颈几乎都不在 backbone（backbone 直接 ONNX → TensorRT 即可），而在两类访存算子上。</p>
+<h3 id="8-1-两类难算子"><a href="#8-1-两类难算子" class="headerlink" title="8.1 两类难算子"></a>8.1 两类难算子</h3><table>
+<thead>
+<tr>
+<th align="center">类型</th>
+<th align="center">代表算子</th>
+<th align="left">难点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><strong>Gather</strong>（读）</td>
+<td align="center"><code>grid_sample</code></td>
+<td align="left">随机访存，cache miss</td>
+</tr>
+<tr>
+<td align="center"><strong>Scatter</strong>（写）</td>
+<td align="center"><code>bev_pool</code> &#x2F; <code>voxel_pool</code></td>
+<td align="left">写冲突，需要 atomicAdd</td>
+</tr>
+</tbody></table>
+<p>一个核心结论：</p>
+<blockquote>
+<p><strong>Scatter 比 Gather 难优化得多。</strong></p>
+</blockquote>
+<p>读可以靠 cache 和 prefetch 缓解；写冲突几乎只能靠重组数据结构来回避。</p>
+<h3 id="8-2-LSS-系的部署瓶颈：scatter"><a href="#8-2-LSS-系的部署瓶颈：scatter" class="headerlink" title="8.2 LSS 系的部署瓶颈：scatter"></a>8.2 LSS 系的部署瓶颈：scatter</h3><p>核心算子是 voxel pooling &#x2F; bev_pool。</p>
+<h4 id="朴素实现的问题"><a href="#朴素实现的问题" class="headerlink" title="朴素实现的问题"></a>朴素实现的问题</h4><p>直接 <code>atomicAdd(&amp;bev[idx], val)</code>：</p>
+<ul>
+<li>多线程写同一个 voxel index → warp 串行化；</li>
+<li>数据分布不同 → latency 抖动严重；</li>
+<li>完全随机写 → cache 几乎失效。</li>
+</ul>
+<h4 id="工业级解法：sort-segment-reduce"><a href="#工业级解法：sort-segment-reduce" class="headerlink" title="工业级解法：sort + segment reduce"></a>工业级解法：sort + segment reduce</h4><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">1. 计算每个像素对应的 BEV index</span><br><span class="line">2. flatten 成 (num_points,)</span><br><span class="line">3. 按 BEV index 排序（thrust / radix sort）</span><br><span class="line">4. 同 index 段内做 segment reduce</span><br></pre></td></tr></table></figure>
+
+<p>把”随机写”变成”分段连续写”，没有 atomic，性能稳定。代价是多一次 sort，但通常是值得的。</p>
+<h4 id="其他配套优化"><a href="#其他配套优化" class="headerlink" title="其他配套优化"></a>其他配套优化</h4><ul>
+<li>camera projection 在 init 时预先算好，避免 runtime 大量矩阵运算；</li>
+<li>把 <code>depth softmax → lift → projection → accumulate</code> 融合成单 kernel；</li>
+<li>NHWC 布局更利于 coalesced 访存。</li>
+</ul>
+<h3 id="8-3-BEVFormer-的部署瓶颈：deformable-attention-grid-sample"><a href="#8-3-BEVFormer-的部署瓶颈：deformable-attention-grid-sample" class="headerlink" title="8.3 BEVFormer 的部署瓶颈：deformable attention + grid_sample"></a>8.3 BEVFormer 的部署瓶颈：deformable attention + grid_sample</h3><h4 id="算子层面"><a href="#算子层面" class="headerlink" title="算子层面"></a>算子层面</h4><ul>
+<li>ONNX 的 GridSample 在旧版 TensorRT 不支持，新版本性能也差；</li>
+<li>Deformable attention TensorRT 完全不支持，必须自己写 plugin；</li>
+<li>bilinear sampling 的 4 个角点都是随机访存，cache 命中率低。</li>
+</ul>
+<h4 id="系统层面"><a href="#系统层面" class="headerlink" title="系统层面"></a>系统层面</h4><ul>
+<li>BEV query 数量级 4 万 × N 相机 × K 采样点 → 计算量爆炸；</li>
+<li>attention 对数值精度敏感，INT8 calibration 难做。常见折中是 backbone INT8 + attention FP16；</li>
+<li>multi-view × multi-scale 的组合让显存与延迟同时上去。</li>
+</ul>
+<h4 id="落地策略"><a href="#落地策略" class="headerlink" title="落地策略"></a>落地策略</h4><ul>
+<li>query 分块（tile）处理；</li>
+<li>投影点 base 部分预计算，runtime 只加 offset；</li>
+<li>把 sampling + weight multiply + reduce 融合到单个 kernel。</li>
+</ul>
+<h3 id="8-4-部署架构中的典型分工"><a href="#8-4-部署架构中的典型分工" class="headerlink" title="8.4 部署架构中的典型分工"></a>8.4 部署架构中的典型分工</h3><p>这也部分解释了为什么量产线更偏好 LSS 系或 sparse query 系——<strong>不是它们更准，而是它们更可部署</strong>。一个常见的工业组合是：backbone + 大部分子图走 ONNX → TensorRT，少数关键算子（voxel pooling 或 deformable attention）写成自定义 plugin。</p>
+<h2 id="9-被低估的部署陷阱：Train-Inference-Gap"><a href="#9-被低估的部署陷阱：Train-Inference-Gap" class="headerlink" title="9. 被低估的部署陷阱：Train &#x2F; Inference Gap"></a>9. 被低估的部署陷阱：Train &#x2F; Inference Gap</h2><ul>
+<li><strong>训练</strong>：full sequence，可以并行处理整段时序；</li>
+<li><strong>推理</strong>：streaming，每来一帧只能基于历史状态推一次。</li>
+</ul>
+<p>二者之间的 gap 体现在：</p>
+<ul>
+<li>BN 统计量在长序列与单帧上分布不一致；</li>
+<li>时序 query 在训练时往往用 GT 初始化，推理时只能 cold start；</li>
+<li>记忆队列的长度、warm-up 帧数等超参影响巨大。</li>
+</ul>
+<p>Sparse4D 与 StreamPETR 的很多 trick，本质都是在弥合这个 gap。如果只看 nuScenes 分数而忽略它，部署时性能掉点几乎是必然的。</p>
+<h2 id="10-Scaling：量产部署的硬约束"><a href="#10-Scaling：量产部署的硬约束" class="headerlink" title="10. Scaling：量产部署的硬约束"></a>10. Scaling：量产部署的硬约束</h2><table>
+<thead>
+<tr>
+<th align="center">方法</th>
+<th align="center">表示密度</th>
+<th align="center">Scaling 表现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">BEVFormer</td>
+<td align="center">dense BEV query</td>
+<td align="center">较差</td>
+</tr>
+<tr>
+<td align="center">LSS 系</td>
+<td align="center">dense BEV feature</td>
+<td align="center">中等</td>
+</tr>
+<tr>
+<td align="center">Sparse4D &#x2F; StreamPETR</td>
+<td align="center">sparse query</td>
+<td align="center">较好</td>
+</tr>
+</tbody></table>
+<p>输入分辨率、帧数、相机数翻倍时，三者的计算量增长曲线完全不同。这是 sparse query 路线在过去两年快速占据主导的根本原因之一——<strong>能不能上车，scaling 是先于精度的硬约束</strong>。</p>
+<h2 id="11-统一抽象：Query–Sampling–Aggregation-三步范式"><a href="#11-统一抽象：Query–Sampling–Aggregation-三步范式" class="headerlink" title="11. 统一抽象：Query–Sampling–Aggregation 三步范式"></a>11. 统一抽象：Query–Sampling–Aggregation 三步范式</h2><p>把所有上述方法压到最简形式，本质都可以写成：</p>
+<p>$$\text{Output} &#x3D; \text{Aggregation}\big(\text{Sampling}(\text{Query}, \text{Image features})\big)$$</p>
+<p>这条公式背后的结构图：</p>
+<p><img src="/images/bev_perception_query_sampling_aggregation.svg" alt="Query–Sampling–Aggregation 统一抽象结构图"></p>
+<p>差异只在于 Query 是什么、Sampling 怎么做：</p>
+<table>
+<thead>
+<tr>
+<th align="center">方法</th>
+<th align="center">Query</th>
+<th align="left">Sampling</th>
+<th align="left">Aggregation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">LSS 系</td>
+<td align="center">pixel→frustum（隐式）</td>
+<td align="left">depth × feature 外积</td>
+<td align="left">scatter &#x2F; bev_pool</td>
+</tr>
+<tr>
+<td align="center">BEVFormer</td>
+<td align="center">BEV grid</td>
+<td align="left">projection + deformable attn</td>
+<td align="left">attention 加权</td>
+</tr>
+<tr>
+<td align="center">PETR</td>
+<td align="center">object</td>
+<td align="left">3D PE embedding lookup</td>
+<td align="left">global attention</td>
+</tr>
+<tr>
+<td align="center">Sparse4D &#x2F; StreamPETR</td>
+<td align="center">object + state</td>
+<td align="left">4D 关键点 deformable attn</td>
+<td align="left">attention + 时序传播</td>
+</tr>
+<tr>
+<td align="center">OccFormer</td>
+<td align="center">voxel</td>
+<td align="left">mask attention</td>
+<td align="left">masked aggregation</td>
+</tr>
+</tbody></table>
+<p>理解这一点之后，再看一篇新论文，可以直接定位它在这张表里换了哪一格——通常就是它真正的贡献。</p>
+<h2 id="12-向端到端与世界模型的延伸"><a href="#12-向端到端与世界模型的延伸" class="headerlink" title="12. 向端到端与世界模型的延伸"></a>12. 向端到端与世界模型的延伸</h2><p>上面这套抽象不仅适用于感知本身，对理解近一年的端到端与世界模型路线也成立——它们没有推翻这套框架，而是在 Query 这一格上继续做文章。</p>
+<h3 id="12-1-SparseDrive-系：把-query-升级成”任务载体”"><a href="#12-1-SparseDrive-系：把-query-升级成”任务载体”" class="headerlink" title="12.1 SparseDrive 系：把 query 升级成”任务载体”"></a>12.1 SparseDrive 系：把 query 升级成”任务载体”</h3><ul>
+<li><a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> 还保留 BEVFormer 作为 BEV 编码器，query 是任务级的（det &#x2F; map &#x2F; motion &#x2F; plan），但底层依赖 dense BEV；</li>
+<li><strong><a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a></strong> 直接砍掉 BEV，把整个端到端栈都搭在 sparse query 上——感知 query、地图 query、规划 query 在同一组稀疏表示里互相读写；</li>
+<li><strong><a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDriveV2</a></strong> 进一步把规划 query 拆成 <code>path query × velocity query</code> 的笛卡尔积（10⁵ 量级候选），再用粗到细的层级评分筛选，把”生成 vs 评分”的路线之争推到了一个新高度。</li>
+</ul>
+<p>本质上，这条线就是把 §2.3 的 sparse query 从感知层一路延伸到规划层——同一种数据结构贯穿全栈。</p>
+<h3 id="12-2-Occupancy-→-4D-世界模型：把表示拓展到时间"><a href="#12-2-Occupancy-→-4D-世界模型：把表示拓展到时间" class="headerlink" title="12.2 Occupancy → 4D 世界模型：把表示拓展到时间"></a>12.2 Occupancy → 4D 世界模型：把表示拓展到时间</h3><ul>
+<li>§4 的 Occupancy 是”3D 静态空间是否被占用”，属于表示层级的扩张；</li>
+<li>加一个时间维 → “未来 T 秒这个空间是否会被占用” → 4D Occupancy &#x2F; Occupancy World Model 雏形；</li>
+<li>进一步把动作（自车规划）作为条件输入，让模型在 latent 空间里预测未来 occupancy → <strong>可交互的世界模型</strong>。</li>
+</ul>
+<p>这条路线最大的意义是：规划不再只面对当前帧的检测结果，而是可以在 <em>预测出的未来场景</em> 上做评估。</p>
+<h3 id="12-3-三条主线的延伸一览"><a href="#12-3-三条主线的延伸一览" class="headerlink" title="12.3 三条主线的延伸一览"></a>12.3 三条主线的延伸一览</h3><table>
+<thead>
+<tr>
+<th align="left">起点</th>
+<th align="left">延伸路径</th>
+<th align="left">当前前沿</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">LSS &#x2F; BEV</td>
+<td align="left">BEV → 多模态融合 → 端到端</td>
+<td align="left">BEVFusion → UniAD</td>
+</tr>
+<tr>
+<td align="left">Sparse query</td>
+<td align="left">object → state → task query</td>
+<td align="left">StreamPETR &#x2F; Sparse4D → SparseDrive(V2)</td>
+</tr>
+<tr>
+<td align="left">Occupancy</td>
+<td align="left">3D occ → 4D occ → world model</td>
+<td align="left">OccFormer → Occ World Model &#x2F; VLA</td>
+</tr>
+</tbody></table>
+<h2 id="13-方法本质速记"><a href="#13-方法本质速记" class="headerlink" title="13. 方法本质速记"></a>13. 方法本质速记</h2><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">LSS / BEVDet：先把世界算出来</span><br><span class="line">BEVDepth：把最不稳的那一环（depth）钉死</span><br><span class="line">BEVFormer：在 BEV 空间学会找信息</span><br><span class="line">PETR：跳过几何，让网络自己学位置</span><br><span class="line">Sparse4D：跳过地图，给每个对象建一个状态</span><br><span class="line">StreamPETR：让 query 跨帧活下去</span><br><span class="line">Occupancy：不问是什么，只问占没占</span><br><span class="line">UniAD：让感知-预测-规划在 query 里流动</span><br><span class="line">SparseDrive：把 sparse query 一路打通到规划</span><br><span class="line">世界模型：让网络在脑海里预演未来</span><br></pre></td></tr></table></figure>
+
+<h2 id="14-从论文到算子：实践路径建议"><a href="#14-从论文到算子：实践路径建议" class="headerlink" title="14. 从论文到算子：实践路径建议"></a>14. 从论文到算子：实践路径建议</h2><p>在脉络体系成型之后，进一步的技术突破往往不再来自阅读量，而是来自对<strong>单个核心算子的深入掌握</strong>。以下是性价比较高的几个入口：</p>
+<ul>
+<li>手写一版 voxel pooling 的 CUDA kernel，对比 sort + segment reduce 与 atomicAdd 的性能差异；</li>
+<li>实现一遍 deformable attention，定量分析 grid_sample 在不同硬件上的实际瓶颈；</li>
+<li>复现 StreamPETR &#x2F; Sparse4D 的 query 状态传播，完整复现训练-推理 gap 的调优过程；</li>
+<li>以开源 BEVFormer 为起点，走一遍 ONNX → TensorRT 的完整部署流程，系统性梳理每个失败点。</li>
+</ul>
+<blockquote>
+<p>在这个阶段：<strong>吃透一个算子 &gt; 多读十篇论文。</strong></p>
+</blockquote>
+<h2 id="15-结语：核心矛盾在表示与实现，而不在模型结构"><a href="#15-结语：核心矛盾在表示与实现，而不在模型结构" class="headerlink" title="15. 结语：核心矛盾在表示与实现，而不在模型结构"></a>15. 结语：核心矛盾在表示与实现，而不在模型结构</h2><p>回头看这一整篇文章，会发现 BEV 与 Transformer 感知方法的演进有一条很清晰的内在逻辑：**模型结构本身一直在收敛（都是 Transformer + 可微采样），真正分化的是”用什么形式表达世界”以及”如何让这种表达在硬件上跑起来”**。</p>
+<ul>
+<li>在<strong>表示</strong>上，方法从 dense BEV 走向 sparse object，又向 occupancy 拓展，最终在端到端框架里以 task query 的形式整合；</li>
+<li>在<strong>几何</strong>上，从 LSS 的硬投影，到 BEVFormer 的可微采样，再到 PETR 的隐式编码，约束越来越弱、可学习成分越来越多；</li>
+<li>在<strong>时序</strong>上，从单帧 detection，到 memory-based attention，再到带状态的 stateful query，越来越像一个学习版的 Kalman Filter；</li>
+<li>在<strong>部署</strong>上，瓶颈从模型结构转移到 scatter &#x2F; gather 算子，scaling 性而非单点精度成为能否上车的硬约束。</li>
+</ul>
+<p>如果只能记住一句话：</p>
+<blockquote>
+<p><strong>当前 BEV 感知的核心问题不是模型结构，而是用有限的表示去表达真实世界，并且在硬件上高效实现。</strong></p>
+</blockquote>
+<p>把握住这条主线，再看任何一篇新论文，都可以快速判断它在”表示 &#x2F; 几何 &#x2F; 时序 &#x2F; 部署”这四个维度上具体动了哪一格——而通常那一格就是它真正的贡献所在。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9F%A5%E8%AF%86%E5%9B%BE%E8%B0%B1"><span class="toc-text">知识图谱</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80%EF%BC%9A%E5%9C%A8%E8%84%B1%E7%A6%BB%E5%8D%95%E7%AF%87%E8%AE%BA%E6%96%87%E5%90%8E%E9%87%8D%E5%BB%BA%E4%BD%93%E7%B3%BB"><span class="toc-text">引言：在脱离单篇论文后重建体系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#0-%E6%96%B9%E6%B3%95%E5%85%A8%E6%99%AF%EF%BC%9A%E4%B8%89%E4%B8%AA%E6%AD%A3%E4%BA%A4%E7%BB%B4%E5%BA%A6%E4%B8%8E%E6%BC%94%E8%BF%9B%E6%97%B6%E9%97%B4%E7%BA%BF"><span class="toc-text">0. 方法全景：三个正交维度与演进时间线</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E9%97%AE%E9%A2%98%E6%8A%BD%E8%B1%A1%EF%BC%9A%E5%A4%9A%E7%9B%B8%E6%9C%BA-3D-%E6%84%9F%E7%9F%A5%E7%9A%84%E4%B8%89%E4%B8%AA%E7%8B%AC%E7%AB%8B%E5%86%B3%E7%AD%96%E7%BB%B4%E5%BA%A6"><span class="toc-text">1. 问题抽象：多相机 3D 感知的三个独立决策维度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E4%B8%89%E6%9D%A1%E4%B8%BB%E7%BA%BF%EF%BC%9A%E8%A1%A8%E7%A4%BA-%E5%87%A0%E4%BD%95%E7%9A%84%E7%BB%84%E5%90%88"><span class="toc-text">2. 三条主线：表示 + 几何的组合</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-LSS-%E7%B3%BB%EF%BC%9A%E6%98%BE%E5%BC%8F%E5%87%A0%E4%BD%95-%E7%A8%A0%E5%AF%86-BEV"><span class="toc-text">2.1 LSS 系：显式几何 + 稠密 BEV</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%89%E4%BB%A3%E6%BC%94%E8%BF%9B%E7%9A%84%E6%9C%AC%E8%B4%A8"><span class="toc-text">三代演进的本质</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B7%AF%E7%BA%BF%E8%AF%84%E4%BB%B7"><span class="toc-text">路线评价</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-BEVFormer%EF%BC%9ABEV-%E7%A9%BA%E9%97%B4-query"><span class="toc-text">2.2 BEVFormer：BEV 空间 query</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%80%E4%B8%AA%E5%B8%B8%E8%A7%81%E5%88%86%E7%B1%BB%E8%BE%A8%E6%9E%90%EF%BC%9ABEVFormer-%E6%98%AF%E5%90%A6%E5%B1%9E%E4%BA%8E-query-based"><span class="toc-text">一个常见分类辨析：BEVFormer 是否属于 query-based</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B7%AF%E7%BA%BF%E8%AF%84%E4%BB%B7-1"><span class="toc-text">路线评价</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Sparse-Query-%E7%B3%BB%EF%BC%9A%E5%AF%B9%E8%B1%A1%E7%BA%A7%E7%A8%80%E7%96%8F%E8%A1%A8%E7%A4%BA"><span class="toc-text">2.3 Sparse Query 系：对象级稀疏表示</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Sparse-Query-%E7%9A%84%E4%B8%89%E4%B8%AA%E8%BF%9B%E5%8C%96%E9%98%B6%E6%AE%B5"><span class="toc-text">Sparse Query 的三个进化阶段</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B7%AF%E7%BA%BF%E8%AF%84%E4%BB%B7-2"><span class="toc-text">路线评价</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E4%B8%89%E6%9D%A1%E4%B8%BB%E7%BA%BF%E7%9A%84%E6%A8%AA%E5%90%91%E5%AF%B9%E6%AF%94"><span class="toc-text">2.4 三条主线的横向对比</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%87%A0%E4%BD%95%E5%BB%BA%E6%A8%A1%E7%9A%84%E4%B8%A4%E6%9D%A1%E8%B7%AF%E7%BA%BF%EF%BC%9A%E6%98%BE%E5%BC%8F%E6%8A%95%E5%BD%B1-vs-%E9%9A%90%E5%BC%8F%E7%BC%96%E7%A0%81"><span class="toc-text">3. 几何建模的两条路线：显式投影 vs 隐式编码</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-Projection-based%EF%BC%88%E6%98%BE%E5%BC%8F%E5%87%A0%E4%BD%95%EF%BC%89"><span class="toc-text">3.1 Projection-based（显式几何）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-Embedding-based%EF%BC%88%E9%9A%90%E5%BC%8F%E5%87%A0%E4%BD%95%EF%BC%89"><span class="toc-text">3.2 Embedding-based（隐式几何）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E4%B8%A4%E6%9D%A1%E8%B7%AF%E7%BA%BF%E7%9A%84%E6%9C%AC%E8%B4%A8%E5%8C%BA%E5%88%AB"><span class="toc-text">3.3 两条路线的本质区别</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E8%A1%A8%E7%A4%BA%E5%B1%82%E7%BA%A7%E7%9A%84%E6%BC%94%E8%BF%9B%EF%BC%9AObject-%E2%86%92-BEV-%E2%86%92-Occupancy"><span class="toc-text">4. 表示层级的演进：Object → BEV → Occupancy</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Occupancy-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%87%8D%E8%A6%81"><span class="toc-text">Occupancy 为什么重要</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E6%97%B6%E5%BA%8F%E5%BB%BA%E6%A8%A1%E7%9A%84%E4%B8%89%E7%A7%8D%E8%8C%83%E5%BC%8F"><span class="toc-text">5. 时序建模的三种范式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-Warp%EF%BC%9A%E5%B7%A5%E7%A8%8B%E4%B8%BB%E6%B5%81"><span class="toc-text">5.1 Warp：工程主流</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-Attention%EF%BC%88Memory%EF%BC%89%EF%BC%9ABEVFormer-StreamPETR"><span class="toc-text">5.2 Attention（Memory）：BEVFormer &#x2F; StreamPETR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-State-Propagation%EF%BC%9ASparse4D-%E7%9A%84%E6%9C%AC%E8%B4%A8%E5%8D%87%E7%BA%A7"><span class="toc-text">5.3 State Propagation：Sparse4D 的本质升级</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Memory-%E4%B8%8E-State-%E7%9A%84%E6%9C%AC%E8%B4%A8%E5%B7%AE%E5%88%AB"><span class="toc-text">Memory 与 State 的本质差别</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%89%E7%A7%8D%E8%8C%83%E5%BC%8F%E6%A8%AA%E8%AF%84"><span class="toc-text">三种范式横评</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E4%B8%8E%E7%BB%8F%E5%85%B8-Kalman-Filter-%E7%9A%84%E6%9C%AC%E8%B4%A8%E5%B7%AE%E5%BC%82"><span class="toc-text">5.4 与经典 Kalman Filter 的本质差异</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%A4%9A%E4%BB%BB%E5%8A%A1%E7%BB%9F%E4%B8%80%EF%BC%9Aquery-%E7%9A%84%E8%AF%AD%E4%B9%89%E5%8D%87%E7%BA%A7"><span class="toc-text">6. 多任务统一：query 的语义升级</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E5%9C%A8%E7%BA%BF%E7%9F%A2%E9%87%8F%E5%8C%96%E5%BB%BA%E5%9B%BE%EF%BC%9A%E4%BB%8E%E6%A0%85%E6%A0%BC%E5%88%86%E5%89%B2%E5%88%B0-polyline-query-%E7%9A%84%E5%9B%9B%E6%AD%A5%E6%BC%94%E8%BF%9B"><span class="toc-text">6.1 在线矢量化建图：从栅格分割到 polyline query 的四步演进</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%A4%9A%E4%BC%A0%E6%84%9F%E5%99%A8%E8%9E%8D%E5%90%88%EF%BC%9A%E5%B7%A5%E4%B8%9A%E7%8E%B0%E5%AE%9E"><span class="toc-text">7. 多传感器融合：工业现实</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E5%B7%A5%E7%A8%8B%E8%90%BD%E5%9C%B0%EF%BC%9ATensorRT-%E8%A7%86%E8%A7%92%E4%B8%8B%E7%9A%84%E7%9C%9F%E9%97%AE%E9%A2%98"><span class="toc-text">8. 工程落地：TensorRT 视角下的真问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E4%B8%A4%E7%B1%BB%E9%9A%BE%E7%AE%97%E5%AD%90"><span class="toc-text">8.1 两类难算子</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-LSS-%E7%B3%BB%E7%9A%84%E9%83%A8%E7%BD%B2%E7%93%B6%E9%A2%88%EF%BC%9Ascatter"><span class="toc-text">8.2 LSS 系的部署瓶颈：scatter</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9C%B4%E7%B4%A0%E5%AE%9E%E7%8E%B0%E7%9A%84%E9%97%AE%E9%A2%98"><span class="toc-text">朴素实现的问题</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%B7%A5%E4%B8%9A%E7%BA%A7%E8%A7%A3%E6%B3%95%EF%BC%9Asort-segment-reduce"><span class="toc-text">工业级解法：sort + segment reduce</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%85%B6%E4%BB%96%E9%85%8D%E5%A5%97%E4%BC%98%E5%8C%96"><span class="toc-text">其他配套优化</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-BEVFormer-%E7%9A%84%E9%83%A8%E7%BD%B2%E7%93%B6%E9%A2%88%EF%BC%9Adeformable-attention-grid-sample"><span class="toc-text">8.3 BEVFormer 的部署瓶颈：deformable attention + grid_sample</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%AE%97%E5%AD%90%E5%B1%82%E9%9D%A2"><span class="toc-text">算子层面</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%B3%BB%E7%BB%9F%E5%B1%82%E9%9D%A2"><span class="toc-text">系统层面</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%90%BD%E5%9C%B0%E7%AD%96%E7%95%A5"><span class="toc-text">落地策略</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-4-%E9%83%A8%E7%BD%B2%E6%9E%B6%E6%9E%84%E4%B8%AD%E7%9A%84%E5%85%B8%E5%9E%8B%E5%88%86%E5%B7%A5"><span class="toc-text">8.4 部署架构中的典型分工</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E8%A2%AB%E4%BD%8E%E4%BC%B0%E7%9A%84%E9%83%A8%E7%BD%B2%E9%99%B7%E9%98%B1%EF%BC%9ATrain-Inference-Gap"><span class="toc-text">9. 被低估的部署陷阱：Train &#x2F; Inference Gap</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-Scaling%EF%BC%9A%E9%87%8F%E4%BA%A7%E9%83%A8%E7%BD%B2%E7%9A%84%E7%A1%AC%E7%BA%A6%E6%9D%9F"><span class="toc-text">10. Scaling：量产部署的硬约束</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E7%BB%9F%E4%B8%80%E6%8A%BD%E8%B1%A1%EF%BC%9AQuery%E2%80%93Sampling%E2%80%93Aggregation-%E4%B8%89%E6%AD%A5%E8%8C%83%E5%BC%8F"><span class="toc-text">11. 统一抽象：Query–Sampling–Aggregation 三步范式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-%E5%90%91%E7%AB%AF%E5%88%B0%E7%AB%AF%E4%B8%8E%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%BB%B6%E4%BC%B8"><span class="toc-text">12. 向端到端与世界模型的延伸</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#12-1-SparseDrive-%E7%B3%BB%EF%BC%9A%E6%8A%8A-query-%E5%8D%87%E7%BA%A7%E6%88%90%E2%80%9D%E4%BB%BB%E5%8A%A1%E8%BD%BD%E4%BD%93%E2%80%9D"><span class="toc-text">12.1 SparseDrive 系：把 query 升级成”任务载体”</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-2-Occupancy-%E2%86%92-4D-%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B%EF%BC%9A%E6%8A%8A%E8%A1%A8%E7%A4%BA%E6%8B%93%E5%B1%95%E5%88%B0%E6%97%B6%E9%97%B4"><span class="toc-text">12.2 Occupancy → 4D 世界模型：把表示拓展到时间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-3-%E4%B8%89%E6%9D%A1%E4%B8%BB%E7%BA%BF%E7%9A%84%E5%BB%B6%E4%BC%B8%E4%B8%80%E8%A7%88"><span class="toc-text">12.3 三条主线的延伸一览</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-%E6%96%B9%E6%B3%95%E6%9C%AC%E8%B4%A8%E9%80%9F%E8%AE%B0"><span class="toc-text">13. 方法本质速记</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-%E4%BB%8E%E8%AE%BA%E6%96%87%E5%88%B0%E7%AE%97%E5%AD%90%EF%BC%9A%E5%AE%9E%E8%B7%B5%E8%B7%AF%E5%BE%84%E5%BB%BA%E8%AE%AE"><span class="toc-text">14. 从论文到算子：实践路径建议</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#15-%E7%BB%93%E8%AF%AD%EF%BC%9A%E6%A0%B8%E5%BF%83%E7%9F%9B%E7%9B%BE%E5%9C%A8%E8%A1%A8%E7%A4%BA%E4%B8%8E%E5%AE%9E%E7%8E%B0%EF%BC%8C%E8%80%8C%E4%B8%8D%E5%9C%A8%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84"><span class="toc-text">15. 结语：核心矛盾在表示与实现，而不在模型结构</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

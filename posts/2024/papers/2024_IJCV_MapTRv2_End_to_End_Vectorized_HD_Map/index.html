@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            MapTRv2: An End-to-End Framework for Online Vectorized HD Map Construction - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">MapTRv2: An End-to-End Framework for Online Vectorized HD Map Construction</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2024年09月15日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Online Vectorized HD Map Construction (with Centerline &amp; 3D Map)<br>Method: Decoupled Self-Attention, One-to-Many Matching, Auxiliary Dense Supervision<br>Venue: IJCV<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.05736">https://arxiv.org/abs/2308.05736</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/MapTR">https://github.com/hustvl/MapTR</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>MapTRv2 是 <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> 的全面增强版本，目标是同时解决 MapTR 的<strong>收敛慢、显存高、缺少 centerline &#x2F; 3D 地图能力</strong>三大短板。核心改进有四：(1) <strong>解耦自注意力</strong>把全局自注意力的 $O((N \cdot N_v)^2)$ 复杂度降到 $O(N^2 + N_v^2)$，显存减少近 2 GB；(2) <strong>辅助一对多匹配</strong>以 GT 重复 $K$ 倍的方式增加正样本，加速收敛 ~4×；(3) <strong>辅助密集监督</strong>（深度 + PV 分割 + BEV 分割）共带来 +4.9 mAP 增益；(4) 框架扩展为同时支持 <strong>centerline 学习</strong> 和 <strong>3D 地图构建</strong>。MapTRv2-R50 在 nuScenes 24-epoch 即达 <strong>61.5 mAP</strong>（比 MapTR 同条件 +11.2 mAP），110-epoch 达 68.7 mAP，V2-99 backbone 进一步达 <strong>73.4 mAP</strong>，均为同期最优；同时 R18 backbone 推理速度可达 <strong>33.7 FPS</strong>。</p>
+<p><strong>核心论点</strong>：把”稀疏 query 收敛慢”和”地图元素表达力不足”两个并发难题，用”解耦注意力 + 一对多匹配 + 密集监督 + centerline &#x2F; 3D 扩展”四把斧一起解决，而不是再发明新表示。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>MapTR 已经把矢量化建图带进了实时区间（25.1 FPS &#x2F; 50.3 mAP @ 24 ep），但仍存在三类瓶颈：</p>
+<table>
+<thead>
+<tr>
+<th align="left">问题</th>
+<th align="left">根因</th>
+<th align="left">现象</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>收敛慢</strong></td>
+<td align="left">一对一匈牙利匹配 → 正样本极少</td>
+<td align="left">24 ep 50.3 → 110 ep 才能到 58.7 mAP</td>
+</tr>
+<tr>
+<td align="left"><strong>显存高</strong></td>
+<td align="left">全局自注意力 $O((N \cdot N_v)^2)$</td>
+<td align="left">$N&#x3D;50, N_v&#x3D;20$ 时 query 长 1000，显存 10.4 GB</td>
+</tr>
+<tr>
+<td align="left"><strong>能力缺口</strong></td>
+<td align="left">仅支持 ped&#x2F;divider&#x2F;boundary 三类 + 2D</td>
+<td align="left">缺 centerline → 无法直接给规划用；缺 3D → 上下坡场景失真</td>
+</tr>
+</tbody></table>
+<p>MapTRv2 的目标：<strong>不改 MapTR 的核心范式（置换等价 + 分层查询 + 分层匹配），只在工程上做四件加法</strong>。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：解耦自注意力——把-N-cdot-N-v-拆成-N-N-v"><a href="#洞察-1：解耦自注意力——把-N-cdot-N-v-拆成-N-N-v" class="headerlink" title="洞察 1：解耦自注意力——把 $N \cdot N_v$ 拆成 $N + N_v$"></a>洞察 1：解耦自注意力——把 $N \cdot N_v$ 拆成 $N + N_v$</h3><p><strong>MapTR</strong>：所有 $N \cdot N_v$ 个 token 一起做全局 self-attention，复杂度 $O((N \cdot N_v)^2)$；</p>
+<p><strong>MapTRv2</strong>：把 self-attention 解耦成两步：</p>
+<ol>
+<li><strong>实例间注意力</strong>（intra-instance：同实例 $N_v$ 个点之间）；</li>
+<li><strong>点间注意力</strong>（inter-instance：同位置 $N$ 个实例之间）。</li>
+</ol>
+<p>复杂度从 $O((N \cdot N_v)^2)$ 降到 $O(N^2 + N_v^2)$，在 $N &#x3D; 50, N_v &#x3D; 20$ 时显存从 <strong>10443 MB → 8458 MB</strong>，且 mAP 不降反升 +0.5。</p>
+<blockquote>
+<p>直觉解释：实例间应当区分”哪条线 vs 哪条线”，点间应当区分”线上的哪个点 vs 同位置另一条线的对应点”，二者本来就是不同的关系图，强行混在一起反而稀释了注意力分布。</p>
+</blockquote>
+<h3 id="洞察-2：辅助一对多匹配——用-GT-重复给稀疏-query-喂正样本"><a href="#洞察-2：辅助一对多匹配——用-GT-重复给稀疏-query-喂正样本" class="headerlink" title="洞察 2：辅助一对多匹配——用 GT 重复给稀疏 query 喂正样本"></a>洞察 2：辅助一对多匹配——用 GT 重复给稀疏 query 喂正样本</h3><p>DETR 系方法的最大痛点是一对一匹配下正样本极少（$N$ 个 query 通常只有 ~10 个对应到 GT，剩下都是背景）。MapTRv2 引入辅助分支：</p>
+<ul>
+<li>在主分支（一对一匹配）之外增加一组辅助实例 query；</li>
+<li>训练时把每个 GT <strong>重复 $K$ 倍</strong>（默认 $K&#x3D;6$），让辅助 query 与”$K$ 倍 GT”做匈牙利匹配；</li>
+<li>辅助分支与主分支<strong>共享同一个 decoder</strong>，仅在训练时使用，推理时丢弃。</li>
+</ul>
+<p>效果：收敛速度 ~4×，24 ep 达到原来 110 ep 的水平；mAP 单项贡献 <strong>+4.4</strong>（从 57.1 → 61.5）。</p>
+<h3 id="洞察-3：辅助密集监督——给稀疏预测装上-dense-锚点"><a href="#洞察-3：辅助密集监督——给稀疏预测装上-dense-锚点" class="headerlink" title="洞察 3：辅助密集监督——给稀疏预测装上 dense 锚点"></a>洞察 3：辅助密集监督——给稀疏预测装上 dense 锚点</h3><p>稀疏 query 收敛慢的另一面是 backbone &#x2F; BEV 特征学得不充分。MapTRv2 在三个层级加密集监督：</p>
+<ol>
+<li><strong>PV 深度预测</strong>（LiDAR 渲染 GT，仅训练时 LiDAR）：让 PV 特征显式学到几何；</li>
+<li><strong>PV 前景分割</strong>：让 PV 特征对地图元素有显式响应；</li>
+<li><strong>BEV 前景分割</strong>：让 BEV 特征对前景元素有显式响应。</li>
+</ol>
+<p>三者互补，<strong>共带来 +4.9 mAP</strong>（基线 50.1 → 57.1，密集监督单项见 5.2 路线图）。这与 BEVDepth 的”显式深度监督让 LSS 起飞”是同一思路在矢量化建图上的复刻。</p>
+<h4 id="三个洞察的递进关系"><a href="#三个洞察的递进关系" class="headerlink" title="三个洞察的递进关系"></a>三个洞察的递进关系</h4><ol>
+<li>形式上瘦身：解耦注意力解决显存与速度；</li>
+<li>标签上加密：一对多匹配加速 query 收敛；</li>
+<li>表征上加密：密集监督让 backbone &#x2F; BEV 学得更扎实。</li>
+</ol>
+<p><strong>要记住的 3 个数字</strong>：</p>
+<ul>
+<li><strong>61.5 mAP（24 ep, R50）vs MapTR 50.3 mAP</strong>：四把斧合计 <strong>+11.2 mAP</strong>；</li>
+<li><strong>73.4 mAP（110 ep, V2-99）</strong>：纯视觉矢量化建图的当时新 SOTA；</li>
+<li><strong>解耦注意力 -2 GB 显存 &#x2F; +0.5 mAP</strong>：少即是多的工程典范。</li>
+</ul>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>$$\text{6 cams} \xrightarrow{\text{Backbone}} \text{PV feat} \xrightarrow{\text{BEVPoolv2}} \text{BEV feat} \xrightarrow{\text{Decoupled Decoder}} {(\text{class}, \text{polyline} &#x2F; \text{centerline} &#x2F; \text{3D polyline})}$$</p>
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2308.05736/assets/x4.png" alt="MapTRv2 架构图" style="max-width:100%;">
+</div>
+
+<p>ASCII 架构图（突出 v2 的四把斧）：</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+6 cam (1600×900)              [LiDAR @ train only]
+      │                              │
+      ▼                              ▼
+┌──────────────┐             ┌──────────────┐
+│  Backbone    │             │ Depth Render │
+│  PV feat     │             │ (GT depth)   │
+└──┬────────┬──┘             └──────┬───────┘
+   │        │                       │
+   │        ▼ ━━ Aux PV Seg ◄──── │
+   │     ┌──────────────┐       (Dense
+   │     │ Aux PV Depth │ ◄─────  Sup.)
+   │     └──────────────┘
+   ▼
+┌──────────────────────────┐
+│  PV → BEV (BEVPoolv2)    │
+│  + Aux BEV Seg           │
+└──────┬───────────────────┘
+       │ BEV feat
+       ▼
+┌──────────────────────────┐
+│ Map Decoder × 6          │
+│ ┌──────────────────────┐ │
+│ │ Decoupled Self-Attn  │ │  (洞察 1)
+│ │  intra + inter inst  │ │
+│ └──────────────────────┘ │
+│ ┌──────────────────────┐ │
+│ │ Cross-Attn (Deform)  │ │
+│ └──────────────────────┘ │
+└──────┬───────────────────┘
+       │
+       ├──► One-to-One Branch (推理用)
+       │       50 instance × 20 pt
+       │
+       └──► One-to-Many Branch (训练用，洞察 2)
+               300 instance × 20 pt
+               GT × K=6 重复匹配
+
+<p>输出: (class, 2D &#x2F; 3D polyline &#x2F; centerline)<br></pre></p>
+</div>
+
+<h3 id="4-2-关键组件对比-MapTR"><a href="#4-2-关键组件对比-MapTR" class="headerlink" title="4.2 关键组件对比 MapTR"></a>4.2 关键组件对比 MapTR</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">MapTR</th>
+<th align="left">MapTRv2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">PV2BEV</td>
+<td align="left">GKT</td>
+<td align="left"><strong>BEVPoolv2</strong>（LSS-based，配合深度监督）</td>
+</tr>
+<tr>
+<td align="left">Self-Attn</td>
+<td align="left">全局 $O((N \cdot N_v)^2)$</td>
+<td align="left"><strong>解耦</strong> $O(N^2 + N_v^2)$</td>
+</tr>
+<tr>
+<td align="left">Cross-Attn</td>
+<td align="left">BEV-only Deformable Attn</td>
+<td align="left">BEV &#x2F; PV &#x2F; Hybrid 可选</td>
+</tr>
+<tr>
+<td align="left">匹配</td>
+<td align="left">一对一匈牙利</td>
+<td align="left"><strong>一对一 + 辅助一对多 ($K&#x3D;6$)</strong></td>
+</tr>
+<tr>
+<td align="left">密集监督</td>
+<td align="left">无</td>
+<td align="left"><strong>PV depth + PV seg + BEV seg</strong></td>
+</tr>
+<tr>
+<td align="left">Centerline</td>
+<td align="left">不支持</td>
+<td align="left"><strong>支持</strong>（路径式建模）</td>
+</tr>
+<tr>
+<td align="left">3D 地图</td>
+<td align="left">不支持</td>
+<td align="left"><strong>支持</strong>（z 坐标回归）</td>
+</tr>
+</tbody></table>
+<p><strong>损失函数</strong>：</p>
+
+$$\mathcal{L} = \beta_o \mathcal{L}_{\text{one2one}} + \beta_m \mathcal{L}_{\text{one2many}} + \beta_d \mathcal{L}_{\text{dense}}$$
+
+
+<p>其中</p>
+
+$$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \mathcal{L}_{\text{BEVSeg}} + \alpha_p \mathcal{L}_{\text{PVSeg}}$$
+
+
+<p>主分支 $\mathcal{L}<em>{\text{one2one}}$ 与辅助分支 $\mathcal{L}</em>{\text{one2many}}$ 的内部结构都沿用 MapTR 的 (cls + p2p + dir) 三件套。</p>
+<h3 id="4-3-Centerline-与-3D-扩展"><a href="#4-3-Centerline-与-3D-扩展" class="headerlink" title="4.3 Centerline 与 3D 扩展"></a>4.3 Centerline 与 3D 扩展</h3><ul>
+<li><strong>Centerline 学习</strong>：把车道 centerline 当作另一类矢量元素（path），与 divider &#x2F; boundary &#x2F; ped_xing 共享同一套分层 query 解码框架，仅类别数从 3 增至 4；</li>
+<li><strong>3D 地图构建</strong>：每个点 query 多回归一个 $z$ 坐标，配合 BEVPoolv2 已有的深度信息；总参数量增加 &lt; 1%，但能正确表达上下坡。</li>
+</ul>
+<h3 id="4-4-关键代码"><a href="#4-4-关键代码" class="headerlink" title="4.4 关键代码"></a>4.4 关键代码</h3><p>辅助一对多匹配的核心逻辑（基于官方实现整理）：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：projects/mmdet3d_plugin/maptr/dense_heads/maptrv2_head.py</span></span><br><span class="line"><span class="comment"># https://github.com/hustvl/MapTR</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">forward_train</span>(<span class="params">self, bev_feats, gt_bboxes_list, gt_labels_list, ...</span>):</span><br><span class="line">    <span class="comment"># ----- 主分支 (one-to-one) -----</span></span><br><span class="line">    out_main = <span class="variable language_">self</span>.decoder(bev_feats, query_main)        <span class="comment"># 50 inst × 20 pt</span></span><br><span class="line">    loss_o2o = <span class="variable language_">self</span>.loss_o2o(out_main, gt_bboxes_list, gt_labels_list)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># ----- 辅助分支 (one-to-many) -----</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.aux_one2many:</span><br><span class="line">        <span class="comment"># 把 GT 重复 K 倍</span></span><br><span class="line">        gt_bboxes_o2m = [gt.repeat(<span class="variable language_">self</span>.K, <span class="number">1</span>, <span class="number">1</span>)  <span class="keyword">for</span> gt <span class="keyword">in</span> gt_bboxes_list]</span><br><span class="line">        gt_labels_o2m = [lb.repeat(<span class="variable language_">self</span>.K)       <span class="keyword">for</span> lb <span class="keyword">in</span> gt_labels_list]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 辅助 query 数量更多（如 300），共享 decoder</span></span><br><span class="line">        out_aux = <span class="variable language_">self</span>.decoder(bev_feats, query_aux)      <span class="comment"># 300 inst × 20 pt</span></span><br><span class="line">        loss_o2m = <span class="variable language_">self</span>.loss_o2m(out_aux, gt_bboxes_o2m, gt_labels_o2m)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        loss_o2m = <span class="number">0.0</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># ----- 密集监督 -----</span></span><br><span class="line">    loss_dense = <span class="variable language_">self</span>.depth_head(pv_feats, gt_depth) \</span><br><span class="line">               + <span class="variable language_">self</span>.bev_seg_head(bev_feats, gt_bev_seg) \</span><br><span class="line">               + <span class="variable language_">self</span>.pv_seg_head(pv_feats, gt_pv_seg)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">self</span>.beta_o * loss_o2o + <span class="variable language_">self</span>.beta_m * loss_o2m + <span class="variable language_">self</span>.beta_d * loss_dense</span><br></pre></td></tr></table></figure>
+
+<details>
+<summary>📄 点击展开：解耦自注意力的伪代码</summary>
+
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># Decoupled Self-Attention：把 (N, Nv, D) 的 query 张量分两次做 self-attn</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">decoupled_self_attn</span>(<span class="params">q</span>):</span><br><span class="line">    <span class="comment"># q: (B, N, Nv, D)</span></span><br><span class="line">    B, N, Nv, D = q.shape</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 1) intra-instance：每个实例内部 Nv 个点之间</span></span><br><span class="line">    q_intra = q.view(B*N, Nv, D)</span><br><span class="line">    q_intra = <span class="variable language_">self</span>.self_attn_intra(q_intra)               <span class="comment"># O(Nv^2)</span></span><br><span class="line">    q = q_intra.view(B, N, Nv, D)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2) inter-instance：每个位置上 N 个实例之间</span></span><br><span class="line">    q_inter = q.permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">3</span>).reshape(B*Nv, N, D)</span><br><span class="line">    q_inter = <span class="variable language_">self</span>.self_attn_inter(q_inter)               <span class="comment"># O(N^2)</span></span><br><span class="line">    q = q_inter.view(B, Nv, N, D).permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">3</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> q                                              <span class="comment"># O(N^2 + Nv^2)</span></span><br></pre></td></tr></table></figure>
+
+</details>
+
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><p>nuScenes val（论文 Tab. 2）：</p>
+<table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="center">模态</th>
+<th align="center">Backbone</th>
+<th align="center">Epoch</th>
+<th align="center">AP_ped</th>
+<th align="center">AP_div</th>
+<th align="center">AP_bou</th>
+<th align="center"><strong>mAP</strong></th>
+<th align="center">FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">MapTR</td>
+<td align="center">C</td>
+<td align="center">R50</td>
+<td align="center">24</td>
+<td align="center">46.3</td>
+<td align="center">51.5</td>
+<td align="center">53.1</td>
+<td align="center">50.3</td>
+<td align="center">15.1</td>
+</tr>
+<tr>
+<td align="left"><strong>MapTRv2</strong></td>
+<td align="center">C</td>
+<td align="center">R18</td>
+<td align="center">110</td>
+<td align="center">46.9</td>
+<td align="center">55.1</td>
+<td align="center">54.9</td>
+<td align="center"><strong>52.3</strong></td>
+<td align="center"><strong>33.7</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>MapTRv2</strong></td>
+<td align="center">C</td>
+<td align="center">R50</td>
+<td align="center">24</td>
+<td align="center">59.8</td>
+<td align="center">62.4</td>
+<td align="center">62.4</td>
+<td align="center"><strong>61.5</strong></td>
+<td align="center">14.1</td>
+</tr>
+<tr>
+<td align="left"><strong>MapTRv2</strong></td>
+<td align="center">C</td>
+<td align="center">R50</td>
+<td align="center">110</td>
+<td align="center">68.1</td>
+<td align="center">68.3</td>
+<td align="center">69.7</td>
+<td align="center"><strong>68.7</strong></td>
+<td align="center">14.1</td>
+</tr>
+<tr>
+<td align="left"><strong>MapTRv2</strong></td>
+<td align="center">C</td>
+<td align="center">V2-99</td>
+<td align="center">110</td>
+<td align="center">71.4</td>
+<td align="center">73.7</td>
+<td align="center">75.0</td>
+<td align="center"><strong>73.4</strong></td>
+<td align="center">9.9</td>
+</tr>
+<tr>
+<td align="left">MapTRv2</td>
+<td align="center">C+L</td>
+<td align="center">R50+Sec</td>
+<td align="center">24</td>
+<td align="center">65.6</td>
+<td align="center">66.5</td>
+<td align="center">74.8</td>
+<td align="center">69.0</td>
+<td align="center">5.8</td>
+</tr>
+</tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li><strong>24 ep 即超 MapTR 110 ep</strong>（61.5 vs 58.7 mAP），收敛 ~4× 快；</li>
+<li><strong>R18 backbone 33.7 FPS</strong>：进一步把矢量化建图的实时上限拉高；</li>
+<li><strong>纯视觉 R50 24-ep 接近多模态 24-ep 成绩</strong>（61.5 vs 69.0），密集监督部分弥补了 LiDAR 缺失；</li>
+<li>V2-99 110-ep <strong>73.4 mAP</strong>，是当时 nuScenes 矢量化建图榜首。</li>
+</ol>
+<h3 id="5-2-消融实验：MapTRv2-渐进式构建路线图"><a href="#5-2-消融实验：MapTRv2-渐进式构建路线图" class="headerlink" title="5.2 消融实验：MapTRv2 渐进式构建路线图"></a>5.2 消融实验：MapTRv2 渐进式构建路线图</h3><table>
+<thead>
+<tr>
+<th align="left">配置</th>
+<th align="center">mAP</th>
+<th align="center">单项增量</th>
+<th align="center">验证洞察</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">MapTR baseline (R50, 24 ep)</td>
+<td align="center">50.3</td>
+<td align="center">–</td>
+<td align="center">–</td>
+</tr>
+<tr>
+<td align="left">+ PV2BEV 换 BEVPoolv2</td>
+<td align="center">50.1</td>
+<td align="center">−0.2</td>
+<td align="center">基础替换（无监督时 LSS 与 GKT 相当）</td>
+</tr>
+<tr>
+<td align="left"><strong>+ 辅助深度监督</strong></td>
+<td align="center">55.2</td>
+<td align="center"><strong>+5.1</strong></td>
+<td align="center">洞察 3</td>
+</tr>
+<tr>
+<td align="left"><strong>+ 辅助 BEV 分割</strong></td>
+<td align="center">56.5</td>
+<td align="center">+1.3</td>
+<td align="center">洞察 3</td>
+</tr>
+<tr>
+<td align="left"><strong>+ 辅助 PV 分割</strong></td>
+<td align="center">57.1</td>
+<td align="center">+0.6</td>
+<td align="center">洞察 3（密集监督累计 +6.8）</td>
+</tr>
+<tr>
+<td align="left"><strong>+ 解耦自注意力</strong></td>
+<td align="center">57.6</td>
+<td align="center">+0.5 &#x2F; −2 GB</td>
+<td align="center">洞察 1</td>
+</tr>
+<tr>
+<td align="left"><strong>+ 一对多匹配</strong></td>
+<td align="center"><strong>61.5</strong></td>
+<td align="center"><strong>+3.9</strong></td>
+<td align="center">洞察 2</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：4 项叠加合计 <strong>+11.2 mAP</strong>，且显存反而降低 ~2 GB。</p>
+</blockquote>
+<h3 id="5-3-自注意力变体对比（洞察-1）"><a href="#5-3-自注意力变体对比（洞察-1）" class="headerlink" title="5.3 自注意力变体对比（洞察 1）"></a>5.3 自注意力变体对比（洞察 1）</h3><table>
+<thead>
+<tr>
+<th align="left">自注意力类型</th>
+<th align="center">mAP</th>
+<th align="center">GPU 显存</th>
+<th align="center">FPS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">全局（Vanilla）</td>
+<td align="center">57.1</td>
+<td align="center">10443 MB</td>
+<td align="center">14.7</td>
+</tr>
+<tr>
+<td align="left">仅实例间</td>
+<td align="center">56.8</td>
+<td align="center">8178 MB</td>
+<td align="center">14.9</td>
+</tr>
+<tr>
+<td align="left"><strong>解耦（默认）</strong></td>
+<td align="center"><strong>57.6</strong></td>
+<td align="center"><strong>8458 MB</strong></td>
+<td align="center">14.1</td>
+</tr>
+</tbody></table>
+<h3 id="5-4-性能瓶颈分析"><a href="#5-4-性能瓶颈分析" class="headerlink" title="5.4 性能瓶颈分析"></a>5.4 性能瓶颈分析</h3><p>MapTRv2-tiny 推理时间（RTX 3090）：</p>
+<table>
+<thead>
+<tr>
+<th align="left">组件</th>
+<th align="center">耗时 (ms)</th>
+<th align="center">占比</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Backbone</td>
+<td align="center">42.4</td>
+<td align="center">59.8%</td>
+</tr>
+<tr>
+<td align="left">PV2BEV (BEVPoolv2)</td>
+<td align="center">11.6</td>
+<td align="center">16.4%</td>
+</tr>
+<tr>
+<td align="left">Map Decoder</td>
+<td align="center">16.9</td>
+<td align="center">23.8%</td>
+</tr>
+<tr>
+<td align="left"><strong>总计</strong></td>
+<td align="center"><strong>70.9</strong></td>
+<td align="center">100%</td>
+</tr>
+</tbody></table>
+<p>相比 MapTR-tiny 89.3 ms，主要因解耦注意力让 Decoder 从 21.5 → 16.9 ms。</p>
+<h3 id="5-5-失效场景分析"><a href="#5-5-失效场景分析" class="headerlink" title="5.5 失效场景分析"></a>5.5 失效场景分析</h3><ul>
+<li><strong>远距离地图元素</strong>：与 MapTR 相同，BEV 网格分辨率限制；</li>
+<li><strong>相机外参偏差敏感性显著优于 MapTR</strong>：50.3 → 42.0 mAP（vs MapTR 50.3 → 34.0），密集监督带来鲁棒性；</li>
+<li><strong>3D 模式在剧烈坡度场景偶有 z 跳变</strong>：未引入时序约束。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        R18 / R50 / V2-99</span><br><span class="line">Input:           6 cams, 1600×900</span><br><span class="line">Batch size:      24（8× RTX 3090）</span><br><span class="line">Optimizer:       AdamW, lr = 6e-4, weight decay = 0.01, cosine</span><br><span class="line">Schedule:        24 / 110 epochs</span><br><span class="line">PV2BEV:          BEVPoolv2（LSS-based）</span><br><span class="line">Self-Attn:       Decoupled (intra + inter)</span><br><span class="line">Matching:        one-to-one + one-to-many (K=6, T=300)</span><br><span class="line">Dense Sup:       depth + BEV seg + PV seg</span><br><span class="line">Train memory:    ~19426 MB (bs24)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
+<li><strong>一对多分支显存代价大</strong>：$K&#x3D;6, T&#x3D;300$ 时显存从 8.5 GB 涨到 19.4 GB，需 24 GB 卡起步；推理时该分支完全不参与；</li>
+<li><strong>深度监督需 LiDAR GT</strong>：仅训练阶段用 LiDAR 渲染深度，部署时 LiDAR 不必上车；</li>
+<li><strong>BEVPoolv2 + 深度监督是绑定关系</strong>：单独换 BEVPoolv2 不加深度监督会跌 0.2 mAP（见路线图第 2 行）；</li>
+<li><strong>解耦注意力实现细节</strong>：intra 和 inter 必须用不同的 self-attn 模块，参数共享会掉 mAP；</li>
+<li><strong>辅助分支与主分支共享 decoder</strong>：辅助分支只增加额外 query embedding，不增加 decoder 参数。</li>
+</ol>
+<h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong></p>
+<ul>
+<li>引入时序聚合（多帧 BEV 融合，参考 BEVFormer）；</li>
+<li>centerline 路径建模可增加图结构约束（与 TopoNet 结合）；</li>
+<li>3D 模式可加 z 方向时序平滑。</li>
+</ul>
+<p><strong>速度优化</strong></p>
+<ul>
+<li>R18 backbone 已达 33.7 FPS，进一步可用 EfficientNet &#x2F; 蒸馏；</li>
+<li>BEVPoolv2 替换为更轻量的 PV2BEV（如 GKT）会牺牲 ~5 mAP 但提升速度；</li>
+<li>Decoder 层数 6 → 3，速度可再 +30%，精度下降 ~3 mAP。</li>
+</ul>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
+<li><strong>解耦自注意力</strong>：当 query 张量天然有”多维”结构（实例 × 部件 &#x2F; 帧 × 物体 &#x2F; batch × token）时，按维度拆 self-attention 是几乎稳赚的工程改造；</li>
+<li><strong>一对多匹配（DETR with Hybrid Matching 思想）</strong>：任何稀疏 query-based 方法都可以用”GT 复制 + 辅助分支”的方式加速收敛，几乎无副作用；</li>
+<li><strong>辅助密集监督</strong>：稀疏头 + 密集监督是 DETR &#x2F; BEV &#x2F; 矢量化建图等所有”稀疏预测”任务的通用加速手段；</li>
+<li><strong>不发明新表示，做工程加法</strong>：MapTRv2 没有改 MapTR 的核心范式，仅通过四项增量改进就拿下 +23 mAP，是”先把基线吃透再创新”的工程典范。</li>
+</ul>
+<h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
+<li>单帧推理，时序一致性仍未显式建模；</li>
+<li>一对多分支训练显存翻倍，对中小算力训练不友好；</li>
+<li>深度监督依赖 LiDAR GT，无 LiDAR 数据集需替换为自监督深度；</li>
+<li>centerline 模式仍是离散点表示，未利用图结构（拓扑关系交给后续 TopoNet）。</li>
+</ul>
+<h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
+<li><strong>把矢量化建图的精度天花板从 ~50 抬到 73.4 mAP</strong>，让端到端规划（VAD &#x2F; SparseDrive）的输入质量进入实用阶段；</li>
+<li><strong>首次将 centerline 学习集成进 DETR-like 矢量化建图框架</strong>，为 TopoNet 等拓扑推理提供基础输入；</li>
+<li><strong>3D 地图能力打通了上下坡 &#x2F; 立体路网场景</strong>；</li>
+<li><strong>解耦注意力 + 一对多匹配的组合</strong>被多个后续 BEV &#x2F; 矢量化工作直接复用（如 MapVR、MapNeXt、StreamMapNet 等）；</li>
+<li>在工业界，MapTRv2 的 R18 33.7 FPS + 73.4 mAP 上限组合，使得”上车实时矢量化建图”从可行走向标配。</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E8%A7%A3%E8%80%A6%E8%87%AA%E6%B3%A8%E6%84%8F%E5%8A%9B%E2%80%94%E2%80%94%E6%8A%8A-N-cdot-N-v-%E6%8B%86%E6%88%90-N-N-v"><span class="toc-text">洞察 1：解耦自注意力——把 $N \cdot N_v$ 拆成 $N + N_v$</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E8%BE%85%E5%8A%A9%E4%B8%80%E5%AF%B9%E5%A4%9A%E5%8C%B9%E9%85%8D%E2%80%94%E2%80%94%E7%94%A8-GT-%E9%87%8D%E5%A4%8D%E7%BB%99%E7%A8%80%E7%96%8F-query-%E5%96%82%E6%AD%A3%E6%A0%B7%E6%9C%AC"><span class="toc-text">洞察 2：辅助一对多匹配——用 GT 重复给稀疏 query 喂正样本</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E8%BE%85%E5%8A%A9%E5%AF%86%E9%9B%86%E7%9B%91%E7%9D%A3%E2%80%94%E2%80%94%E7%BB%99%E7%A8%80%E7%96%8F%E9%A2%84%E6%B5%8B%E8%A3%85%E4%B8%8A-dense-%E9%94%9A%E7%82%B9"><span class="toc-text">洞察 3：辅助密集监督——给稀疏预测装上 dense 锚点</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%89%E4%B8%AA%E6%B4%9E%E5%AF%9F%E7%9A%84%E9%80%92%E8%BF%9B%E5%85%B3%E7%B3%BB"><span class="toc-text">三个洞察的递进关系</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6%E5%AF%B9%E6%AF%94-MapTR"><span class="toc-text">4.2 关键组件对比 MapTR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-Centerline-%E4%B8%8E-3D-%E6%89%A9%E5%B1%95"><span class="toc-text">4.3 Centerline 与 3D 扩展</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%85%B3%E9%94%AE%E4%BB%A3%E7%A0%81"><span class="toc-text">4.4 关键代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E4%B8%BB%E8%A6%81%E7%BB%93%E6%9E%9C"><span class="toc-text">5.1 主要结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E6%B6%88%E8%9E%8D%E5%AE%9E%E9%AA%8C%EF%BC%9AMapTRv2-%E6%B8%90%E8%BF%9B%E5%BC%8F%E6%9E%84%E5%BB%BA%E8%B7%AF%E7%BA%BF%E5%9B%BE"><span class="toc-text">5.2 消融实验：MapTRv2 渐进式构建路线图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E8%87%AA%E6%B3%A8%E6%84%8F%E5%8A%9B%E5%8F%98%E4%BD%93%E5%AF%B9%E6%AF%94%EF%BC%88%E6%B4%9E%E5%AF%9F-1%EF%BC%89"><span class="toc-text">5.3 自注意力变体对比（洞察 1）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90"><span class="toc-text">5.4 性能瓶颈分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-5-%E5%A4%B1%E6%95%88%E5%9C%BA%E6%99%AF%E5%88%86%E6%9E%90"><span class="toc-text">5.5 失效场景分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E8%AE%AD%E7%BB%83%E9%85%8D%E7%BD%AE"><span class="toc-text">6.1 训练配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%A4%8D%E7%8E%B0%E8%A6%81%E7%82%B9"><span class="toc-text">6.2 复现要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">6.3 性能优化方向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%8F%AF%E8%BF%81%E7%A7%BB%E7%9A%84%E6%80%9D%E6%83%B3"><span class="toc-text">7.1 可迁移的思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E6%96%B9%E6%B3%95%E5%B1%80%E9%99%90"><span class="toc-text">7.2 方法局限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8A%80%E6%9C%AF%E5%BD%B1%E5%93%8D"><span class="toc-text">7.3 技术影响</span></a></li></ol></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>
