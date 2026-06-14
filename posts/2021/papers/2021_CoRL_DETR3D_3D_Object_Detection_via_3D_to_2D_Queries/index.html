@@ -90,11 +90,18 @@
 </ul>
 <p><strong>核心痛点</strong>：如何在不依赖 dense depth、不依赖 NMS 的前提下，让多相机几何信息从一开始就参与到检测计算中？</p>
 <h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：用-3D-to-2D-反向投影替代-depth-估计"><a href="#洞察-1：用-3D-to-2D-反向投影替代-depth-估计" class="headerlink" title="洞察 1：用 3D-to-2D 反向投影替代 depth 估计"></a>洞察 1：用 3D-to-2D 反向投影替代 depth 估计</h3><p>传统 pseudo-LiDAR 路线是 <code>2D image → depth → 3D point → 3D detector</code>，每个像素都要估一次深度，误差沿链路累积。本文反过来：从 3D 空间中一组可学习的 object query 出发，每个 query 解码出一个 3D 参考点 $\bm{c}_{\ell i} \in \mathbb{R}^3$，再用相机变换矩阵把它<strong>反投影</strong>到每个相机的图像平面：</p>
-<p>$$\bm{c}^*_{\ell i} &#x3D; \bm{c}<em>{\ell i} \oplus 1, \quad \bm{c}</em>{\ell mi} &#x3D; T_m \bm{c}^*_{\ell i}$$</p>
+
+$$\bm{c}^*_{\ell i} = \bm{c}_{\ell i} \oplus 1, \quad \bm{c}_{\ell mi} = T_m \bm{c}^*_{\ell i}$$
+
+
 <p>只在反投影点处做双线性插值取特征，不需要在整张图上估 depth。这样把”先估深度后回归”改为”先假设 3D 位置后取证据”，从根本上避免了 depth 预测模块的复合误差。</p>
 <h3 id="洞察-2：单点投影到全部相机，自动完成多视角融合"><a href="#洞察-2：单点投影到全部相机，自动完成多视角融合" class="headerlink" title="洞察 2：单点投影到全部相机，自动完成多视角融合"></a>洞察 2：单点投影到全部相机，自动完成多视角融合</h3><p>同一个 3D 参考点天然会落到所有可见的相机视图里。本文对每个 query 收集<strong>所有相机 × 所有 FPN 层级</strong>的特征，按可见性掩码 $\sigma_{\ell kmi}$（投影是否落在图像平面内）做归一化平均：</p>
-<p>$$\bm{f}<em>{\ell i} &#x3D; \frac{1}{\sum_k\sum_m \sigma</em>{\ell kmi} + \epsilon} \sum_k \sum_m \bm{f}<em>{\ell kmi}, \sigma</em>{\ell kmi}$$</p>
-<p>$$\bm{q}<em>{(\ell+1) i} &#x3D; \bm{f}</em>{\ell i} + \bm{q}_{\ell i}$$</p>
+
+$$\bm{f}_{\ell i} = \frac{1}{\sum_k\sum_m \sigma_{\ell kmi} + \epsilon} \sum_k \sum_m \bm{f}_{\ell kmi}\, \sigma_{\ell kmi}$$
+
+$$\bm{q}_{(\ell+1) i} = \bm{f}_{\ell i} + \bm{q}_{\ell i}$$
+
+
 <p>不再需要”先各相机出框，再跨相机合并”这种后处理逻辑。论文在 nuScenes 重叠区域的对比中，DETR3D 的 NDS 比 FCOS3D 高出约 5–6 个点，验证了”在每一层就跨视角融合”的优势。</p>
 <h3 id="洞察-3：Set-to-set-loss-迭代精修，去掉-NMS"><a href="#洞察-3：Set-to-set-loss-迭代精修，去掉-NMS" class="headerlink" title="洞察 3：Set-to-set loss + 迭代精修，去掉 NMS"></a>洞察 3：Set-to-set loss + 迭代精修，去掉 NMS</h3><p>延续 DETR &#x2F; Deformable DETR 的思想，用 Hungarian 匹配 + focal + L1 loss 做集合预测：</p>
 
@@ -345,10 +352,10 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 <li>query 投影矩阵预计算（推理期相机参数固定时），把 runtime 矩阵乘法换成查表。</li>
 </ul>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li>**”先假设 3D，再回 2D 取证据”**：把 ill-posed 的 2D-to-3D 问题反过来做，是后续 BEVFormer、PETR、Sparse4D 共同的范式起点；</li>
-<li>**”以物体为中心的稀疏表示”**：稀疏 query + set prediction 让网络绕过 dense BEV 编码，对 scaling 友好；</li>
-<li>**”几何由相机参数决定，特征由网络学习”**：把可解释的几何变换与可学习的语义特征解耦，工程上更稳健；</li>
-<li>**”逐层迭代 refine 替代 single-shot”**：每层都做”投影 + 采样 + 预测”的循环，是 transformer 头部设计的通用模板。</li>
+<li><strong>“先假设 3D，再回 2D 取证据”</strong>：把 ill-posed 的 2D-to-3D 问题反过来做，是后续 BEVFormer、PETR、Sparse4D 共同的范式起点；</li>
+<li><strong>“以物体为中心的稀疏表示”</strong>：稀疏 query + set prediction 让网络绕过 dense BEV 编码，对 scaling 友好；</li>
+<li><strong>“几何由相机参数决定，特征由网络学习”</strong>：把可解释的几何变换与可学习的语义特征解耦，工程上更稳健；</li>
+<li><strong>“逐层迭代 refine 替代 single-shot”</strong>：每层都做”投影 + 采样 + 预测”的循环，是 transformer 头部设计的通用模板。</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ol>
 <li>单点采样导致每个 query 的感受野很小，对小目标和遮挡目标不友好；</li>

@@ -225,7 +225,7 @@ $$\mathcal{L} = \beta_o \mathcal{L}_{\text{one2one}} + \beta_m \mathcal{L}_{\tex
 $$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \mathcal{L}_{\text{BEVSeg}} + \alpha_p \mathcal{L}_{\text{PVSeg}}$$
 
 
-<p>主分支 $\mathcal{L}<em>{\text{one2one}}$ 与辅助分支 $\mathcal{L}</em>{\text{one2many}}$ 的内部结构都沿用 MapTR 的 (cls + p2p + dir) 三件套。</p>
+<p>主分支 $\mathcal{L}_{\text{one2one}}$ 与辅助分支 $\mathcal{L}_{\text{one2many}}$ 的内部结构都沿用 MapTR 的 (cls + p2p + dir) 三件套。</p>
 <h3 id="4-3-Centerline-与-3D-扩展"><a href="#4-3-Centerline-与-3D-扩展" class="headerlink" title="4.3 Centerline 与 3D 扩展"></a>4.3 Centerline 与 3D 扩展</h3><ul>
 <li><strong>Centerline 学习</strong>：把车道 centerline 当作另一类矢量元素（path），与 divider &#x2F; boundary &#x2F; ped_xing 共享同一套分层 query 解码框架，仅类别数从 3 增至 4；</li>
 <li><strong>3D 地图构建</strong>：每个点 query 多回归一个 $z$ 坐标，配合 BEVPoolv2 已有的深度信息；总参数量增加 &lt; 1%，但能正确表达上下坡。</li>
@@ -510,9 +510,9 @@ $$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \m
                         
                             <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
                             
-                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
-                            
                             <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                             
                             <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
                             

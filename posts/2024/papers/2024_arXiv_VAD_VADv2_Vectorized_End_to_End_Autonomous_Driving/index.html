@@ -60,7 +60,7 @@
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>VAD（ICCV 2023）与 VADv2（arXiv 2024）由华中科技大学 + 地平线团队提出，是端到端自动驾驶在 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> 之后最关键的两步演进：**把感知-规划全链路从”BEV 栅格 + 多任务级联 + 单轨迹回归”重塑为”全向量化场景 + 概率分布规划”**。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>VAD（ICCV 2023）与 VADv2（arXiv 2024）由华中科技大学 + 地平线团队提出，是端到端自动驾驶在 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> 之后最关键的两步演进：<strong>把感知-规划全链路从”BEV 栅格 + 多任务级联 + 单轨迹回归”重塑为”全向量化场景 + 概率分布规划”</strong>。</p>
 <ul>
 <li><strong>VAD</strong> 用 <code>MapTR + Planning</code> 的设计哲学，把地图、交通参与者、自车都表示为 vector query，在 nuScenes 开环上把 avg L2 从 UniAD 的 1.03 m 降到 <strong>0.72 m（−30.1%）</strong>、avg Col 从 0.31% 降到 <strong>0.22%（−29.0%）</strong>，推理速度 <strong>+2.5×</strong>。Planning Head 仅占 5.7% 推理时间。</li>
 <li><strong>VADv2</strong> 进一步把”回归一条轨迹”换成”在 4096 条轨迹词汇表上学习 $p(a|o)$ 概率分布”，并用 Probabilistic Field（NeRF 式位置编码 + Transformer 打分头）建模动作不确定性。在 CARLA Town05 Long benchmark 上把 Driving Score 从 SOTA 的 76.1 抬到 <strong>85.1（+9.0）</strong>。</li>
@@ -113,10 +113,10 @@ $$Q'_{ego} = \text{Cross-Attn}(Q_{ego},\ \{Q_{agent}\})$$
 $$Q''_{ego} = \text{Cross-Attn}(Q'_{ego},\ \{Q_{map}\})$$
 
 
-<p>最终轨迹由 $[Q’<em>{ego}, Q’’</em>{ego}, s_{ego}, \text{cmd}]$ 通过 MLP 输出。这里”隐式（attention 学习）+ 显式（vector loss）”是 VAD 最优雅的设计——前者管”理解”、后者管”安全”。</p>
+<p>最终轨迹由 $[Q'_{ego}, Q''_{ego}, s_{ego}, \text{cmd}]$ 通过 MLP 输出。这里”隐式（attention 学习）+ 显式（vector loss）”是 VAD 最优雅的设计——前者管”理解”、后者管”安全”。</p>
 <h3 id="洞察-3（VADv2）：把规划建模为-p-a-o-概率分布，不再回归"><a href="#洞察-3（VADv2）：把规划建模为-p-a-o-概率分布，不再回归" class="headerlink" title="洞察 3（VADv2）：把规划建模为 $p(a|o)$ 概率分布，不再回归"></a>洞察 3（VADv2）：把规划建模为 $p(a|o)$ 概率分布，不再回归</h3><p>VADv2 的论点直接而尖锐：环境到动作根本不存在确定性映射，强行回归会输出”平均解”。把规划改造为概率分布：</p>
 <ol>
-<li><strong>Trajectory Vocabulary</strong>：从演示数据用 furthest-trajectory sampling 离线采样 $N &#x3D; 4096$ 条代表性轨迹，每条 $a &#x3D; (x_1, y_1, \ldots, x_T, y_T)$；</li>
+<li><strong>Trajectory Vocabulary</strong>：从演示数据用 furthest-trajectory sampling 离线采样 $N &#x3D; 4096$ 条代表性轨迹，每条 $a = (x_1, y_1, \ldots, x_T, y_T)$；</li>
 <li><strong>Probabilistic Field</strong>：用 NeRF 式位置编码 $\Gamma$ 把每条轨迹映射到 embedding 空间</li>
 </ol>
 
@@ -145,9 +145,15 @@ $$p(a) = \text{MLP}\big(\text{Transformer}(E(a),\ E_{env}) + E_{navi} + E_{state
 <li><strong>去掉 Distribution Loss → L2 ↑ 17×</strong>：概率分布而非词汇表是 VADv2 的真正灵魂。</li>
 </ul>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>VAD：</p>
-<p>$$\text{6 cams} \xrightarrow{\text{R50}} \text{PV} \xrightarrow{\text{BEV Encoder}} \text{BEV} \to \begin{cases} \text{Map Query (100×20)} \ \text{Agent Query (300, multi-mode)} \ \text{Ego Query (1)} \end{cases} \xrightarrow{\text{Cross-Attn ×2}} \text{Planning Head} \to \tau_{ego}$$</p>
+
+$$\text{6 cams} \xrightarrow{\text{R50}} \text{PV} \xrightarrow{\text{BEV Encoder}} \text{BEV} \to \begin{cases} \text{Map Query (100×20)} \\ \text{Agent Query (300, multi-mode)} \\ \text{Ego Query (1)} \end{cases} \xrightarrow{\text{Cross-Attn ×2}} \text{Planning Head} \to \tau_{ego}$$
+
+
 <p>VADv2 在 VAD 基础上把 Planning Head 换成 Probabilistic Planning：</p>
-<p>$${\text{Map &#x2F; Agent &#x2F; Traffic &#x2F; Image &#x2F; Navi &#x2F; State tokens}} + {a_i}_{i&#x3D;1}^{4096} \to \text{Scoring Head} \to p(a_i | o)$$</p>
+
+$$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}^{4096} \to \text{Scoring Head} \to p(a_i | o)$$
+
+
 <div style="text-align:center; margin: 24px 0;">
   <img src="https://ar5iv.labs.arxiv.org/html/2303.12077/assets/x2.png" alt="VAD 架构图" style="max-width:100%;">
   <p style="font-size:0.9em; color:#888; margin-top:8px;">图 1：VAD 整体架构（来源：论文 Figure 2）</p>
@@ -158,7 +164,7 @@ $$p(a) = \text{MLP}\big(\text{Transformer}(E(a),\ E_{env}) + E_{navi} + E_{state
   <p style="font-size:0.9em; color:#888; margin-top:8px;">图 2：VADv2 概率规划架构（来源：论文 Figure 2）</p>
 </div>
 
-<p>ASCII 架构对比：</p>
+<p>v1&#x2F;v2 架构对比：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
 <pre>
                     ┌─────────────────────┐
@@ -194,9 +200,9 @@ $$p(a) = \text{MLP}\big(\text{Transformer}(E(a),\ E_{env}) + E_{navi} + E_{state
 │                    │              │ • Scoring Transformer      │
 │                    │              │   p(a) over all 4096       │
 └─────────┬──────────┘              │ • L_distribution (KL) +    │
-          │                          │   L_conflict + L_token     │
-          ▼                          └────────────┬───────────────┘
-       τ_ego                                      ▼
+          │                         │   L_conflict + L_token     │
+          ▼                         └────────────┬───────────────┘
+       τ_ego                                     ▼
                                        sampled / argmax τ_ego
 </pre>
 </div>
@@ -236,8 +242,8 @@ $$p(a) = \text{MLP}\big(\text{Transformer}(E(a),\ E_{env}) + E_{navi} + E_{state
 </tr>
 <tr>
 <td align="left">Loss</td>
-<td align="left">$\mathcal{L}<em>{map} + \mathcal{L}</em>{mot} + \mathcal{L}<em>{col} + \mathcal{L}</em>{bd} + \mathcal{L}<em>{dir} + \mathcal{L}</em>{imi}$</td>
-<td align="left">$\mathcal{L}<em>{distribution} + \mathcal{L}</em>{conflict} + \mathcal{L}_{token}$</td>
+<td align="left">$\mathcal{L}_{map} + \mathcal{L}_{mot} + \mathcal{L}_{col} + \mathcal{L}_{bd} + \mathcal{L}_{dir} + \mathcal{L}_{imi}$</td>
+<td align="left">$\mathcal{L}_{distribution} + \mathcal{L}_{conflict} + \mathcal{L}_{token}$</td>
 </tr>
 <tr>
 <td align="left">评估</td>
@@ -558,9 +564,9 @@ $$p(a) = \text{MLP}\big(\text{Transformer}(E(a),\ E_{env}) + E_{navi} + E_{state
                         
                             <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
                             
-                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
-                            
                             <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                             
                             <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
                             

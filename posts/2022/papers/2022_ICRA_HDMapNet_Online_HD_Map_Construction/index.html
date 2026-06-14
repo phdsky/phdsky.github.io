@@ -93,7 +93,10 @@
 <li><strong>LSS</strong>：用 depth 分布把像素 lift 到 3D 视锥再 splat，几何可解释但 depth 误差大；</li>
 <li><strong>HDMapNet</strong>：在每个视角上用一个<strong>通道级共享的 MLP</strong> 学习从 PV 特征到 BEV 特征的映射：</li>
 </ul>
-<p>$$\mathcal{F}^{c}<em>{\mathcal{I}^i}[h][w] &#x3D; \phi^{hw}</em>{\mathcal{V}^i}\big(\mathcal{F}^{pv}<em>{\mathcal{I}^i}[1][1], \ldots, \mathcal{F}^{pv}</em>{\mathcal{I}^i}[H^{pv}][W^{pv}]\big)$$</p>
+
+$$\mathcal{F}^{c}_{\mathcal{I}^i}[h][w] = \phi^{hw}_{\mathcal{V}^i}\big(\mathcal{F}^{pv}_{\mathcal{I}^i}[1][1], \ldots, \mathcal{F}^{pv}_{\mathcal{I}^i}[H^{pv}][W^{pv}]\big)$$
+
+
 <p>不假设几何先验，让网络自己学如何把 PV 像素重排到 BEV 网格。视图变换消融上，这个 MLP 方案 IoU 33.4%，显著好于 IPM 的 14.1% 与 LSS 的 27.4%。</p>
 <h3 id="洞察-2：语义-实例-方向，三分支让分割可向量化"><a href="#洞察-2：语义-实例-方向，三分支让分割可向量化" class="headerlink" title="洞察 2：语义 + 实例 + 方向，三分支让分割可向量化"></a>洞察 2：语义 + 实例 + 方向，三分支让分割可向量化</h3><p>只有语义分割是远远不够的——同类别的两条相邻车道线在像素上根本无法区分。HDMapNet 在 BEV 解码器后并行三个分支：</p>
 <ol>
@@ -122,7 +125,7 @@
 <p><strong>要记住的 3 个数字</strong>：</p>
 <ul>
 <li><strong>39.7% IoU &#x2F; 35.2% Chamfer mAP</strong>：nuScenes Fusion 模型上的语义&#x2F;实例双指标；</li>
-<li>**MLP 33.4% vs LSS 27.4% vs IPM 14.1%**：视图变换消融的关键对比，确立”学位置”在矢量化任务上的优势；</li>
+<li><strong>MLP 33.4% vs LSS 27.4% vs IPM 14.1%</strong>：视图变换消融的关键对比，确立”学位置”在矢量化任务上的优势；</li>
 <li><strong>+6 IoU（融合 vs 单模态）</strong>：BEV-level fusion 带来的纯增益，比换 backbone 更实用。</li>
 </ul>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>一行公式概括：</p>
@@ -217,7 +220,10 @@
 </tr>
 </tbody></table>
 <p><strong>损失函数</strong>（4 项加权）：</p>
-<p>$$\mathcal{L} &#x3D; \mathcal{L}<em>{\text{ce}} + \alpha, L</em>{var} + \beta, L_{dist} + \gamma, \mathcal{L}_{\text{dir}}$$</p>
+
+$$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + \gamma\, \mathcal{L}_{\text{dir}}$$
+
+
 <h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>实例分支的判别损失是 HDMapNet 的核心可向量化设计，对应仓库中的 <code>discriminative_loss</code> 实现。</p>
 <details>
 <summary>📄 点击展开 discriminative loss 关键逻辑（基于官方实现整理）</summary>

@@ -60,7 +60,8 @@
 
 <!-- toc -->
 
-<h2 id="知识图谱"><a href="#知识图谱" class="headerlink" title="知识图谱"></a>知识图谱</h2><p>下面这张交互式图谱展示本文涉及的 BEV + Transformer 感知论文之间的演进关系。<strong>点击节点可跳转到对应论文笔记</strong>；右下角按钮支持缩放、适应窗口和全屏。</p>
+<h2 id="知识图谱"><a href="#知识图谱" class="headerlink" title="知识图谱"></a>知识图谱</h2><p>下面这张交互式图谱展示本文涉及的 BEV + Transformer 感知论文之间的演进关系。</p>
+<p><strong>点击节点可跳转到对应论文笔记</strong>；右下角按钮支持缩放、适应窗口和全屏。</p>
 <div id="bev-graph-wrapper" style="position:relative;width:100%;margin:1.5rem 0;">
   <div id="bev-graph" style="width:100%;height:560px;border:1px solid #e0e0e0;border-radius:8px;background:#fafbfc;"></div>
   <div id="bev-graph-toolbar" style="position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10;">
@@ -648,7 +649,7 @@
 <blockquote>
 <p>在这个阶段：<strong>吃透一个算子 &gt; 多读十篇论文。</strong></p>
 </blockquote>
-<h2 id="15-结语：核心矛盾在表示与实现，而不在模型结构"><a href="#15-结语：核心矛盾在表示与实现，而不在模型结构" class="headerlink" title="15. 结语：核心矛盾在表示与实现，而不在模型结构"></a>15. 结语：核心矛盾在表示与实现，而不在模型结构</h2><p>回头看这一整篇文章，会发现 BEV 与 Transformer 感知方法的演进有一条很清晰的内在逻辑：**模型结构本身一直在收敛（都是 Transformer + 可微采样），真正分化的是”用什么形式表达世界”以及”如何让这种表达在硬件上跑起来”**。</p>
+<h2 id="15-结语：核心矛盾在表示与实现，而不在模型结构"><a href="#15-结语：核心矛盾在表示与实现，而不在模型结构" class="headerlink" title="15. 结语：核心矛盾在表示与实现，而不在模型结构"></a>15. 结语：核心矛盾在表示与实现，而不在模型结构</h2><p>回头看这一整篇文章，会发现 BEV 与 Transformer 感知方法的演进有一条很清晰的内在逻辑：<strong>模型结构本身一直在收敛（都是 Transformer + 可微采样），真正分化的是”用什么形式表达世界”以及”如何让这种表达在硬件上跑起来”</strong>。</p>
 <ul>
 <li>在<strong>表示</strong>上，方法从 dense BEV 走向 sparse object，又向 occupancy 拓展，最终在端到端框架里以 task query 的形式整合；</li>
 <li>在<strong>几何</strong>上，从 LSS 的硬投影，到 BEVFormer 的可微采样，再到 PETR 的隐式编码，约束越来越弱、可学习成分越来越多；</li>
@@ -682,9 +683,9 @@
                         
                             <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
                             
-                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
-                            
                             <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                             
                     </div>
                 </footer>

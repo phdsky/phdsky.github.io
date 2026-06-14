@@ -60,7 +60,7 @@
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>MapTR（Map TRansformer）提出了一个<strong>结构化、端到端的 Transformer 框架</strong>，用于高效的在线矢量化高精地图构建。HDMapNet 走”BEV 分割 + 后处理”路线，VectorMapNet 走”DETR + 自回归 polyline 生成”两阶段路线，二者各有瓶颈：前者依赖 DBSCAN 启发式向量化，后者推理只能逐点串行（2.9 FPS）。MapTR 的核心创新是<strong>置换等价建模</strong>（Permutation-Equivalent Modeling）——把每个地图元素建模为带有一组等价置换的点集，精确描述几何形状的同时消除点序歧义；配合<strong>分层查询</strong>（实例查询 + 点查询的加性组合）与<strong>分层二部匹配</strong>（先匹配实例、再从置换组中选最优点序），首次实现了”一次前向并行预测 polyline”，把推理速度从 VectorMapNet 的 2.9 FPS 抬到 25.1 FPS（**+8×**）。MapTR-tiny 在 nuScenes 24-epoch 训练即达 50.3 mAP，比当时多模态最优方法高 13.5 mAP；MapTR-nano 在 RTX 3090 上达到实时（25.1 FPS）。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>MapTR（Map TRansformer）提出了一个<strong>结构化、端到端的 Transformer 框架</strong>，用于高效的在线矢量化高精地图构建。HDMapNet 走”BEV 分割 + 后处理”路线，VectorMapNet 走”DETR + 自回归 polyline 生成”两阶段路线，二者各有瓶颈：前者依赖 DBSCAN 启发式向量化，后者推理只能逐点串行（2.9 FPS）。MapTR 的核心创新是<strong>置换等价建模</strong>（Permutation-Equivalent Modeling）——把每个地图元素建模为带有一组等价置换的点集，精确描述几何形状的同时消除点序歧义；配合<strong>分层查询</strong>（实例查询 + 点查询的加性组合）与<strong>分层二部匹配</strong>（先匹配实例、再从置换组中选最优点序），首次实现了”一次前向并行预测 polyline”，把推理速度从 VectorMapNet 的 2.9 FPS 抬到 25.1 FPS（<strong>+8×</strong>）。MapTR-tiny 在 nuScenes 24-epoch 训练即达 50.3 mAP，比当时多模态最优方法高 13.5 mAP；MapTR-nano 在 RTX 3090 上达到实时（25.1 FPS）。</p>
 <p><strong>核心论点</strong>：矢量化高精地图构建的关键瓶颈是”形状歧义”——多线&#x2F;多边形的同一几何形状对应多种等价点序，固定一种作为监督会与其他等价排列产生矛盾。把固定序换成”置换组 + 最优匹配”，配合分层查询与分层匹配，可以同时拿下精度（+5.9 mAP）和速度（+8× FPS）。</p>
 <h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><table>
 <thead>
@@ -109,7 +109,7 @@ $$\Gamma_{\text{polyline}} = \{\gamma_0, \gamma_1\}, \quad \gamma_0(j) = j \bmod
 $$\Gamma_{\text{polygon}} = \{\gamma_0, \gamma_1, \ldots, \gamma_{2N_v - 1}\}$$
 
 
-<p><strong>为什么更好</strong>：固定序标签在 nuScenes 上仅 44.4 mAP，引入置换等价建模后提升至 <strong>50.3 mAP（+5.9 mAP）</strong>，其中人行横道提升最大（**+11.9 AP**）——polygon 的等价置换数最多（$2 \times 20 &#x3D; 40$ 种），消除歧义带来的收益最显著。</p>
+<p><strong>为什么更好</strong>：固定序标签在 nuScenes 上仅 44.4 mAP，引入置换等价建模后提升至 <strong>50.3 mAP（+5.9 mAP）</strong>，其中人行横道提升最大（<strong>+11.9 AP</strong>）——polygon 的等价置换数最多（$2 \times 20 &#x3D; 40$ 种），消除歧义带来的收益最显著。</p>
 <h3 id="洞察-2：分层查询——结构化编码地图元素"><a href="#洞察-2：分层查询——结构化编码地图元素" class="headerlink" title="洞察 2：分层查询——结构化编码地图元素"></a>洞察 2：分层查询——结构化编码地图元素</h3><p><strong>传统做法</strong>（DETR 式）：每个 query 对应一个实例的整体信息，难以编码”实例 + 多个内部点”的两层结构。</p>
 <p><strong>MapTR 做法</strong>：分别定义 $N$ 个<strong>实例级查询</strong> $\{q_i^{\text{ins}}\}$ 和 $N_v$ 个<strong>点级查询</strong> $\{q_j^{\text{pt}}\}$（所有实例共享），通过加法组合得到每个点的分层查询：</p>
 
@@ -133,7 +133,7 @@ $$\hat{\gamma} = \arg\min_{\gamma \in \Gamma} \sum_{j=0}^{N_v - 1} D_{\text{Manh
 <p><strong>要记住的 3 个数字</strong>：</p>
 <ul>
 <li><strong>50.3 mAP（24 ep, R50, tiny）vs 固定序 44.4 mAP</strong>：置换等价建模带来的纯增益 <strong>+5.9 mAP</strong>；</li>
-<li><strong>25.1 FPS（nano, R18）vs VectorMapNet 2.9 FPS</strong>：实时矢量化建图的奠基速度，**+8×**；</li>
+<li><strong>25.1 FPS（nano, R18）vs VectorMapNet 2.9 FPS</strong>：实时矢量化建图的奠基速度，<strong>+8×</strong>；</li>
 <li><strong>+11.9 AP on ped_crossing</strong>：消歧收益与等价置换数正相关的最强证据（polygon 的 $2N_v$ 远多于 polyline 的 2）。</li>
 </ul>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>$$\text{6 cams} \xrightarrow{\text{Backbone}} \text{PV feat} \xrightarrow{\text{PV2BEV (GKT)}} \text{BEV feat} \xrightarrow{\text{Map Decoder}} {(\text{class}, \text{polyline}_{N_v\times 2})}$$</p>
@@ -482,9 +482,9 @@ $$\mathcal{L}_{\text{dir}} = -\sum_{i} \mathbb{1}_{\{c_i \neq \varnothing\}} \su
                         
                             <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
                             
-                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
-                            
                             <a href="/tags/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" class="tag">#深度学习</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                             
                             <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
                             

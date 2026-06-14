@@ -121,7 +121,10 @@
 </tbody></table>
 <p>最简的 <strong>bbox 两点表示反而最好</strong>：少一个点，预测稳定性反而更高，给后续 polyline generator 留出更多空间去描述细节。这是一条非常工程化的洞察——粗位置预测越简单越好，精细形状交给生成器。</p>
 <h3 id="洞察-3：把”形状回归”换成”离散自回归生成”"><a href="#洞察-3：把”形状回归”换成”离散自回归生成”" class="headerlink" title="洞察 3：把”形状回归”换成”离散自回归生成”"></a>洞察 3：把”形状回归”换成”离散自回归生成”</h3><p>折线形状的复杂度（曲率突变、自交、回环）让连续坐标回归非常难收敛。VectorMapNet 把 BEV 坐标离散为 200×100 网格（0.3 m 量化），polyline generator 是一个标准的 Transformer，逐顶点输出离散 token，并以 keypoint 作为 prompt：</p>
-<p>$$p_\theta(V_f | V_k, F_{BEV}) &#x3D; \prod_{n&#x3D;1}^{2N_v + 1} p_\theta(v^n_f | v^{&lt;n}<em>f, V_k, F</em>{BEV})$$</p>
+
+$$p_\theta(V_f | V_k, F_{BEV}) = \prod_{n=1}^{2N_v + 1} p_\theta(v^n_f | v^{<n}_f, V_k, F_{BEV})$$
+
+
 <p>其中每个 $v^n_f$ 是 200×100 个离散位置中的一个 token，外加结束符。离散化 + 自回归比连续回归在 Fréchet mAP 上从 41.9% 提升到 50.4%，是一次结构性收益。</p>
 <h4 id="三个洞察的递进关系"><a href="#三个洞察的递进关系" class="headerlink" title="三个洞察的递进关系"></a>三个洞察的递进关系</h4><ol>
 <li>表示：用矢量集合替代栅格；</li>
@@ -130,9 +133,9 @@
 </ol>
 <p><strong>要记住的 3 个数字</strong>：</p>
 <ul>
-<li><strong>Fusion mAP 52.3%（fine-tune）</strong> vs HDMapNet Fusion 31.0%：**+14.2 mAP** 的端到端跃迁；</li>
+<li><strong>Fusion mAP 52.3%（fine-tune）</strong> vs HDMapNet Fusion 31.0%：<strong>+14.2 mAP</strong> 的端到端跃迁；</li>
 <li><strong>Bbox 关键点（k&#x3D;2）40.9% mAP</strong>：最简表示反而最优；</li>
-<li>**离散自回归 50.4% Fréchet mAP vs 连续回归 41.9%**：把形状回归改造成 token 生成的纯收益。</li>
+<li><strong>离散自回归 50.4% Fréchet mAP vs 连续回归 41.9%</strong>：把形状回归改造成 token 生成的纯收益。</li>
 </ul>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>$${\text{cams}, \text{LiDAR}} \rightarrow F_{BEV} \rightarrow {\text{element queries} \to \text{keypoints}} \rightarrow \text{polyline generator} \rightarrow {(\text{class}, \text{polyline})}$$</p>
 <p>ASCII 架构图：</p>
@@ -221,7 +224,10 @@
 </tr>
 </tbody></table>
 <p><strong>损失函数</strong>：</p>
-<p>$$\mathcal{L} &#x3D; \mathcal{L}<em>{\text{det}} + \mathcal{L}</em>{\text{gen}}$$</p>
+
+$$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{gen}}$$
+
+
 <ul>
 <li>$\mathcal{L}_{\text{det}}$：DETR 风格的 set loss（class CE + keypoint L1，匈牙利匹配）；</li>
 <li>$\mathcal{L}_{\text{gen}}$：polyline token 的交叉熵（teacher forcing 训练）。</li>
