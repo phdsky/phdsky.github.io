@@ -156,7 +156,7 @@ $$D_i^{pred} = \psi\bigl(SE(F_i^{2d} \mid MLP(\xi(R_i) \oplus \xi(t_i) \oplus \x
 <h3 id="洞察-3：Depth-Refinement-Module——在视锥体空间精炼深度"><a href="#洞察-3：Depth-Refinement-Module——在视锥体空间精炼深度" class="headerlink" title="洞察 3：Depth Refinement Module——在视锥体空间精炼深度"></a>洞察 3：Depth Refinement Module——在视锥体空间精炼深度</h3><p><strong>传统做法</strong>：深度预测与上下文特征做外积后直接进行 Voxel Pooling，即使深度预测有偏差也无任何修正机会。</p>
 <p><strong>本文做法</strong>：在外积生成 3D 视锥体特征 $F^{3d} \in \mathbb{R}^{C_F \times C_D \times H \times W}$ 后、Voxel Pooling 之前，将其 reshape 为 $[C_F \times H, C_D, W]$ 并在 $C_D \times W$ 平面上堆叠 3×3 卷积层进行精炼。</p>
 <p><strong>为什么更好</strong>：（1）当深度预测置信度低时，沿深度轴的卷积可以聚合周围深度 bin 的特征，起到”软化”作用；（2）当深度预测有偏差时，只要偏差在卷积感受野内，特征可以被”滑动”到正确位置。消融实验验证：使用 3×1 卷积（仅深度轴交互）即可提升 mAP 0.6%，证明信息沿深度轴的交互是该模块的核心机制。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>+18.8% mAP</strong>：GT 深度 vs 学习深度的差距，揭示深度估计是 LSS 管线的最大瓶颈</li>
 <li><strong>60.0% NDS</strong>：BEVDepth 在 nuScenes test 集达到的 NDS，首次突破 60% 大关（纯相机方案）</li>
@@ -689,7 +689,7 @@ Multi-view Images (6×3×256×704)
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
 <li><strong>“中间监督”解决端到端训练的梯度稀疏问题</strong>：当端到端训练中某一中间模块（如深度估计）的梯度来源太少时，引入中间监督是最直接有效的改善方式。这一思想可迁移到任何多级管线中——例如在 3D 占用网络中对体素密度施加中间监督</li>
 <li><strong>将传感器参数编码为网络条件输入</strong>：Camera-Aware 机制本质上是让网络”知道自己在用什么设备看什么方向”。同样的思路可用于多雷达融合（编码雷达安装参数）、跨数据集迁移（编码不同车型的相机配置差异）</li>
-<li><strong>几何空间中的特征精炼</strong>：在 3D 空间&#x2F;视锥体空间对特征做卷积精炼，而非在 2D 图像空间。这个思路提示我们在 BEV 特征上也可以做类似的”深度方向精炼”操作</li>
+<li><strong>几何空间中的特征精炼</strong>：在 3D 空间&#x2F;视锥体空间对特征做卷积精炼，而非在 2D 图像空间。这个思路也提示后续方法，可以在 BEV 特征上做类似的”深度方向精炼”操作</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
 <li><strong>依赖 LiDAR 数据生成深度真值</strong>：训练阶段必须有 LiDAR 点云数据，无法在纯视觉数据集上使用。虽然推理不需要 LiDAR，但这限制了数据扩展性</li>

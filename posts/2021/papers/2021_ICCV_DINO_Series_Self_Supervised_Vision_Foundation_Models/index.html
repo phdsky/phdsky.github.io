@@ -170,7 +170,7 @@ $$\mathcal{L}_{\text{Ref}} = w_D \cdot \mathcal{L}_{\text{DINO}} + \mathcal{L}_{
 
 
 <p>操作上，Gram Anchoring 在 1M 迭代后启动，每 10k 步用当前 EMA 教师更新 Gram 教师（最多 3 次），效果几乎立即可见——VOC 分割在 10k 步内显著改善。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>66.1 mAP</strong>：DINOv3 在 COCO 目标检测上的表现（冻结 backbone + 100M 参数 Plain-DETR），超越所有微调方案</li>
 <li><strong>63.0 mIoU</strong>：ADE20k 语义分割，冻结 backbone 匹配 ONE-PEACE（2.2B 参数微调）</li>

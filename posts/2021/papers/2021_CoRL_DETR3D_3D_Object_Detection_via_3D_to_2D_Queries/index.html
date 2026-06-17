@@ -114,7 +114,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 <li>几何：用反投影替代后处理融合；</li>
 <li>监督：用 set loss + 迭代 refine 替代 NMS。</li>
 </ol>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>0.425 &#x2F; 0.346</strong>：nuScenes val 上 ResNet101+DCN backbone 的 NDS &#x2F; mAP；</li>
 <li><strong>6 层 decoder</strong>：每层都做”投影—采样—attention—预测”的迭代 refine（layer 0 → 5：NDS 0.380 → 0.425）；</li>

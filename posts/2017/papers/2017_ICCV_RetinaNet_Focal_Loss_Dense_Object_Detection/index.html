@@ -114,7 +114,7 @@ $$\text{FL}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)$$
 <h3 id="洞察-3：简洁架构-正确的损失函数-复杂的采样策略"><a href="#洞察-3：简洁架构-正确的损失函数-复杂的采样策略" class="headerlink" title="洞察 3：简洁架构 + 正确的损失函数 &gt; 复杂的采样策略"></a>洞察 3：简洁架构 + 正确的损失函数 &gt; 复杂的采样策略</h3><p>传统做法：设计复杂的网络结构（如 R-FCN 的位置敏感 score maps、DSSD 的反卷积模块）或繁琐的训练策略（OHEM 需要额外的 NMS 和 batch 构造）来提升单阶段检测器。</p>
 <p>本文做法：使用标准的 ResNet-FPN backbone + 两个参数不共享的 FCN 子网络（分类 4 层 3×3 conv + 回归 4 层 3×3 conv），架构极其简洁。在所有约 100k 个 anchor 上直接计算 Focal Loss，无需任何采样策略。</p>
 <p>RetinaNet-101-800 达到 37.8 AP（minival）&#x2F; 39.1 AP（test-dev），超越 Faster R-CNN + FPN 的 36.2 AP，而 OHEM 最优配置仅 32.8 AP，相差 3.2 AP。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>39.1 AP</strong>：RetinaNet（ResNet-101-FPN）在 COCO test-dev 上的性能，首次单阶段超越所有两阶段方法</li>
 <li>**$\gamma &#x3D; 2$**：Focal Loss 的最优聚焦参数，使 $p_t &#x3D; 0.9$ 的易分样本损失降低 100×</li>

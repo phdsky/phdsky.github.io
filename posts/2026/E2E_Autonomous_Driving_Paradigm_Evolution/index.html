@@ -88,10 +88,7 @@
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">UniAD (2023)  →  VAD (2023)  →  VADv2 (2024)  →  SparseDrive (2024) ─┐</span><br><span class="line">                                                                        ├─ NAVSIM 评分派</span><br><span class="line">                                                            SparseDriveV2 (2025) ─┘</span><br><span class="line">                                                            </span><br><span class="line">                                                       DiffusionDrive (2025) ──── 生成派</span><br></pre></td></tr></table></figure>
 
 <p>每一次跳迁都对应一个具体的”被否定”假设：UniAD 被认为太重 → VAD 砍掉中间表示；VAD 被认为不够多模态 → VADv2 引入概率词汇表；VADv2 被认为离不开 BEV → SparseDrive 全 token 化；SparseDrive 词表不够 → SparseDriveV2 拆成路径×速度组合 26 万候选；评分派整体被嫌弃”穷举不优雅” → DiffusionDrive 用扩散生成多模态。</p>
-<p>读这篇文章前，建议先看一遍 <a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">BEV+Transformer 感知统一框架</a> 中的”map query”小节，理解”任务 query 在同一 attention 中互相读写”这一基础范式。本文是它在<strong>决策层</strong>的延展。</p>
-<blockquote>
-<p>与本文配套的论文笔记：<a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a>、<a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD&#x2F;VADv2</a>、<a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive&#x2F;SparseDriveV2</a>、<a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a>。本文聚焦”演进逻辑”，论文细节请到对应笔记中查阅。</p>
-</blockquote>
+<p>这条决策层主线和 <a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">BEV+Transformer 感知统一框架</a> 中的 map query 一脉相承：感知侧先证明了”任务 query 可以在同一 attention 中互相读写”，端到端规划则把这个范式继续推到预测、候选轨迹和自车动作。对应的单篇笔记包括 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a>、<a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD&#x2F;VADv2</a>、<a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive&#x2F;SparseDriveV2</a> 和 <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a>，它们分别落在这条演进链的关键拐点上。</p>
 <h2 id="1-起点：为什么需要端到端？"><a href="#1-起点：为什么需要端到端？" class="headerlink" title="1. 起点：为什么需要端到端？"></a>1. 起点：为什么需要端到端？</h2><h3 id="1-1-模块化时代的两个原罪"><a href="#1-1-模块化时代的两个原罪" class="headerlink" title="1.1 模块化时代的两个原罪"></a>1.1 模块化时代的两个原罪</h3><p>在 E2E 之前，自动驾驶的主流架构是 <strong>感知 → 预测 → 规划 → 控制</strong> 的串联流水线。每个模块独立训练、独立优化，模块之间通过结构化接口（3D box、轨迹、占用栅格）传递信息。这种架构的两个根本缺陷：</p>
 <ul>
 <li><strong>信息瓶颈（Information Bottleneck）</strong>：感知输出的”3D box + 类别”是对原始传感器信号的一次极端压缩，规划器无法访问原始的视觉&#x2F;几何不确定性，被迫做出过于保守的决策；</li>
@@ -519,9 +516,7 @@ $$
 <li><strong>World model 反馈</strong>：用世界模型生成的反事实轨迹作为评分器的训练信号；</li>
 <li><strong>闭环数据飞轮</strong>：仿真 → 真实路测 → 反馈训练，与 LLM 的 RLHF 同构。</li>
 </ul>
-<blockquote>
-<p>想看 E2E AD 在更宏观的”自动驾驶五次跃迁”中所处位置，请阅读 <a href="/posts/2026/Autonomous_Driving_Evolution_From_Perception_to_World_Model/">自动驾驶的觉醒：从感知像素到重构世界的五次跃迁</a>。<br>想看本文涉及论文的完整知识图谱与推荐阅读顺序，请阅读 <a href="/posts/2026/Paper_Knowledge_Graph_Autonomous_Driving_Perception/">自动驾驶感知论文知识图谱</a>。</p>
-</blockquote>
+<p>这条 E2E AD 主线放回更宏观的技术演进中，对应 <a href="/posts/2026/Autonomous_Driving_Evolution_From_Perception_to_World_Model/">自动驾驶的觉醒：从感知像素到重构世界的五次跃迁</a> 里的第四幕；涉及论文之间的依赖、对比与分支关系，则统一收束到 <a href="/posts/2026/Paper_Knowledge_Graph_Autonomous_Driving_Perception/">自动驾驶感知论文知识图谱</a>。</p>
 
             </div>
 

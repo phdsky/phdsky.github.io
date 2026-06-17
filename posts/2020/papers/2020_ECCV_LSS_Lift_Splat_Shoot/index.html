@@ -127,7 +127,7 @@ $$\mathbf{c}_d = \alpha_d \cdot \mathbf{c}$$
 <li><strong>自身坐标等距等变性</strong>：同一场景在不同自车位姿下，检测结果随之刚体变换（通过内外参显式变换坐标）</li>
 </ol>
 <p><strong>传统的 CNN baseline</strong> 将所有相机特征直接拼接后上采样到 BEV，破坏了排列不变性和等距等变性。实验表明，这种缺乏几何归纳偏置的 baseline 性能远低于 LSS（nuScenes 车辆分割 IoU 仅 24.25% vs. 32.07%）。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li>**32.07%**：nuScenes 车辆分割 IoU，超越所有基线和同期工作</li>
 <li><strong>35 Hz</strong>：Titan V GPU 上的前向推理速度，满足自动驾驶实时性需求</li>

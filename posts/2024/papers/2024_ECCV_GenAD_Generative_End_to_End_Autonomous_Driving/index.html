@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            GenAD: Generative End-to-End Autonomous Driving - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">GenAD: Generative End-to-End Autonomous Driving</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2024年02月18日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Generative End-to-End Autonomous Driving<br>Method: Instance-centric Scene Tokenizer, Structural Latent Space, Variational Autoencoder, Temporal Model<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.11502">https://arxiv.org/abs/2402.11502</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/GenAD">https://github.com/wzzheng/GenAD</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>GenAD 将端到端自动驾驶转化为生成式建模问题。它不再把任务严格拆成 perception、motion prediction、planning 的渐进流水线，而是学习 ego car 和 surroundings 在过去场景条件下如何共同演化。</p>
+<p>方法上，GenAD 用 instance-centric scene tokenizer 将周围场景变成 map-aware instance tokens，再用 VAE 学习 future trajectory distribution 的 structural latent space，并用 temporal model 在 latent space 中生成未来。这样一来，规划不再是对单条轨迹的直接回归，而是从结构化未来分布中采样和预测。</p>
+<p>GenAD 的关键不是“用了生成模型”本身，而是把端到端驾驶重新解释为 <strong>future evolution modeling</strong>：自车和周围交通参与者的未来不是两个独立输出，而是同一个未来场景演化过程的不同部分。</p>
+<p><strong>核心论点</strong>：端到端驾驶的难点不只是把感知、预测、规划接在一起，而是学习一个结构化未来分布，让 ego planning 与 surrounding motion 在同一 latent space 中协同生成。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>传统端到端自动驾驶虽然形式上端到端，但往往仍沿用模块化逻辑：先感知，再预测，再规划。这种渐进式流水线有两个问题：</p>
+<ul>
+<li><strong>交互割裂</strong>：ego future 和 surrounding future 通常由不同 head 或不同模块处理，难以形成统一的未来场景。</li>
+<li><strong>多模态不足</strong>：单轨迹回归容易把多个合理未来平均掉，导致规划僵硬。</li>
+<li><strong>结构先验弱</strong>：未来轨迹不是任意曲线，它受道路、agent 交互和交通规则约束。</li>
+</ul>
+<p>GenAD 的问题意识是：自动驾驶规划本质上可以看成未来演化的生成问题。与其直接输出一个规划结果，不如先学习一个结构化 latent space，让模型在这个空间中表达不同未来。</p>
+<p>这让 GenAD 处在 VAD 和 DiffusionDrive 之间：它没有像 VADv2 那样用固定轨迹词汇表，也没有像 DiffusionDrive 那样用扩散去噪，而是通过 VAE latent 来表达未来分布。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：端到端驾驶可以用生成式框架统一"><a href="#洞察-1：端到端驾驶可以用生成式框架统一" class="headerlink" title="洞察 1：端到端驾驶可以用生成式框架统一"></a>洞察 1：端到端驾驶可以用生成式框架统一</h3><p>GenAD 不只预测一条轨迹，而是在结构化 latent space 中生成 future trajectories。这样做的价值是让模型表达“未来不唯一”：在同一个当前场景下，可能存在减速、跟车、变道等多个合理分支。</p>
+<p>生成式框架的意义，不是为了追求随机性，而是为了把多模态未来作为分布来建模。</p>
+<h3 id="洞察-2：instance-centric-tokenizer-保留交通参与者结构"><a href="#洞察-2：instance-centric-tokenizer-保留交通参与者结构" class="headerlink" title="洞察 2：instance-centric tokenizer 保留交通参与者结构"></a>洞察 2：instance-centric tokenizer 保留交通参与者结构</h3><p>场景先被编码为 map-aware instance tokens，避免直接在 dense feature 上生成未来。这个设计保留了交通参与者和地图元素的结构，使生成模型面对的是 agent &#x2F; map 级别的场景 token，而不是难以解释的整张特征图。</p>
+<p>这和 SparseDrive 的 sparse scene representation 有相似之处：都认为规划不一定需要完整 dense BEV，而需要保留对决策关键的实体结构。</p>
+<h3 id="洞察-3：latent-temporal-model-同时服务预测和规划"><a href="#洞察-3：latent-temporal-model-同时服务预测和规划" class="headerlink" title="洞察 3：latent temporal model 同时服务预测和规划"></a>洞察 3：latent temporal model 同时服务预测和规划</h3><p>模型在 latent space 中捕获 agent 和 ego movements，最终同时执行 motion prediction 和 planning。也就是说，surrounding motion 和 ego planning 被放进同一个未来演化模型里，而不是两个后处理模块。</p>
+<p>这条洞察是 GenAD 与普通 motion forecasting 的分界：它关注的是自车和环境的联合未来，而不只是预测别人怎么动。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2402.11502/assets/x1.png" alt="GenAD 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+past scenes
+    │
+    ▼
+instance-centric scene tokenizer
+    │
+    ▼
+map-aware instance tokens
+    │
+    ▼
+VAE structural latent space
+    │
+    ▼
+temporal model
+    │
+    ├── motion prediction
+    └── ego planning
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Scene tokenizer</td>
+<td align="left">将场景转为 map-aware instance tokens</td>
+</tr>
+<tr>
+<td align="left">VAE</td>
+<td align="left">学习未来轨迹分布的结构化 latent space</td>
+</tr>
+<tr>
+<td align="left">Temporal model</td>
+<td align="left">建模 agent 和 ego 在 latent 中的运动</td>
+</tr>
+<tr>
+<td align="left">Sampling</td>
+<td align="left">从 latent distribution 生成未来轨迹</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-与端到端规划路线的关系"><a href="#4-3-与端到端规划路线的关系" class="headerlink" title="4.3 与端到端规划路线的关系"></a>4.3 与端到端规划路线的关系</h3><table>
+<thead>
+<tr>
+<th align="left">方法</th>
+<th align="left">未来表示</th>
+<th align="left">路线特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">UniAD</td>
+<td align="left">query cascade + 单轨迹规划</td>
+<td align="left">任务级联，planning-oriented</td>
+</tr>
+<tr>
+<td align="left">VAD</td>
+<td align="left">vectorized map &#x2F; agent &#x2F; ego</td>
+<td align="left">几何约束 + 轻量规划</td>
+</tr>
+<tr>
+<td align="left">GenAD</td>
+<td align="left">structural latent space</td>
+<td align="left">用生成式 latent 表达 future evolution</td>
+</tr>
+<tr>
+<td align="left">DiffusionDrive</td>
+<td align="left">diffusion trajectory distribution</td>
+<td align="left">用扩散模型生成多模态轨迹</td>
+</tr>
+</tbody></table>
+<p>GenAD 的位置在于：它把“未来分布”引入端到端驾驶，但仍然以 latent representation 为核心，而不是固定词表或扩散过程。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上报告 GenAD 在 vision-centric end-to-end autonomous driving 上达到领先表现，并强调高效性。这里保留方法层面结论：GenAD 是 DiffusionDrive 之前重要的 action-centric &#x2F; generative planning 参考，核心是把 future evolution 作为生成目标。</p>
+<p>实验部分的证据可以分成三层：</p>
+<table>
+<thead>
+<tr>
+<th align="left">层次</th>
+<th align="left">关注点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Planning</td>
+<td align="left">ego trajectory 是否更合理</td>
+</tr>
+<tr>
+<td align="left">Motion prediction</td>
+<td align="left">surrounding agents 是否被联合建模</td>
+</tr>
+<tr>
+<td align="left">Efficiency</td>
+<td align="left">latent generation 是否比重型级联更经济</td>
+</tr>
+</tbody></table>
+<p>GenAD 的实验价值在于说明：生成式未来建模可以同时服务 motion prediction 和 planning，而不是只提升某一个单独任务。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>2 类未来对象</strong>：ego car 与 surroundings。</li>
+<li><strong>3 个子问题</strong>：perception、motion prediction、planning，被统一为生成式未来建模。</li>
+<li><strong>1 个 structural latent space</strong>：用于轨迹先验建模。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>GenAD 与 VAD、SparseDrive、DiffusionDrive 的关系可以这样对照：</p>
+<ul>
+<li><strong>VAD</strong> 更偏向 vectorized planning，用 map &#x2F; agent &#x2F; ego 表示配合几何约束；</li>
+<li><strong>SparseDrive</strong> 更偏向 sparse scene representation，用稀疏实例和地图 token 贯穿全栈；</li>
+<li><strong>DiffusionDrive</strong> 更偏向扩散式轨迹分布，用去噪过程生成多模态规划；</li>
+<li><strong>GenAD</strong> 则把生成式端到端规划的 latent 结构提前提出。</li>
+</ul>
+<p>工程使用时，GenAD 的关键不是把 VAE 换成某个模块，而是保证 latent space 真正保留交通结构和未来多模态。如果 latent 过于抽象，下游规划会难以解释；如果 latent 太受监督细节限制，又会失去生成式建模的优势。</p>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>GenAD 的启示是：规划不是简单回归，而是条件生成。后续 DiffusionDrive 可以看作把这种生成式规划思路换成更强的扩散策略和更高效的轨迹分布建模。</p>
+<p>这也带出三个容易混淆、但在自动驾驶生成式建模里必须拆开的概念：</p>
+<table>
+<thead>
+<tr>
+<th align="left">概念</th>
+<th align="left">关注对象</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Generative planning</td>
+<td align="left">生成 ego future action &#x2F; trajectory</td>
+</tr>
+<tr>
+<td align="left">World model</td>
+<td align="left">预测动作条件下 world state 的未来演化</td>
+</tr>
+<tr>
+<td align="left">Motion forecasting</td>
+<td align="left">预测其他 agent 的未来运动</td>
+</tr>
+</tbody></table>
+<p>GenAD 处在三者交界处：它用生成式框架统一 ego 和 surroundings 的未来，但还不是严格意义上以显式 world state 为核心的 occupancy world model。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E7%AB%AF%E5%88%B0%E7%AB%AF%E9%A9%BE%E9%A9%B6%E5%8F%AF%E4%BB%A5%E7%94%A8%E7%94%9F%E6%88%90%E5%BC%8F%E6%A1%86%E6%9E%B6%E7%BB%9F%E4%B8%80"><span class="toc-text">洞察 1：端到端驾驶可以用生成式框架统一</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Ainstance-centric-tokenizer-%E4%BF%9D%E7%95%99%E4%BA%A4%E9%80%9A%E5%8F%82%E4%B8%8E%E8%80%85%E7%BB%93%E6%9E%84"><span class="toc-text">洞察 2：instance-centric tokenizer 保留交通参与者结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9Alatent-temporal-model-%E5%90%8C%E6%97%B6%E6%9C%8D%E5%8A%A1%E9%A2%84%E6%B5%8B%E5%92%8C%E8%A7%84%E5%88%92"><span class="toc-text">洞察 3：latent temporal model 同时服务预测和规划</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%B8%8E%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%A7%84%E5%88%92%E8%B7%AF%E7%BA%BF%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.3 与端到端规划路线的关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%94%9F%E6%88%90%E6%A8%A1%E5%9E%8B/" class="tag">#生成模型</a>
+                            
+                            <a href="/tags/%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#端到端自动驾驶</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

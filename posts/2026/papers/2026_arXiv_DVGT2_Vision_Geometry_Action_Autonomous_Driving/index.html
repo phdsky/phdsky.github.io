@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            DVGT-2: Vision-Geometry-Action Model for Autonomous Driving at Scale - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">DVGT-2: Vision-Geometry-Action Model for Autonomous Driving at Scale</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年04月01日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: End-to-End Autonomous Driving with Dense Geometry<br>Method: Vision-Geometry-Action, Streaming DVGT, Temporal Causal Attention, Historical Cache<br>Venue: arXiv<br>Year: 2026<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.00813">https://arxiv.org/abs/2604.00813</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/DVGT">https://github.com/wzzheng/DVGT</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DVGT-2 提出 <strong>Vision-Geometry-Action（VGA）</strong> 范式，把 dense 3D geometry 作为自动驾驶决策的重要线索。相较于 DVGT 的 batch 式多帧几何重建，DVGT-2 改成 streaming 结构：用 temporal causal attention、historical feature cache 和 sliding-window streaming strategy 支持在线推理，并联合输出当前帧 dense geometry 与 trajectory planning。</p>
+<p>DVGT-2 要解决的缺口很清楚：DVGT 证明 dense geometry 可以从驾驶多相机序列中学出来，但如果它只能离线 batch 推理，就很难进入真实自动驾驶规划链路。DVGT-2 的重点不是再做一张更好的 point map，而是把 dense geometry 变成可在线更新、可被规划 head 使用的中间表示。</p>
+<p><strong>核心论点</strong>：端到端驾驶不一定只能走 sparse query 或 VLA 路线；dense geometry 也可以成为从 vision 到 action 的中间桥梁。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>端到端自动驾驶正在从稀疏感知走向 VLA 等多模态路线，但语言辅助并不能直接提供物理空间约束。DVGT-2 的问题意识是：自动驾驶首先发生在三维空间里，dense 3D geometry 应当进入规划链路；同时，几何重建必须从离线 batch 模式走向在线 streaming 模式。</p>
+<p>这背后有两个现实矛盾：</p>
+<table>
+<thead>
+<tr>
+<th align="left">矛盾</th>
+<th align="left">说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">语义推理强但物理约束弱</td>
+<td align="left">VLA 能理解语言和意图，但不天然提供度量空间结构</td>
+</tr>
+<tr>
+<td align="left">几何信息强但在线使用难</td>
+<td align="left">dense geometry 提供空间约束，但 batch 重建难以满足实时规划</td>
+</tr>
+</tbody></table>
+<p>DVGT-2 试图同时解决这两个问题：保留 geometry 的物理 grounding，同时把模型改造成可在线推理的 driving system。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：VGA-是-VLA-的几何对照路线"><a href="#洞察-1：VGA-是-VLA-的几何对照路线" class="headerlink" title="洞察 1：VGA 是 VLA 的几何对照路线"></a>洞察 1：VGA 是 VLA 的几何对照路线</h3><p>VLA 借助语言描述辅助规划，VGA 则强调几何结构直接约束决策。两者并不互斥，但 VGA 更贴近物理空间。</p>
+<p>可以这样区分：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">VLA: Vision -&gt; Language / semantic reasoning -&gt; Action</span><br><span class="line">VGA: Vision -&gt; metric Geometry -&gt; Action</span><br></pre></td></tr></table></figure>
+
+<p>VLA 更擅长语义解释和指令理解；VGA 更擅长表达空间、距离、遮挡、free space 等物理约束。</p>
+<h3 id="洞察-2：在线规划需要-streaming-geometry"><a href="#洞察-2：在线规划需要-streaming-geometry" class="headerlink" title="洞察 2：在线规划需要 streaming geometry"></a>洞察 2：在线规划需要 streaming geometry</h3><p>DVGT 依赖多帧 batch 处理，难以直接接入在线规划。DVGT-2 通过 temporal causal attention 和 historical cache 避免重复计算。</p>
+<p>这里的 causal 很关键：在线系统不能看未来帧。Temporal causal attention 保证当前输出只依赖历史信息，historical cache 则让模型复用过去特征，而不是每次重新处理完整窗口。</p>
+<h3 id="洞察-3：同一几何模型可以连接重建和规划"><a href="#洞察-3：同一几何模型可以连接重建和规划" class="headerlink" title="洞察 3：同一几何模型可以连接重建和规划"></a>洞察 3：同一几何模型可以连接重建和规划</h3><p>DVGT-2 不只输出 point map，也输出 trajectory planning，使 dense geometry 从感知结果变成任务中间表示。</p>
+<p>这一步把 geometry 从“看得准”推进到“能不能帮助开车”。如果 dense geometry 不能服务 action，它就只是重建模块；接上 trajectory planning 后，它才真正进入端到端驾驶范式。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2604.00813/assets/x1.png" alt="DVGT-2 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+streaming multi-camera input
+        │
+        ▼
+visual feature encoder
+        │
+        ▼
+temporal causal attention
+        │
+        ▼
+historical feature cache
+        │
+        ├── dense geometry reconstruction
+        └── trajectory planning
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Streaming DVGT</td>
+<td align="left">将几何重建从 batch 改成在线处理</td>
+</tr>
+<tr>
+<td align="left">Temporal causal attention</td>
+<td align="left">保证当前帧只使用历史信息</td>
+</tr>
+<tr>
+<td align="left">Historical cache</td>
+<td align="left">复用历史特征，降低重复计算</td>
+</tr>
+<tr>
+<td align="left">Sliding window</td>
+<td align="left">控制时序上下文长度</td>
+</tr>
+<tr>
+<td align="left">Planning head</td>
+<td align="left">把几何表示连接到轨迹输出</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-从-DVGT-到-DVGT-2"><a href="#4-3-从-DVGT-到-DVGT-2" class="headerlink" title="4.3 从 DVGT 到 DVGT-2"></a>4.3 从 DVGT 到 DVGT-2</h3><table>
+<thead>
+<tr>
+<th align="left">维度</th>
+<th align="left">DVGT</th>
+<th align="left">DVGT-2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">输入方式</td>
+<td align="left">batch 多帧序列</td>
+<td align="left">streaming 多相机输入</td>
+</tr>
+<tr>
+<td align="left">时序建模</td>
+<td align="left">cross-frame temporal attention</td>
+<td align="left">temporal causal attention + cache</td>
+</tr>
+<tr>
+<td align="left">输出</td>
+<td align="left">dense point map + ego pose</td>
+<td align="left">dense geometry + trajectory planning</td>
+</tr>
+<tr>
+<td align="left">定位</td>
+<td align="left">driving geometry perception</td>
+<td align="left">Vision-Geometry-Action driving</td>
+</tr>
+</tbody></table>
+<p>DVGT-2 的关键不是否定 DVGT，而是把 DVGT 的 dense geometry 能力改造成可在线服务 action 的系统。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文报告 DVGT-2 在多数据集上保持更快推理，并可在 closed-loop NAVSIM 和 open-loop nuScenes 上直接用于 planning。关键结论是：dense geometry 可以进入端到端规划，但不意味着所有稀疏 query 系统都会被替代。</p>
+<p>实验应按两类证据理解：</p>
+<table>
+<thead>
+<tr>
+<th align="left">证据</th>
+<th align="left">说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Geometry quality &#x2F; speed</td>
+<td align="left">streaming DVGT 是否仍能提供可靠几何</td>
+</tr>
+<tr>
+<td align="left">Planning evaluation</td>
+<td align="left">dense geometry 是否能改善 trajectory output</td>
+</tr>
+</tbody></table>
+<p>这比单纯重建指标更进一步，因为它检验了几何表示是否真的能穿透到 action 层。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>3 个字母 VGA</strong>：Vision、Geometry、Action。</li>
+<li><strong>2 类输出</strong>：dense geometry 与 trajectory planning。</li>
+<li><strong>2 类规划评估</strong>：closed-loop NAVSIM 与 open-loop nuScenes。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DVGT-2 的工程重点在 streaming：缓存历史特征、避免未来信息泄漏、控制窗口长度，并处理多相机配置变化。真实系统还需要把规划输出接入车辆动力学、安全约束和闭环评测。</p>
+<p>具体落地时要特别关注：</p>
+<ul>
+<li><strong>cache 生命周期</strong>：历史特征太旧会污染当前判断，太短又丢失时序线索；</li>
+<li><strong>causal 约束</strong>：训练时不能无意使用未来帧，否则推理会掉点；</li>
+<li><strong>几何到规划的接口</strong>：point map 是否转成 cost、query、occupancy 或直接作为 feature；</li>
+<li><strong>算力预算</strong>：dense geometry 比 sparse query 更重，必须证明它带来的规划收益值得成本。</li>
+</ul>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DVGT-2 是 geometry-centric 自动驾驶路线的重要信号：dense geometry 不再只是离线重建指标，而可以成为在线规划中的结构化中间表示。它和 SparseDrive、DiffusionDrive 形成互补关系：前者关注空间结构，后两者分别关注稀疏任务表示和动作分布。</p>
+<p>DVGT-2 的真正启示是：自动驾驶端到端路线可能会分化成三种互补表达：</p>
+<table>
+<thead>
+<tr>
+<th align="left">路线</th>
+<th align="left">核心表示</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Sparse query</td>
+<td align="left">任务相关实体和地图元素</td>
+</tr>
+<tr>
+<td align="left">Action distribution</td>
+<td align="left">多模态轨迹 &#x2F; 动作分布</td>
+</tr>
+<tr>
+<td align="left">Dense geometry</td>
+<td align="left">真实尺度 3D 空间结构</td>
+</tr>
+</tbody></table>
+<p>DVGT-2 代表第三条路线进入规划层。它不必替代 SparseDrive 或 DiffusionDrive，但它提醒系统设计者：没有可靠的 metric geometry grounding，端到端规划很容易只学到数据分布，而缺少物理约束。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9AVGA-%E6%98%AF-VLA-%E7%9A%84%E5%87%A0%E4%BD%95%E5%AF%B9%E7%85%A7%E8%B7%AF%E7%BA%BF"><span class="toc-text">洞察 1：VGA 是 VLA 的几何对照路线</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%9C%A8%E7%BA%BF%E8%A7%84%E5%88%92%E9%9C%80%E8%A6%81-streaming-geometry"><span class="toc-text">洞察 2：在线规划需要 streaming geometry</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E5%90%8C%E4%B8%80%E5%87%A0%E4%BD%95%E6%A8%A1%E5%9E%8B%E5%8F%AF%E4%BB%A5%E8%BF%9E%E6%8E%A5%E9%87%8D%E5%BB%BA%E5%92%8C%E8%A7%84%E5%88%92"><span class="toc-text">洞察 3：同一几何模型可以连接重建和规划</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%BB%8E-DVGT-%E5%88%B0-DVGT-2"><span class="toc-text">4.3 从 DVGT 到 DVGT-2</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#端到端自动驾驶</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

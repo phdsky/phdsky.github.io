@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            DriveWorld: 4D Pre-trained Scene Understanding via World Models for Autonomous Driving - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">DriveWorld: 4D Pre-trained Scene Understanding via World Models for Autonomous Driving</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2024年05月07日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: 4D Autonomous Driving Scene Understanding Pre-training<br>Method: Memory State-Space Model, Dynamic Memory Bank, Static Scene Propagation, Task Prompt<br>Venue: CVPR 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.04390">https://arxiv.org/abs/2405.04390</a><br>Code: N&#x2F;A</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DriveWorld 提出基于 world model 的 4D autonomous driving representation learning。它的出发点很直接：自动驾驶不是静态图片理解，也不是单帧 3D 感知，而是一个持续演化的 4D 场景理解问题。如果预训练只让模型学 2D 外观或单帧 3D 几何，就会漏掉驾驶系统最需要的时间动态。</p>
+<p>方法上，DriveWorld 使用 <strong>Memory State-Space Model</strong>。其中，Dynamic Memory Bank 学习 temporal-aware latent dynamics，Static Scene Propagation 学习 spatial-aware latent statics，Task Prompt 则引导同一预训练表示适配不同下游任务。</p>
+<p>和 <a href="/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/">UniWorld</a> 相比，DriveWorld 更强调 memory-based 4D latent dynamics：前者以 4D geometric occupancy 为预训练状态，后者则把世界演化建模放进动态&#x2F;静态记忆结构里。</p>
+<p><strong>核心论点</strong>：自动驾驶预训练应当从“单帧视觉表征”升级为“4D 世界状态表征”，让模型在预训练阶段就学习场景随时间变化的规律。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>自动驾驶模型通常依赖大规模预训练，但常见预训练目标往往偏离驾驶任务本身：</p>
+<table>
+<thead>
+<tr>
+<th align="left">预训练范式</th>
+<th align="left">学到的内容</th>
+<th align="left">对驾驶的缺口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">2D image pre-training</td>
+<td align="left">外观、纹理、语义</td>
+<td align="left">缺少 3D 空间和时间动态</td>
+</tr>
+<tr>
+<td align="left">单帧 3D pre-training</td>
+<td align="left">空间结构</td>
+<td align="left">对未来演化建模不足</td>
+</tr>
+<tr>
+<td align="left">任务专用训练</td>
+<td align="left">针对某个 head 优化</td>
+<td align="left">多任务迁移能力有限</td>
+</tr>
+</tbody></table>
+<p>驾驶场景的核心不是“这一帧有什么”，而是“场景状态如何随时间变化”。例如，遮挡车辆是否会出现、前车是否减速、路口交通参与者如何交互，这些都需要时间建模。</p>
+<p>DriveWorld 的目标是让预训练直接面对 4D driving scene understanding，把动态演化作为表征学习的一部分，而不是等到下游预测或规划阶段才补。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：自动驾驶预训练应显式建模时间"><a href="#洞察-1：自动驾驶预训练应显式建模时间" class="headerlink" title="洞察 1：自动驾驶预训练应显式建模时间"></a>洞察 1：自动驾驶预训练应显式建模时间</h3><p>DriveWorld 把 driving video 中的时空演化作为预训练信号，而不是只做单帧视觉或单帧几何任务。这个洞察的关键是：时间不是额外输入，而是驾驶场景理解的核心维度。</p>
+<p>如果模型在预训练时已经学习“状态如何随时间转移”，那么下游的 tracking、motion forecasting、occupancy prediction 和 planning 都能受益，因为这些任务本质上都依赖动态场景理解。</p>
+<h3 id="洞察-2：动态和静态信息需要分工"><a href="#洞察-2：动态和静态信息需要分工" class="headerlink" title="洞察 2：动态和静态信息需要分工"></a>洞察 2：动态和静态信息需要分工</h3><p>Dynamic Memory Bank 负责 temporal dynamics，Static Scene Propagation 负责 spatial statics。这个分工很重要，因为驾驶场景里有两类信息：</p>
+<ul>
+<li><strong>静态结构</strong>：道路、车道线、建筑、交通设施，变化慢但提供空间约束；</li>
+<li><strong>动态状态</strong>：车辆、行人、自车运动，变化快且直接影响预测和规划。</li>
+</ul>
+<p>如果把两类信息混在同一个 latent 中，模型可能难以区分“稳定背景”和“真正变化的对象”。DriveWorld 的 memory 设计就是为了让静态上下文和动态演化各司其职。</p>
+<h3 id="洞察-3：Task-Prompt-帮助统一预训练适配多任务"><a href="#洞察-3：Task-Prompt-帮助统一预训练适配多任务" class="headerlink" title="洞察 3：Task Prompt 帮助统一预训练适配多任务"></a>洞察 3：Task Prompt 帮助统一预训练适配多任务</h3><p>不同下游任务需要不同粒度的特征。3D detection 更关心对象位置，online mapping 更关心道路结构，motion forecasting 更关心动态交互，planning 更关心未来风险。</p>
+<p>Task Prompt 的作用，是告诉同一个预训练表示“当前要为哪个任务服务”。这使 DriveWorld 不只是一个固定 backbone，而更像一个可被任务条件调度的 4D 表征模块。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2405.04390/assets/x1.png" alt="DriveWorld 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+multi-camera driving videos
+        │
+        ▼
+4D pre-training framework
+        │
+        ▼
+Memory State-Space Model
+        │
+        ├── Dynamic Memory Bank
+        ├── Static Scene Propagation
+        └── Task Prompt
+        │
+        ▼
+downstream driving tasks
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Dynamic Memory Bank</td>
+<td align="left">学习时间感知 latent dynamics</td>
+</tr>
+<tr>
+<td align="left">Static Scene Propagation</td>
+<td align="left">提供空间场景上下文</td>
+</tr>
+<tr>
+<td align="left">Task Prompt</td>
+<td align="left">解耦 task-aware features</td>
+</tr>
+<tr>
+<td align="left">4D pre-training</td>
+<td align="left">从多相机视频学习时空表示</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-动态-静态记忆的作用链"><a href="#4-3-动态-静态记忆的作用链" class="headerlink" title="4.3 动态&#x2F;静态记忆的作用链"></a>4.3 动态&#x2F;静态记忆的作用链</h3><p>DriveWorld 可以被理解成一条状态空间建模链：</p>
+
+$$
+o_{1:t} \rightarrow z_t^{\text{static}}, z_t^{\text{dynamic}}
+\rightarrow \hat{z}_{t+1:t+H}
+\rightarrow \text{task-aware outputs}
+$$
+
+
+<p>其中 static latent 保留空间背景和道路约束，dynamic latent 建模运动变化，task prompt 再把统一表示引导到具体任务。这样设计的好处是：预训练目标和下游任务之间不再完全断裂。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文报告在 OpenScene 预训练后，DriveWorld 在多个下游自动驾驶任务上提升，包括 3D detection、online mapping、tracking、motion forecasting、occupancy prediction 和 planning。</p>
+<p>这些实验的价值在于覆盖了“静态结构”和“动态行为”两类任务：</p>
+<table>
+<thead>
+<tr>
+<th align="left">任务</th>
+<th align="left">主要验证的能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">3D detection</td>
+<td align="left">空间定位和目标表征</td>
+</tr>
+<tr>
+<td align="left">Online mapping</td>
+<td align="left">静态道路结构理解</td>
+</tr>
+<tr>
+<td align="left">Tracking</td>
+<td align="left">跨帧目标一致性</td>
+</tr>
+<tr>
+<td align="left">Motion forecasting</td>
+<td align="left">动态未来建模</td>
+</tr>
+<tr>
+<td align="left">Occupancy prediction</td>
+<td align="left">未来空间状态</td>
+</tr>
+<tr>
+<td align="left">Planning</td>
+<td align="left">表征是否能服务决策</td>
+</tr>
+</tbody></table>
+<p>因此，DriveWorld 的实验证据不是单一任务涨点，而是试图证明 4D pre-training 可以成为多任务驾驶表征的公共底座。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>7.5% mAP</strong>：3D object detection 提升。</li>
+<li><strong>5.0% AMOTA</strong>：multi-object tracking 提升。</li>
+<li><strong>0.34m</strong>：planning average L2 error 降低。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DriveWorld 的工程重点是多相机视频预训练、动态&#x2F;静态 memory 的维护，以及不同 task prompt 的配置。由于论文没有在 arXiv 页面公开代码链接，复现时需要依赖论文细节和后续实现。</p>
+<p>落地时有几个容易踩坑的地方：</p>
+<ul>
+<li><strong>数据规模与时序长度</strong>：4D pre-training 比单帧预训练更吃视频数据和时间窗口设计。</li>
+<li><strong>memory 更新策略</strong>：动态 memory 太短会丢历史，太长会引入陈旧信息和算力压力。</li>
+<li><strong>任务 prompt 设计</strong>：prompt 如果无法真正区分任务需求，就会退化成普通多任务学习。</li>
+<li><strong>训练&#x2F;推理一致性</strong>：预训练时使用完整序列，部署时往往是 streaming 输入，需要关注 gap。</li>
+</ul>
+<p>这也是 DriveWorld 和 DVGT-2 这类 streaming geometry 方法之间的共同工程主题：时序表征必须能在线使用。</p>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DriveWorld 把 world model 预训练从 occupancy token 推向更一般的 4D scene understanding。它说明自动驾驶预训练的核心不只是“看懂一帧”，而是学会场景如何随时间演化。</p>
+<p>放回 world-model 分支，DriveWorld 和几篇相邻论文的关系可以这样看：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">UniWorld: 4D occupancy as pre-training target</span><br><span class="line">        ↓</span><br><span class="line">DriveWorld: memory-based 4D scene understanding</span><br><span class="line">        ↓</span><br><span class="line">DVGT-2: streaming geometry + online planning</span><br></pre></td></tr></table></figure>
+
+<p>DriveWorld 的启示是：自动驾驶基础模型不能只靠更大的 backbone 或更多图片，它需要面向驾驶本身的时空任务。真正有用的预训练，应当让模型学到“世界如何持续变化”，而不只是“当前帧里有什么”。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6%E9%A2%84%E8%AE%AD%E7%BB%83%E5%BA%94%E6%98%BE%E5%BC%8F%E5%BB%BA%E6%A8%A1%E6%97%B6%E9%97%B4"><span class="toc-text">洞察 1：自动驾驶预训练应显式建模时间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%8A%A8%E6%80%81%E5%92%8C%E9%9D%99%E6%80%81%E4%BF%A1%E6%81%AF%E9%9C%80%E8%A6%81%E5%88%86%E5%B7%A5"><span class="toc-text">洞察 2：动态和静态信息需要分工</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9ATask-Prompt-%E5%B8%AE%E5%8A%A9%E7%BB%9F%E4%B8%80%E9%A2%84%E8%AE%AD%E7%BB%83%E9%80%82%E9%85%8D%E5%A4%9A%E4%BB%BB%E5%8A%A1"><span class="toc-text">洞察 3：Task Prompt 帮助统一预训练适配多任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%8A%A8%E6%80%81-%E9%9D%99%E6%80%81%E8%AE%B0%E5%BF%86%E7%9A%84%E4%BD%9C%E7%94%A8%E9%93%BE"><span class="toc-text">4.3 动态&#x2F;静态记忆的作用链</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B/" class="tag">#世界模型</a>
+                            
+                            <a href="/tags/%E9%A2%84%E8%AE%AD%E7%BB%83/" class="tag">#预训练</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

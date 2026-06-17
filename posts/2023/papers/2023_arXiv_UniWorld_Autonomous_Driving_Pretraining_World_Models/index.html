@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            UniWorld: Autonomous Driving Pre-training via World Models - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">UniWorld: Autonomous Driving Pre-training via World Models</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2023年08月14日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Autonomous Driving Pre-training<br>Method: 4D Geometric Occupancy, Label-free Image-LiDAR Pre-training<br>Venue: arXiv<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.07234">https://arxiv.org/abs/2308.07234</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/chaytonmin/UniWorld">https://github.com/chaytonmin/UniWorld</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>UniWorld 将 <strong>4D geometric occupancy</strong> 作为自动驾驶 world model 预训练目标。它不把 world model 只理解成“生成未来视频”，而是把它放回自动驾驶最需要的空间-时间表示学习问题中：模型能否利用未标注的 image-LiDAR pairs，学习一个可以迁移到检测、运动预测、语义场景补全等任务的世界表示？</p>
+<p>UniWorld 的目标不是直接做规划，也不是生成漂亮视频，而是把 world model 变成自动驾驶预训练任务。它通过预测 4D 几何占用，让模型学习空间结构、时间演化和传感器对齐，再把这个预训练表示迁移到下游任务。</p>
+<p>其关键点是 <strong>label-free pre-training</strong>：利用大量图像与 LiDAR 的天然配对关系构造监督，不强依赖人工 3D 标注。对于自动驾驶这种标注昂贵、任务众多的领域，这个方向的价值在于降低“每个任务从头标注、从头训练”的成本。</p>
+<p><strong>核心论点</strong>：world model 不一定要表现为视频生成器；它也可以作为一种 4D 几何预训练目标，让模型先学会世界的空间占用和时序演化，再服务多个自动驾驶任务。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>自动驾驶视觉模型通常面临两个现实问题：</p>
+<ol>
+<li><strong>3D 标注成本高</strong>：检测框、occupancy、语义场景补全、运动轨迹都需要昂贵标注。</li>
+<li><strong>任务表示割裂</strong>：检测模型学 box，预测模型学 motion，场景补全模型学 voxel，不同任务之间共享的世界结构没有被充分利用。</li>
+</ol>
+<p>如果每个任务都依赖专门标注和专门训练，系统很难随着数据规模增长而自然变强。UniWorld 的动机是把预训练目标换成更接近自动驾驶本质的 4D world state：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">image-LiDAR pairs</span><br><span class="line">        ↓</span><br><span class="line">4D geometric occupancy</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal representation</span><br><span class="line">        ↓</span><br><span class="line">multiple downstream driving tasks</span><br></pre></td></tr></table></figure>
+
+<p>这里的“4D”不是装饰词，而是强调模型需要同时理解三维空间和时间演化。只有这样，预训练表示才可能同时迁移到 motion prediction、3D detection 和 semantic scene completion。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：occupancy-grid-可以作为世界模型状态"><a href="#洞察-1：occupancy-grid-可以作为世界模型状态" class="headerlink" title="洞察 1：occupancy grid 可以作为世界模型状态"></a>洞察 1：occupancy grid 可以作为世界模型状态</h3><p>UniWorld 借鉴 occupancy grid 的机器人传统，把 4D geometric occupancy 作为世界状态表达。相比 3D boxes，occupancy 更接近“空间是否被占用”这一物理问题；相比纯图像 token，occupancy 更容易与驾驶安全、free space 和下游规划连接。</p>
+<p>它的关键不是只预测当前 occupancy，而是把空间占用放进时间维中建模：当前看到的结构如何延续、哪些区域可能被遮挡、未来空间状态如何变化。这让预训练目标从静态几何走向动态世界理解。</p>
+<h3 id="洞察-2：label-free-image-LiDAR-pairs-可以支撑预训练"><a href="#洞察-2：label-free-image-LiDAR-pairs-可以支撑预训练" class="headerlink" title="洞察 2：label-free image-LiDAR pairs 可以支撑预训练"></a>洞察 2：label-free image-LiDAR pairs 可以支撑预训练</h3><p>模型不依赖任务标注，而是利用图像和 LiDAR 的天然配对学习几何与未来状态。LiDAR 提供稀疏但可靠的空间观测，camera 提供稠密语义和外观信息，两者配对天然形成跨模态几何监督。</p>
+<p>这种设计的好处是：预训练数据规模不再完全受人工标注限制。对于自动驾驶车队采集的大量未标注数据，UniWorld 提供了一种把它们转化为时空几何表征的方式。</p>
+<h3 id="洞察-3：同一预训练表示可以迁移到多任务"><a href="#洞察-3：同一预训练表示可以迁移到多任务" class="headerlink" title="洞察 3：同一预训练表示可以迁移到多任务"></a>洞察 3：同一预训练表示可以迁移到多任务</h3><p>UniWorld 把 world model 预训练迁移到 motion prediction、多相机 3D detection 和 semantic scene completion，强调统一表示的价值。三类任务看似不同，但都依赖同一个底层能力：理解周围世界的空间结构和时间演化。</p>
+<p>这条洞察把 UniWorld 和普通 self-supervised pre-training 区分开来：它不是泛泛地学视觉特征，而是学驾驶世界的 4D 几何先验。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2308.07234/assets/x1.png" alt="UniWorld 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+image-LiDAR pairs
+      │
+      ▼
+label-free 4D occupancy pre-training
+      │
+      ▼
+spatial-temporal world representation
+      │
+      ├── motion prediction
+      ├── multi-camera 3D detection
+      └── semantic scene completion
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">4D geometric occupancy</td>
+<td align="left">作为预训练 world state</td>
+</tr>
+<tr>
+<td align="left">Label-free pre-training</td>
+<td align="left">利用 image-LiDAR pairs 降低标注依赖</td>
+</tr>
+<tr>
+<td align="left">Future state modeling</td>
+<td align="left">预测缺失与未来世界状态</td>
+</tr>
+<tr>
+<td align="left">Downstream fine-tuning</td>
+<td align="left">迁移到多个自动驾驶任务</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-预训练逻辑"><a href="#4-3-预训练逻辑" class="headerlink" title="4.3 预训练逻辑"></a>4.3 预训练逻辑</h3><p>UniWorld 的预训练可以理解成三个层次：</p>
+<table>
+<thead>
+<tr>
+<th align="left">层次</th>
+<th align="left">学到的能力</th>
+<th align="left">下游价值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">空间几何</td>
+<td align="left">哪些 3D 区域被占用</td>
+<td align="left">检测、场景补全、free-space 理解</td>
+</tr>
+<tr>
+<td align="left">时间演化</td>
+<td align="left">占用状态如何随时间变化</td>
+<td align="left">运动预测、动态场景理解</td>
+</tr>
+<tr>
+<td align="left">跨模态对齐</td>
+<td align="left">图像与 LiDAR 如何对应到同一空间</td>
+<td align="left">多传感器泛化和标注成本下降</td>
+</tr>
+</tbody></table>
+<p>这三层共同构成“world model as pretraining”的核心：不是把世界模型作为最终输出，而是作为训练模型理解世界的中间任务。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上报告了相对 monocular pre-training 的多任务改进：motion prediction、3D object detection 和 semantic scene completion 均获得提升，并指出可降低 3D training annotation costs。</p>
+<p>这些实验不应只用单个任务涨点衡量，更关键的是它是否支撑“统一预训练”的主张：</p>
+<table>
+<thead>
+<tr>
+<th align="left">实验方向</th>
+<th align="left">说明的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Motion prediction</td>
+<td align="left">4D occupancy 是否学到时间动态</td>
+</tr>
+<tr>
+<td align="left">Multi-camera 3D detection</td>
+<td align="left">预训练几何是否能迁移到目标定位</td>
+</tr>
+<tr>
+<td align="left">Semantic scene completion</td>
+<td align="left">occupancy 表示是否能增强空间补全</td>
+</tr>
+<tr>
+<td align="left">标注成本分析</td>
+<td align="left">label-free pre-training 是否减少人工 3D 标注依赖</td>
+</tr>
+</tbody></table>
+<p>因此，UniWorld 的实验重点不是某个 benchmark 的单点 SOTA，而是同一预训练目标能否跨任务稳定带来收益。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>4D</strong>：预训练目标是 4D geometric occupancy。</li>
+<li>**25%**：论文报告可减少 3D training annotation costs。</li>
+<li><strong>3% mIoU</strong>：surrounding semantic scene completion 的提升幅度。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>UniWorld 适合用于自动驾驶预训练，而不是单独作为规划器。工程落地时最重要的是数据和接口：</p>
+<ul>
+<li><strong>数据侧</strong>：需要稳定的 image-LiDAR pair，同步、标定和时间对齐质量会直接影响预训练信号。</li>
+<li><strong>表示侧</strong>：occupancy 分辨率、时间窗口和可见&#x2F;不可见区域处理会影响任务迁移。</li>
+<li><strong>迁移侧</strong>：不同下游任务需要不同 decoder&#x2F;head，预训练 backbone 与任务头之间要保持清晰边界。</li>
+<li><strong>评估侧</strong>：不能只用一个任务判断预训练效果，应同时看检测、预测、场景补全等多个方向。</li>
+</ul>
+<p>如果把 UniWorld 放入本站路线图，它更像 <a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a> 的前置节点：二者都把 world model 视为预训练&#x2F;表征学习手段，而不是只做生成展示。</p>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>UniWorld 说明 world model 不只是生成未来，也可以作为预训练目标。它把 occupancy、未来预测和多任务迁移连接起来，为后续 DriveWorld 的 4D scene understanding 预训练提供了前置思路。</p>
+<p>更进一步看，它给自动驾驶预训练提出了一个判断标准：好的预训练任务不只是让图像特征更强，还应该让模型更理解驾驶世界的 <strong>空间、时间和可通行性</strong>。</p>
+<p>这也解释了为什么 world model 路线会分化成几条不同分支：</p>
+<ul>
+<li><a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a> 关注可控视频级未来生成；</li>
+<li>UniWorld 关注 4D occupancy 预训练；</li>
+<li><a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a> 关注未来 occupancy 演化；</li>
+<li><a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 进一步把 occupancy forecast 接到规划代价。</li>
+</ul>
+<p>UniWorld 的位置在于：它把“世界模型”从最终生成器提前到预训练阶段，强调先学会世界结构，再适配具体任务。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9Aoccupancy-grid-%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BA%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B%E7%8A%B6%E6%80%81"><span class="toc-text">洞察 1：occupancy grid 可以作为世界模型状态</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Alabel-free-image-LiDAR-pairs-%E5%8F%AF%E4%BB%A5%E6%94%AF%E6%92%91%E9%A2%84%E8%AE%AD%E7%BB%83"><span class="toc-text">洞察 2：label-free image-LiDAR pairs 可以支撑预训练</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E5%90%8C%E4%B8%80%E9%A2%84%E8%AE%AD%E7%BB%83%E8%A1%A8%E7%A4%BA%E5%8F%AF%E4%BB%A5%E8%BF%81%E7%A7%BB%E5%88%B0%E5%A4%9A%E4%BB%BB%E5%8A%A1"><span class="toc-text">洞察 3：同一预训练表示可以迁移到多任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E9%A2%84%E8%AE%AD%E7%BB%83%E9%80%BB%E8%BE%91"><span class="toc-text">4.3 预训练逻辑</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B/" class="tag">#世界模型</a>
+                            
+                            <a href="/tags/%E9%A2%84%E8%AE%AD%E7%BB%83/" class="tag">#预训练</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            OccWorld: Learning a 3D Occupancy World Model for Autonomous Driving - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">OccWorld: Learning a 3D Occupancy World Model for Autonomous Driving</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2024年09月29日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: 3D Occupancy World Modeling and Planning<br>Method: 3D Occupancy Tokenizer, GPT-like Spatial-Temporal Transformer<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2311.16038">https://arxiv.org/abs/2311.16038</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/OccWorld">https://github.com/wzzheng/OccWorld</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>OccWorld 将自动驾驶世界模型放到 <strong>3D occupancy</strong> 空间中。不同于只预测 object boxes 的未来运动，OccWorld 学习离散 scene tokens，并用 GPT-like spatial-temporal generative transformer 预测未来 occupancy 和 ego trajectory。</p>
+<p>OccWorld 的核心价值，是把 world model 从“生成未来视频”或“预测 agent 轨迹”推进到更接近规划的空间状态：未来哪些三维区域会被占用，哪些区域可能可通行。Occupancy 既能表达已知物体，也能表达未知障碍和背景空间，因此比 object boxes 更适合作为自动驾驶 world state。</p>
+<p><strong>核心论点</strong>：自动驾驶 world model 的状态空间应当贴近物理可通行性；3D occupancy token 让未来世界预测能够更自然地连接到碰撞风险、free space 和轨迹规划。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>自动驾驶不仅要知道当前有哪些物体，还要理解未来场景如何演化。传统预测通常围绕 object boxes 展开，这在规则道路和常见车辆场景下有效，但存在明显盲区：</p>
+<ul>
+<li>object box 只表达被检测到的已知类别；</li>
+<li>box 对道路边界、路面结构和非标准障碍表达不足；</li>
+<li>motion prediction 常常只预测 agent，不预测整个空间状态；</li>
+<li>segmentation map 又可能过于密集，难以直接建模长时序。</li>
+</ul>
+<p>OccWorld 选择 3D occupancy，是为了把世界状态从 sparse object list 扩展为空间占用状态。它要回答的问题不是“某辆车会去哪里”，而是：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">未来每个 3D 空间位置是否会被占用？</span><br><span class="line">这种未来占用如何影响 ego trajectory？</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：3D-occupancy-更适合作为-world-state"><a href="#洞察-1：3D-occupancy-更适合作为-world-state" class="headerlink" title="洞察 1：3D occupancy 更适合作为 world state"></a>洞察 1：3D occupancy 更适合作为 world state</h3><p>Occupancy 可以描述更细粒度的三维结构，不局限于已知类别物体，也比 dense semantic map 更容易从稀疏 LiDAR 获取。它的优势来自“物理优先”：</p>
+<table>
+<thead>
+<tr>
+<th align="left">表示</th>
+<th align="left">回答的问题</th>
+<th align="left">局限</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Object box</td>
+<td align="left">这是什么物体，在哪里</td>
+<td align="left">依赖类别，难表达未知障碍</td>
+</tr>
+<tr>
+<td align="left">Semantic map</td>
+<td align="left">每个位置是什么语义</td>
+<td align="left">标注密集，时序建模重</td>
+</tr>
+<tr>
+<td align="left">Occupancy</td>
+<td align="left">这个空间是否被占用</td>
+<td align="left">语义较弱，但更贴近避障</td>
+</tr>
+</tbody></table>
+<p>对规划来说，很多时候“占不占”比“叫什么”更重要。</p>
+<h3 id="洞察-2：世界演化可以在离散-scene-tokens-上建模"><a href="#洞察-2：世界演化可以在离散-scene-tokens-上建模" class="headerlink" title="洞察 2：世界演化可以在离散 scene tokens 上建模"></a>洞察 2：世界演化可以在离散 scene tokens 上建模</h3><p>OccWorld 先训练 reconstruction-based scene tokenizer，把 3D occupancy 转成离散 tokens，再用生成式 Transformer 预测未来 tokens。这个设计有两个好处：</p>
+<ol>
+<li>occupancy 被压缩成可序列建模的 token，避免直接在高维体素空间做长时生成；</li>
+<li>GPT-like transformer 可以沿时间维学习场景状态转移，把 world model 写成 token prediction 问题。</li>
+</ol>
+<p>这和 GAIA-1 的视频 token 思路相似，但 token 代表的是 3D occupancy，而不是视频外观。</p>
+<h3 id="洞察-3：规划可以从未来-occupancy-中受益"><a href="#洞察-3：规划可以从未来-occupancy-中受益" class="headerlink" title="洞察 3：规划可以从未来 occupancy 中受益"></a>洞察 3：规划可以从未来 occupancy 中受益</h3><p>模型同时生成未来 occupancy 和 ego trajectory，使世界预测与自车轨迹选择共享同一状态空间。这样，规划不再只依赖当前检测结果，而可以参考预测出的未来空间状态。</p>
+<p>这也是 OccWorld 与普通 occupancy prediction 的区别：它不只是预测当前 occupancy，而是把未来 occupancy 当作 world model 的核心输出。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2311.16038/assets/x1.png" alt="OccWorld 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+current 3D occupancy
+        │
+        ▼
+scene tokenizer
+        │
+        ▼
+discrete scene tokens
+        │
+        ▼
+GPT-like spatial-temporal transformer
+        │
+        ├── future occupancy
+        └── ego trajectory
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Scene tokenizer</td>
+<td align="left">将 3D occupancy 编成离散场景 token</td>
+</tr>
+<tr>
+<td align="left">Generative transformer</td>
+<td align="left">建模场景 token 的时空演化</td>
+</tr>
+<tr>
+<td align="left">Occupancy decoder</td>
+<td align="left">还原未来 3D occupancy</td>
+</tr>
+<tr>
+<td align="left">Ego trajectory head</td>
+<td align="left">输出未来自车轨迹</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-Token-化为什么重要"><a href="#4-3-Token-化为什么重要" class="headerlink" title="4.3 Token 化为什么重要"></a>4.3 Token 化为什么重要</h3><p>直接在 3D voxel 上预测未来会遇到维度高、稀疏、长时依赖难建模的问题。OccWorld 的 tokenizer 相当于把 occupancy 压成一个更适合生成模型处理的状态空间：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">3D occupancy volume</span><br><span class="line">        ↓</span><br><span class="line">discrete scene tokens</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal generation</span><br><span class="line">        ↓</span><br><span class="line">future occupancy volume</span><br></pre></td></tr></table></figure>
+
+<p>这条链路的关键不是“离散化”本身，而是让 occupancy world model 可以借用语言模型式的序列建模能力。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上验证模型能预测 driving scene evolution，并能在不使用 instance 和 map supervision 的条件下产生有竞争力的规划结果。重要的是，它把 world model 从视频生成或 latent prediction 推进到显式 3D occupancy 状态。</p>
+<p>实验结论可以分成两层：</p>
+<table>
+<thead>
+<tr>
+<th align="left">层次</th>
+<th align="left">说明的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Future occupancy prediction</td>
+<td align="left">模型是否学到空间状态演化</td>
+</tr>
+<tr>
+<td align="left">Ego trajectory output</td>
+<td align="left">未来 occupancy 是否能服务规划</td>
+</tr>
+</tbody></table>
+<p>OccWorld 的重点不是取代所有规划模块，而是证明 occupancy state 可以作为 world model 与 planning 之间的中间桥梁。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>3D</strong>：状态空间是 3D occupancy。</li>
+<li><strong>3 个理由</strong>：expressiveness、efficiency、versatility。</li>
+<li><strong>2 类输出</strong>：future occupancy 与 ego trajectory。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>OccWorld 的工程价值在于提供了一个中间状态：未来 occupancy 可以转成 collision cost、free-space cost 或规划约束。落地时需要关注：</p>
+<ul>
+<li><strong>occupancy 分辨率</strong>：太粗会漏掉小障碍，太细会增加 token 数和显存。</li>
+<li><strong>tokenizer 误差</strong>：重建误差会被未来预测继续放大。</li>
+<li><strong>长时预测漂移</strong>：生成式时序模型容易在长 horizon 里积累偏差。</li>
+<li><strong>动态交互</strong>：occupancy 描述空间状态，但 agent intent 仍需要额外建模。</li>
+</ul>
+<p>这些问题也解释了后续 Drive-OccWorld 为什么要加入 action condition 和 occupancy-based planning cost。</p>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>OccWorld 的启示是：world model 不一定只能生成视频，也可以在更接近规划的 3D occupancy 空间中学习未来演化。它为 Drive-OccWorld 这类 4D occupancy forecasting + planning 方法奠定了状态空间基础。</p>
+<p>路线关系可以这样理解：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">OccFormer: 当前 3D semantic occupancy</span><br><span class="line">        ↓</span><br><span class="line">OccWorld: future 3D occupancy world model</span><br><span class="line">        ↓</span><br><span class="line">Drive-OccWorld: action-conditioned 4D occupancy + planning cost</span><br></pre></td></tr></table></figure>
+
+<p>从这个角度看，OccWorld 是从感知 occupancy 走向规划 world model 的关键过渡点。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A3D-occupancy-%E6%9B%B4%E9%80%82%E5%90%88%E4%BD%9C%E4%B8%BA-world-state"><span class="toc-text">洞察 1：3D occupancy 更适合作为 world state</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E4%B8%96%E7%95%8C%E6%BC%94%E5%8C%96%E5%8F%AF%E4%BB%A5%E5%9C%A8%E7%A6%BB%E6%95%A3-scene-tokens-%E4%B8%8A%E5%BB%BA%E6%A8%A1"><span class="toc-text">洞察 2：世界演化可以在离散 scene tokens 上建模</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E8%A7%84%E5%88%92%E5%8F%AF%E4%BB%A5%E4%BB%8E%E6%9C%AA%E6%9D%A5-occupancy-%E4%B8%AD%E5%8F%97%E7%9B%8A"><span class="toc-text">洞察 3：规划可以从未来 occupancy 中受益</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-Token-%E5%8C%96%E4%B8%BA%E4%BB%80%E4%B9%88%E9%87%8D%E8%A6%81"><span class="toc-text">4.3 Token 化为什么重要</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B/" class="tag">#世界模型</a>
+                            
+                            <a href="/tags/Occupancy/" class="tag">#Occupancy</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

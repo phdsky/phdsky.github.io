@@ -147,7 +147,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 </tbody></table>
 <p>DINO 发现：编码器选出的 top-K 特征虽然位置信息好，但内容信息可能有歧义（如覆盖多个物体），因此仅用其初始化位置 query，内容 query 保持可学习。</p>
 <p><strong>Look Forward Twice</strong>：Deformable DETR 的迭代框精炼在层间截断梯度（Look Forward Once）。DINO 允许后层的精炼框梯度回传到前层，使前层也受益于后层的监督信号。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>49.4 AP</strong>：DINO (R50, 12 epochs, 5-scale) 在 COCO val2017 上的成绩，仅用 12 epochs 即超越 DN-Deformable-DETR 50 epochs 的 48.6 AP</li>
 <li><strong>63.3 AP</strong>：DINO (SwinL + Objects365) 在 COCO test-dev 上的成绩，首次让端到端检测器登顶 COCO 排行榜</li>

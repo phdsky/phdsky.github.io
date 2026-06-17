@@ -110,7 +110,7 @@ $$\text{MSDeformAttn}(\boldsymbol{z}_q, \hat{\boldsymbol{p}}_q, \{\boldsymbol{x}
 <li><strong>两阶段方案</strong>：编码器先生成区域候选（每个像素作为 query），再由解码器精化 top-$k$ 候选</li>
 </ol>
 <p><strong>为什么更优</strong>：迭代精化使每层解码器都能做增量修正而非从零预测；两阶段方案让 object queries 从图像相关的候选初始化（而非图像无关的可学习嵌入），两者共同将 COCO test-dev AP 从 43.8 提升至 46.9（R50）。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>10×</strong>：Deformable DETR 仅需 DETR 1&#x2F;10 的训练 epochs（50 vs 500）即可达到更好性能</li>
 <li><strong>43.8 AP</strong>：Deformable DETR（R50，50 epochs）在 COCO val 上超越 DETR-DC5（43.3 AP，500 epochs）</li>

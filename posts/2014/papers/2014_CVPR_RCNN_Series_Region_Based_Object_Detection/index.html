@@ -142,7 +142,7 @@ $$\text{Anchors per location} = k = 3 \times 3 = 9$$
 <p><strong>Mask R-CNN 的 RoIAlign</strong>：用双线性插值替代量化取整，在每个 RoI bin 内均匀采样 4 个点，通过双线性插值计算每个采样点的精确特征值，再 max&#x2F;average pooling 得到 bin 输出。</p>
 <p>RoIAlign 的影响：掩码 AP 提升约 3 个百分点。</p>
 <p><strong>解耦掩码预测</strong>：Mask R-CNN 为每个类别独立预测二值掩码，而非使用 softmax 在类别间竞争。即掩码分支输出 $K$ 个 $m \times m$ 的二值掩码（$K$ 为类别数），分类任务由检测分支的 softmax 负责。这种解耦设计消除了类间竞争，让掩码分支专注于空间分割质量。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>66.0% mAP</strong>：R-CNN (VGG-16) 在 VOC 2007 上的成绩，比 DPM 的 33.7% 相对提升约 30%，标志着深度学习检测时代的开始</li>
 <li><strong>73.2% mAP</strong>：Faster R-CNN 在 VOC 2007 上的成绩，RPN 仅需约 10ms 即生成高质量提议，替代了耗时约 2 秒的 Selective Search</li>

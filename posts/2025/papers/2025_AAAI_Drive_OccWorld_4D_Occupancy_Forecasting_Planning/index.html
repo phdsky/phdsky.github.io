@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Drive-OccWorld: Vision-Centric 4D Occupancy Forecasting and Planning via World Models - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Drive-OccWorld: Vision-Centric 4D Occupancy Forecasting and Planning via World Models</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2025年01月17日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: 4D Occupancy Forecasting and End-to-End Planning<br>Method: Semantic and Motion-Conditional Normalization, Action-Conditioned World Decoder, Occupancy-Based Cost<br>Venue: AAAI 2025<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.14197">https://arxiv.org/abs/2408.14197</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/yuyang-cloud/Drive-OccWorld">https://github.com/yuyang-cloud/Drive-OccWorld</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>Drive-OccWorld 将 vision-centric <strong>4D occupancy forecasting</strong> 接入端到端规划。它用历史 BEV embeddings 构建 memory，并通过 semantic and motion-conditional normalization 聚合语义和动态信息；world decoder 在 action conditions 下预测未来 occupancy 和 flow；最后用 occupancy-based cost 选择轨迹。</p>
+<p>相比只做数据生成或预训练的 world model，Drive-OccWorld 更直接地把世界模型用于规划。它不是只问“未来世界会怎样”，而是进一步问：“如果 ego 采取某个动作，未来 occupancy &#x2F; flow 会怎样变化，这个变化对应的轨迹代价是多少？”</p>
+<p>这使它成为 <a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a> 的自然后续：OccWorld 把未来预测放进 3D occupancy token，Drive-OccWorld 则把 occupancy forecast 和 action-conditioned planning cost 连起来。</p>
+<p><strong>核心论点</strong>：world model 真正进入规划链路时，输出状态必须能被动作条件控制，并能转化为可比较的轨迹代价。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>World model 的核心能力是回答“如果自车采取某个动作，未来世界会怎样”。但许多驾驶 world model 偏向视频生成或表征预训练，和规划之间还有距离：</p>
+<table>
+<thead>
+<tr>
+<th align="left">类型</th>
+<th align="left">输出</th>
+<th align="left">与规划的距离</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">视频生成 world model</td>
+<td align="left">future video</td>
+<td align="left">需要再转成可量化风险</td>
+</tr>
+<tr>
+<td align="left">预训练 world model</td>
+<td align="left">latent representation</td>
+<td align="left">需要下游任务头解释</td>
+</tr>
+<tr>
+<td align="left">occupancy world model</td>
+<td align="left">future occupancy</td>
+<td align="left">可直接转成空间约束</td>
+</tr>
+<tr>
+<td align="left">action-conditioned occupancy</td>
+<td align="left">future occupancy under action</td>
+<td align="left">可比较不同动作后果</td>
+</tr>
+</tbody></table>
+<p>Drive-OccWorld 选择 4D occupancy，是为了让未来预测直接服务 collision、free-space 和 trajectory cost。它的关键不是预测未来本身，而是让未来预测具有动作条件和规划用途。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：历史-BEV-memory-需要语义和运动条件化"><a href="#洞察-1：历史-BEV-memory-需要语义和运动条件化" class="headerlink" title="洞察 1：历史 BEV memory 需要语义和运动条件化"></a>洞察 1：历史 BEV memory 需要语义和运动条件化</h3><p>仅堆叠历史特征不足以表达动态演化。Drive-OccWorld 在 memory 中引入 semantic &#x2F; motion conditional normalization，强化语义与运动线索。</p>
+<p>这条设计背后的判断是：未来 occupancy 不是由几何位置单独决定的，还取决于语义类别和运动趋势。静态路面、行人、车辆、骑行者虽然都占用空间，但它们的未来演化规律完全不同。</p>
+<h3 id="洞察-2：action-condition-让-world-model-可控"><a href="#洞察-2：action-condition-让-world-model-可控" class="headerlink" title="洞察 2：action condition 让 world model 可控"></a>洞察 2：action condition 让 world model 可控</h3><p>模型注入 velocity、steering angle、trajectory、commands 等动作条件，使未来 occupancy 生成不只是被动预测，而是可以回答不同自车动作下的未来。</p>
+<p>这使它更接近规划需要的 world model 形式：</p>
+
+$$
+p(O_{t+1:t+H}, F_{t+1:t+H} \mid O_{1:t}, a_{t:t+H})
+$$
+
+
+<p>其中 $O$ 表示 occupancy，$F$ 表示 flow，$a$ 表示动作条件。没有 action condition 的 future prediction，只能告诉系统“可能会发生什么”；有 action condition 后，模型才开始回答“这样开会发生什么”。</p>
+<h3 id="洞察-3：4D-occupancy-可以直接接规划代价"><a href="#洞察-3：4D-occupancy-可以直接接规划代价" class="headerlink" title="洞察 3：4D occupancy 可以直接接规划代价"></a>洞察 3：4D occupancy 可以直接接规划代价</h3><p>未来 occupancy 和 flow 可以转成 occupancy-based cost，用于连续 forecasting 和 trajectory selection。也就是说，world model 的输出不再停留在可视化，而是进入轨迹选择的代价函数。</p>
+<p>这条洞察让 Drive-OccWorld 和 DriveDreamer &#x2F; GAIA-1 拉开距离：后者强调生成可控未来，前者强调生成结果如何变成 planning cost。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2408.14197/assets/x1.png" alt="Drive-OccWorld 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+multi-view images
+      │
+      ▼
+history encoder -> BEV embeddings
+      │
+      ▼
+semantic / motion conditional memory
+      │
+      ▼
+action-conditioned world decoder
+      │
+      ├── future occupancy
+      ├── future flow
+      └── occupancy-based planning cost
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">History encoder</td>
+<td align="left">从多视图图像提取历史 BEV 表示</td>
+</tr>
+<tr>
+<td align="left">Conditional memory</td>
+<td align="left">聚合语义与运动信息</td>
+</tr>
+<tr>
+<td align="left">Action-conditioned decoder</td>
+<td align="left">生成动作条件下的未来 occupancy &#x2F; flow</td>
+</tr>
+<tr>
+<td align="left">Planning cost</td>
+<td align="left">根据未来占用选择轨迹</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-从预测到规划的接口"><a href="#4-3-从预测到规划的接口" class="headerlink" title="4.3 从预测到规划的接口"></a>4.3 从预测到规划的接口</h3><p>Drive-OccWorld 的关键链路是：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">history BEV memory</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned future occupancy / flow</span><br><span class="line">        ↓</span><br><span class="line">occupancy-based cost</span><br><span class="line">        ↓</span><br><span class="line">trajectory selection</span><br></pre></td></tr></table></figure>
+
+<p>其中，occupancy 提供未来空间约束，flow 提供动态演化线索，action condition 让系统可以比较多个候选动作的未来后果。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes、nuScenes-Occupancy 和 Lyft-Level5 上评估 4D occupancy generation 与 planning。关键结论是：world model 的生成能力可以和规划结合，但生成目标需要贴近几何和碰撞约束。</p>
+<p>实验可以按两条线理解：</p>
+<table>
+<thead>
+<tr>
+<th align="left">评估线</th>
+<th align="left">看什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">4D occupancy &#x2F; flow forecasting</td>
+<td align="left">world model 是否能预测未来空间状态</td>
+</tr>
+<tr>
+<td align="left">End-to-end planning</td>
+<td align="left">预测出的未来状态是否能改善轨迹选择</td>
+</tr>
+</tbody></table>
+<p>如果只看第一条线，Drive-OccWorld 是 occupancy forecasting；只有加上第二条线，它才真正体现“world model via planning”的价值。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>4D</strong>：预测对象是时空 occupancy &#x2F; flow。</li>
+<li><strong>4 类 action conditions</strong>：velocity、steering angle、trajectory、commands。</li>
+<li><strong>3 个数据集</strong>：nuScenes、nuScenes-Occupancy、Lyft-Level5。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>Drive-OccWorld 的实现重点是历史 BEV memory、动作条件注入和基于 occupancy 的轨迹代价。工程上需要处理：</p>
+<ul>
+<li><strong>未来预测误差累积</strong>：预测 horizon 越长，occupancy &#x2F; flow 越容易漂移。</li>
+<li><strong>占用分辨率</strong>：分辨率决定小障碍表达能力和计算成本。</li>
+<li><strong>动作采样范围</strong>：候选动作覆盖不足会限制 planning 上限。</li>
+<li><strong>闭环稳定性</strong>：规划输出反过来影响下一时刻观测，开环好不等于闭环稳。</li>
+<li><strong>代价设计</strong>：occupancy-based cost 需要和舒适性、交通规则、动力学约束结合。</li>
+</ul>
+<p>因此，Drive-OccWorld 更像一个规划世界模型组件，而不是完整自动驾驶系统的最终形态。</p>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>Drive-OccWorld 说明 occupancy world model 可以从“预测未来”进一步走到“比较动作后果”。这是从感知世界模型走向规划世界模型的重要一步。</p>
+<p>路线关系可以压成一句话：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">OccWorld 让模型知道未来空间会如何占用；</span><br><span class="line">Drive-OccWorld 让模型比较不同动作下未来空间会如何占用。</span><br></pre></td></tr></table></figure>
+
+<p>这也是自动驾驶 world model 是否有用的关键门槛：如果模型只能生成未来，却不能帮助动作选择，它更像生成器；如果模型能把未来状态转成规划代价，它才真正进入决策链路。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%8E%86%E5%8F%B2-BEV-memory-%E9%9C%80%E8%A6%81%E8%AF%AD%E4%B9%89%E5%92%8C%E8%BF%90%E5%8A%A8%E6%9D%A1%E4%BB%B6%E5%8C%96"><span class="toc-text">洞察 1：历史 BEV memory 需要语义和运动条件化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Aaction-condition-%E8%AE%A9-world-model-%E5%8F%AF%E6%8E%A7"><span class="toc-text">洞察 2：action condition 让 world model 可控</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A4D-occupancy-%E5%8F%AF%E4%BB%A5%E7%9B%B4%E6%8E%A5%E6%8E%A5%E8%A7%84%E5%88%92%E4%BB%A3%E4%BB%B7"><span class="toc-text">洞察 3：4D occupancy 可以直接接规划代价</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%BB%8E%E9%A2%84%E6%B5%8B%E5%88%B0%E8%A7%84%E5%88%92%E7%9A%84%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.3 从预测到规划的接口</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B/" class="tag">#世界模型</a>
+                            
+                            <a href="/tags/Occupancy/" class="tag">#Occupancy</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

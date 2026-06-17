@@ -60,7 +60,7 @@
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>多目标跟踪长期由”先检测再关联”（tracking-by-detection）范式主导，依赖复杂的关联策略（Kalman Filter、ReID 特征、图匹配）将不同帧的检测框链接起来。本文提出 CenterTrack，一种同时进行检测和跟踪的算法：以 <a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a> 为基础，将当前帧、前一帧图像和前一帧跟踪结果渲染的 heatmap 作为输入，在检测中心点的同时预测帧间位移 offset。跟踪仅需基于中心距离的贪心匹配。CenterTrack 在 MOT17 上达到 67.8% MOTA（22 FPS）、KITTI 上 89.4% MOTA（15 FPS），均为同期最优；在 nuScenes 3D 跟踪上以 28.3% <a href="mailto:&#65;&#77;&#x4f;&#x54;&#x41;&#64;&#48;&#x2e;&#x32;">&#65;&#77;&#x4f;&#x54;&#x41;&#64;&#48;&#x2e;&#x32;</a> 大幅超越单目基线。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>多目标跟踪长期由”先检测再关联”（tracking-by-detection）范式主导，依赖复杂的关联策略（Kalman Filter、ReID 特征、图匹配）将不同帧的检测框链接起来。本文提出 CenterTrack，一种同时进行检测和跟踪的算法：以 <a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a> 为基础，将当前帧、前一帧图像和前一帧跟踪结果渲染的 heatmap 作为输入，在检测中心点的同时预测帧间位移 offset。跟踪仅需基于中心距离的贪心匹配。CenterTrack 在 MOT17 上达到 67.8% MOTA（22 FPS）、KITTI 上 89.4% MOTA（15 FPS），均为同期最优；在 nuScenes 3D 跟踪上以 28.3% <a href="mailto:&#65;&#77;&#79;&#84;&#65;&#x40;&#x30;&#x2e;&#50;">&#65;&#77;&#79;&#84;&#65;&#x40;&#x30;&#x2e;&#50;</a> 大幅超越单目基线。</p>
 <p><strong>核心论点</strong>：如果物体是点（CenterNet），跟踪就是点的轨迹——只需预测相邻帧间中心点的位移，贪心匹配即可关联身份，无需任何外部运动模型或外观特征。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>主流多目标跟踪方案各有局限：</p>
 <table>
@@ -105,11 +105,11 @@
 </ul>
 <h3 id="洞察-3：噪声注入使静态图像可替代视频训练"><a href="#洞察-3：噪声注入使静态图像可替代视频训练" class="headerlink" title="洞察 3：噪声注入使静态图像可替代视频训练"></a>洞察 3：噪声注入使静态图像可替代视频训练</h3><p>训练时前一帧的 GT heatmap 完美无缺，但推理时 heatmap 包含假阳性、假阴性和定位抖动。若不模拟这种差异，网络会学到”直接复制上一帧检测”而拒绝发现新物体。CenterTrack 通过三种噪声注入解决：位置抖动（$\lambda_{jt}&#x3D;0.05$）、假阳性（$\lambda_{fp}&#x3D;0.1$）和假阴性（$\lambda_{fn}&#x3D;0.4$）。</p>
 <p><strong>为什么关键</strong>：不加噪声时 MOTA 从 66.1% 暴跌至 34.4%（FN 率从 28.4% 飙升至 57.4%）——网络在空 heatmap（第一帧）时完全无法检测到物体。有了噪声注入后，甚至可以用静态图像+随机仿射变换模拟”前一帧”来训练，在 MOT17 上性能与视频训练持平（66.1% MOTA）。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>67.8% MOTA</strong>：MOT17 私有检测 SOTA @ 22 FPS</li>
 <li><strong>89.4% MOTA</strong>：KITTI 跟踪 SOTA @ 15 FPS</li>
-<li><strong>28.3% <a href="mailto:&#x41;&#x4d;&#x4f;&#84;&#65;&#x40;&#x30;&#x2e;&#x32;">&#x41;&#x4d;&#x4f;&#84;&#65;&#x40;&#x30;&#x2e;&#x32;</a></strong>：nuScenes 单目 3D 跟踪，比基线高 4× @ 28 FPS</li>
+<li><strong>28.3% <a href="mailto:&#x41;&#x4d;&#79;&#x54;&#x41;&#x40;&#x30;&#46;&#x32;">&#x41;&#x4d;&#79;&#x54;&#x41;&#x40;&#x30;&#46;&#x32;</a></strong>：nuScenes 单目 3D 跟踪，比基线高 4× @ 28 FPS</li>
 </ul>
 <h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>$$\text{Tracking} &#x3D; \text{CenterNet Detection} + \text{Prior Heatmap Conditioning} + \text{Offset Prediction}$$</p>
 <div style="text-align:center; margin: 24px 0;">
@@ -230,7 +230,7 @@
 </tr>
 <tr>
 <td>nuScenes（单目 3D）</td>
-<td><a href="mailto:&#65;&#77;&#79;&#84;&#x41;&#64;&#x30;&#46;&#50;">&#65;&#77;&#79;&#84;&#x41;&#64;&#x30;&#46;&#50;</a></td>
+<td><a href="mailto:&#x41;&#77;&#x4f;&#x54;&#65;&#64;&#48;&#x2e;&#50;">&#x41;&#77;&#x4f;&#x54;&#65;&#64;&#48;&#x2e;&#50;</a></td>
 <td><strong>28.3%</strong></td>
 <td>Baseline: 6.9%</td>
 <td>45ms</td>

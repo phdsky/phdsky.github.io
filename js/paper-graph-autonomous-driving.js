@@ -49,7 +49,19 @@
       { id: 'uniad', label: 'UniAD\n(CVPR 2023)', color: '#9b59b6', font: { color: '#fff' }, url: '/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/', x: 20, y: 640 },
       { id: 'vad', label: 'VAD / VADv2\n(ICCV 2023 / arXiv 2024)', color: '#9b59b6', font: { color: '#fff' }, url: '/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/', x: 200, y: 540 },
       { id: 'sparsedrive', label: 'SparseDrive 系列\n(arXiv 2024→2026)', color: '#9b59b6', font: { color: '#fff' }, url: '/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/', x: 320, y: 640 },
-      { id: 'diffusiondrive', label: 'DiffusionDrive\n(CVPR 2025)', color: '#9b59b6', font: { color: '#fff' }, url: '/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/', x: 200, y: 760 }
+      { id: 'diffusiondrive', label: 'DiffusionDrive\n(CVPR 2025)', color: '#9b59b6', font: { color: '#fff' }, url: '/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/', x: 200, y: 760 },
+      { id: 'genad', label: 'GenAD\n(ECCV 2024)', color: '#9b59b6', font: { color: '#fff' }, url: '/posts/2024/papers/2024_ECCV_GenAD_Generative_End_to_End_Autonomous_Driving/', x: 420, y: 780 },
+      // 几何世界模型与世界模型
+      { id: 'vggt', label: 'VGGT\n(CVPR 2025)', color: '#795548', font: { color: '#fff' }, url: '/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/', x: 760, y: 120 },
+      { id: 'd4rt', label: 'D4RT\n(arXiv 2025)', color: '#795548', font: { color: '#fff' }, url: '/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/', x: 920, y: 120 },
+      { id: 'dvgt', label: 'DVGT\n(arXiv 2025)', color: '#795548', font: { color: '#fff' }, url: '/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/', x: 760, y: 300 },
+      { id: 'dvgt2', label: 'DVGT-2\n(arXiv 2026)', color: '#795548', font: { color: '#fff' }, url: '/posts/2026/papers/2026_arXiv_DVGT2_Vision_Geometry_Action_Autonomous_Driving/', x: 920, y: 300 },
+      { id: 'occworld', label: 'OccWorld\n(ECCV 2024)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/', x: -20, y: 640 },
+      { id: 'driveoccworld', label: 'Drive-OccWorld\n(AAAI 2025)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/', x: -160, y: 760 },
+      { id: 'gaia1', label: 'GAIA-1\n(arXiv 2023)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/', x: 620, y: 640 },
+      { id: 'drivedreamer', label: 'DriveDreamer\n(ECCV 2024)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/', x: 760, y: 760 },
+      { id: 'uniworld', label: 'UniWorld\n(arXiv 2023)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/', x: 920, y: 640 },
+      { id: 'driveworld', label: 'DriveWorld\n(CVPR 2024)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/', x: 920, y: 760 }
     ];
 
     var definedEdges = [
@@ -98,11 +110,24 @@
       { from: 'maptr', to: 'vad', label: 'MapTR + Planning = VAD', arrows: 'to' },
       { from: 'vad', to: 'sparsedrive', label: '向量化→稀疏化', arrows: 'to' },
       { from: 'vad', to: 'diffusiondrive', label: '词表评分→生成采样', arrows: 'to', dashes: true },
+      { from: 'vad', to: 'genad', label: '规划→生成式未来建模', arrows: 'to', dashes: true },
       { from: 'sparse4d', to: 'sparsedrive', label: '稀疏感知继承', arrows: 'to' },
       { from: 'uniad', to: 'sparsedrive', label: '端到端 → 稀疏化', arrows: 'to' },
       { from: 'maptr', to: 'sparsedrive', label: '在线建图模块', arrows: 'to', dashes: true },
+      { from: 'uniad', to: 'genad', label: '多任务流水线→生成式统一', arrows: 'to', dashes: true },
+      { from: 'genad', to: 'diffusiondrive', label: '生成式规划思路', arrows: 'to', dashes: true },
       { from: 'sparsedrive', to: 'diffusiondrive', label: '感知编码器复用', arrows: 'to' },
       { from: 'uniad', to: 'diffusiondrive', label: '端到端范式对比', arrows: 'to', dashes: true },
+      // 几何与世界模型
+      { from: 'occformer', to: 'occworld', label: '3D occupancy→世界模型状态', arrows: 'to' },
+      { from: 'occworld', to: 'driveoccworld', label: '3D occupancy→4D forecasting+planning', arrows: 'to' },
+      { from: 'uniworld', to: 'driveworld', label: '4D occupancy 预训练→4D scene understanding', arrows: 'to' },
+      { from: 'gaia1', to: 'drivedreamer', label: '生成式驾驶 world model', arrows: 'to' },
+      { from: 'drivedreamer', to: 'driveoccworld', label: '生成未来→占用规划', arrows: 'to', dashes: true },
+      { from: 'vggt', to: 'd4rt', label: '3D 几何→动态 4D', arrows: 'to', dashes: true },
+      { from: 'vggt', to: 'dvgt', label: '通用视觉几何→驾驶几何', arrows: 'to' },
+      { from: 'dvgt', to: 'dvgt2', label: 'batch 重建→streaming planning', arrows: 'to' },
+      { from: 'd4rt', to: 'dvgt2', label: '动态 4D 接口互补', arrows: 'to', dashes: true },
       // 经典 2D 检测链
       { from: 'rcnn', to: 'yolo', label: '两阶段→单阶段', arrows: 'to' },
       { from: 'rcnn', to: 'ssd', label: '两阶段→单阶段', arrows: 'to' },

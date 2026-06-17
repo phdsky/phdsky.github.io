@@ -107,7 +107,7 @@
 <h3 id="洞察-3：碰撞感知重评分——后处理优化反而有害"><a href="#洞察-3：碰撞感知重评分——后处理优化反而有害" class="headerlink" title="洞察 3：碰撞感知重评分——后处理优化反而有害"></a>洞察 3：碰撞感知重评分——后处理优化反而有害</h3><p><strong>传统做法</strong>（UniAD）：推理时用 Newton 法基于占用图优化规划轨迹。看似合理，但 SparseDrive 发现这种后处理不仅未降低碰撞率，反而使碰撞率从 0.25% 上升至 0.61%（重新实现的碰撞率指标下），L2 从 0.61 上升至 0.73。</p>
 <p><strong>SparseDrive 做法</strong>：规划输出 6 条多模态轨迹。先按导航命令（左转&#x2F;右转&#x2F;直行）筛选子集，再用碰撞感知重评分——利用运动预测的 top-2 轨迹检查自车各规划方案是否碰撞，将碰撞方案的分数置零，最后选最高分轨迹。</p>
 <p><strong>为什么更好</strong>：碰撞感知重评分将碰撞率从 0.12% 降至 0.08%（Table 5），几乎不增加 L2 误差（0.61→0.61），且保持端到端范式一致性（不破坏梯度流）。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>0.06% avg Col</strong>：SparseDrive-B 的碰撞率，比 VAD（0.21%）降低 71.4%</li>
 <li><strong>9.0 FPS</strong>：SparseDrive-S 的推理速度，比 UniAD（1.8）快 5.0×</li>
@@ -577,7 +577,7 @@ $$\mathcal{L}_{\text{V2}} = \mathcal{L}_{\text{path}} + \mathcal{L}_{\text{veloc
 
 
 <p><strong>为什么更好</strong>：从 262,144 → top-128×64 → 20×20 &#x3D; 400，实际精细打分的轨迹数量压缩了 <strong>655×</strong>。层级筛选让超密词表不仅可行，而且高效。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>262,144</strong>：分解式词表覆盖的候选轨迹总数（1024 path × 256 velocity），是传统 8192 anchors 的 32×</li>
 <li><strong>400</strong>：最终进入精细打分的轨迹数量（20 paths × 20 velocities），仅占词表的 0.15%</li>

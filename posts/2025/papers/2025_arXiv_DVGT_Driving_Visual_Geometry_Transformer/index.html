@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            DVGT: Driving Visual Geometry Transformer - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">DVGT: Driving Visual Geometry Transformer</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2025年12月18日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Driving Dense Geometry Perception<br>Method: Driving Visual Geometry Transformer, Dense Point Map, Ego Pose Estimation<br>Venue: arXiv<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.16919">https://arxiv.org/abs/2512.16919</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/DVGT">https://github.com/wzzheng/DVGT</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DVGT 是面向自动驾驶场景的 dense geometry perception 模型。它从未给定位姿的多视角驾驶图像序列中，重建第一帧 ego 坐标系下的全局稠密 3D point map，并估计每帧 ego pose。</p>
+<p>和传统依赖精确相机参数或外部传感器对齐的方法不同，DVGT 强调直接从图像序列预测 metric-scaled geometry，适配不同场景和相机配置。它把 VGGT 式的通用视觉几何能力推进到驾驶场景：输入不再只是任意多视图图像，而是多相机、多帧、动态道路环境。</p>
+<p>DVGT 抛出的核心问题是：<strong>自动驾驶是否可以在 object boxes &#x2F; BEV features 之外，直接学习一个 dense metric geometry 中间表示？</strong></p>
+<p><strong>核心论点</strong>：驾驶系统需要的不只是“检测到哪些物体”，还需要真实尺度的 3D 空间结构；DVGT 尝试把 dense geometry 变成自动驾驶视觉感知的一等表示。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>自动驾驶视觉感知长期围绕 BEV、object query 和 occupancy 展开，但 dense metric geometry 仍然缺少面向驾驶的统一模型。</p>
+<table>
+<thead>
+<tr>
+<th align="left">表示</th>
+<th align="left">优点</th>
+<th align="left">几何缺口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Object boxes</td>
+<td align="left">稀疏、贴近检测和预测</td>
+<td align="left">丢失表面、free space、未知障碍细节</td>
+</tr>
+<tr>
+<td align="left">BEV features</td>
+<td align="left">统一空间，便于多任务</td>
+<td align="left">高度、点级结构和真实尺度可能被压缩</td>
+</tr>
+<tr>
+<td align="left">Occupancy</td>
+<td align="left">表达空间占用</td>
+<td align="left">分辨率有限，几何表面不够细</td>
+</tr>
+<tr>
+<td align="left">Dense point map</td>
+<td align="left">直接表达度量 3D 结构</td>
+<td align="left">计算和时序建模更难</td>
+</tr>
+</tbody></table>
+<p>通用重建模型通常不是为多相机驾驶序列设计，传统驾驶系统又往往把几何压缩为 boxes 或 BEV features。DVGT 的目标是在两者之间补上驾驶视觉几何底座。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：驾驶几何需要跨视角和跨时间共同建模"><a href="#洞察-1：驾驶几何需要跨视角和跨时间共同建模" class="headerlink" title="洞察 1：驾驶几何需要跨视角和跨时间共同建模"></a>洞察 1：驾驶几何需要跨视角和跨时间共同建模</h3><p>单帧多视角只能提供空间关系，多帧序列还包含 ego motion 和动态线索。DVGT 同时使用 cross-view spatial attention 和 cross-frame temporal attention。</p>
+<p>这对应驾驶几何的两个基本维度：</p>
+<ul>
+<li><strong>cross-view</strong>：不同相机如何共同观察同一个三维世界；</li>
+<li><strong>cross-frame</strong>：同一个世界如何随自车运动和场景动态变化。</li>
+</ul>
+<p>只有两者结合，模型才可能从环视相机序列中恢复稳定几何。</p>
+<h3 id="洞察-2：直接预测-metric-point-map-可以减少后处理"><a href="#洞察-2：直接预测-metric-point-map-可以减少后处理" class="headerlink" title="洞察 2：直接预测 metric point map 可以减少后处理"></a>洞察 2：直接预测 metric point map 可以减少后处理</h3><p>模型直接输出 metric-scaled geometry，不依赖外部传感器后对齐。这使它更接近一个端到端几何感知模块。</p>
+<p>这点对自动驾驶很重要：如果几何结果需要大量后处理或外部传感器补齐，它就很难作为轻量中间表示进入端到端系统。DVGT 的目标是让 dense point map 本身成为网络输出。</p>
+<h3 id="洞察-3：相机配置不应被写死在模型里"><a href="#洞察-3：相机配置不应被写死在模型里" class="headerlink" title="洞察 3：相机配置不应被写死在模型里"></a>洞察 3：相机配置不应被写死在模型里</h3><p>DVGT 不显式依赖固定 3D geometric priors，因此能处理不同 camera configurations。</p>
+<p>量产车队中相机布局、视场角和安装位置可能不同。一个过度依赖固定相机配置的方法，跨车型迁移会很困难；DVGT 希望通过视觉特征和注意力机制学习更通用的几何关系。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2512.16919/assets/x1.png" alt="DVGT 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+unposed multi-view image sequence
+        │
+        ▼
+DINO visual backbone
+        │
+        ▼
+intra-view local attention
+        │
+        ▼
+cross-view spatial attention
+        │
+        ▼
+cross-frame temporal attention
+        │
+        ├── global dense point map
+        └── ego poses
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">DINO backbone</td>
+<td align="left">提取鲁棒视觉特征</td>
+</tr>
+<tr>
+<td align="left">Intra-view local attention</td>
+<td align="left">建模单图局部几何</td>
+</tr>
+<tr>
+<td align="left">Cross-view spatial attention</td>
+<td align="left">建模多相机空间关系</td>
+</tr>
+<tr>
+<td align="left">Cross-frame temporal attention</td>
+<td align="left">建模时间连续性和 ego motion</td>
+</tr>
+<tr>
+<td align="left">多头输出</td>
+<td align="left">解码全局 point map 与 ego poses</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-与-BEV-Occupancy-的关系"><a href="#4-3-与-BEV-Occupancy-的关系" class="headerlink" title="4.3 与 BEV &#x2F; Occupancy 的关系"></a>4.3 与 BEV &#x2F; Occupancy 的关系</h3><p>DVGT 不是 BEV 感知的简单替代，而是提供另一种中间表示。</p>
+<table>
+<thead>
+<tr>
+<th align="left">路线</th>
+<th align="left">中间表示</th>
+<th align="left">更擅长</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">BEV-centric</td>
+<td align="left">鸟瞰特征图</td>
+<td align="left">多任务共享、检测、地图</td>
+</tr>
+<tr>
+<td align="left">Occupancy-centric</td>
+<td align="left">空间占用格</td>
+<td align="left">free &#x2F; occupied &#x2F; unknown</td>
+</tr>
+<tr>
+<td align="left">Geometry-centric</td>
+<td align="left">dense point map + ego pose</td>
+<td align="left">metric 3D grounding、表面与空间结构</td>
+</tr>
+</tbody></table>
+<p>真正的系统可能不是三选一，而是把 dense geometry 用作 BEV &#x2F; occupancy &#x2F; planning 的 grounding。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes、OpenScene、Waymo、KITTI、DDAD 等驾驶数据混合训练，并报告在多场景上优于已有模型。这里保留核心实验结论：DVGT 的评估重点不是检测 mAP，而是 metric geometry 是否能在驾驶场景中泛化。</p>
+<p>实验评价的关键对象是：</p>
+<table>
+<thead>
+<tr>
+<th align="left">评价对象</th>
+<th align="left">说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Dense point map</td>
+<td align="left">是否恢复真实尺度 3D 结构</td>
+</tr>
+<tr>
+<td align="left">Ego pose</td>
+<td align="left">是否理解自车运动</td>
+</tr>
+<tr>
+<td align="left">Cross-dataset generalization</td>
+<td align="left">是否适配不同驾驶数据分布</td>
+</tr>
+</tbody></table>
+<p>这和常规 BEV 检测论文不同：DVGT 的价值不是立刻提高规划分数，而是提供更可靠的几何底座。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>5 个数据源</strong>：nuScenes、OpenScene、Waymo、KITTI、DDAD。</li>
+<li><strong>3 类注意力</strong>：intra-view、cross-view、cross-frame。</li>
+<li><strong>2 类主输出</strong>：dense point map 与 ego poses。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DVGT 适合放在自动驾驶几何分支中，为后续 occupancy、planning 或 object grounding 提供度量几何输入。工程落地时需要关注：</p>
+<ul>
+<li><strong>实时性</strong>：dense point map 比 sparse query 更重；</li>
+<li><strong>动态物体区域</strong>：动态对象会破坏静态重建假设；</li>
+<li><strong>相机掉线</strong>：环视系统缺少某一路输入时几何是否稳定；</li>
+<li><strong>尺度一致性</strong>：多数据集训练时 metric scale 是否保持一致；</li>
+<li><strong>下游接口</strong>：point map 如何变成 occupancy、cost map 或 planning feature。</li>
+</ul>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DVGT 的意义在于把 VGGT 式通用几何模型推进到驾驶场景。它说明自动驾驶中的 dense geometry 不只是离线重建问题，也可以成为在线感知和规划链路中的中间表示。</p>
+<p>但 DVGT 本身更偏感知几何，还没有完全解决在线规划问题。这个缺口正是 <a href="/posts/2026/papers/2026_arXiv_DVGT2_Vision_Geometry_Action_Autonomous_Driving/">DVGT-2</a> 要补的：把 dense geometry 从 batch 重建推进到 streaming planning。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E9%A9%BE%E9%A9%B6%E5%87%A0%E4%BD%95%E9%9C%80%E8%A6%81%E8%B7%A8%E8%A7%86%E8%A7%92%E5%92%8C%E8%B7%A8%E6%97%B6%E9%97%B4%E5%85%B1%E5%90%8C%E5%BB%BA%E6%A8%A1"><span class="toc-text">洞察 1：驾驶几何需要跨视角和跨时间共同建模</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E7%9B%B4%E6%8E%A5%E9%A2%84%E6%B5%8B-metric-point-map-%E5%8F%AF%E4%BB%A5%E5%87%8F%E5%B0%91%E5%90%8E%E5%A4%84%E7%90%86"><span class="toc-text">洞察 2：直接预测 metric point map 可以减少后处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E7%9B%B8%E6%9C%BA%E9%85%8D%E7%BD%AE%E4%B8%8D%E5%BA%94%E8%A2%AB%E5%86%99%E6%AD%BB%E5%9C%A8%E6%A8%A1%E5%9E%8B%E9%87%8C"><span class="toc-text">洞察 3：相机配置不应被写死在模型里</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%B8%8E-BEV-Occupancy-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.3 与 BEV &#x2F; Occupancy 的关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%B8%89%E7%BB%B4%E9%87%8D%E5%BB%BA/" class="tag">#三维重建</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

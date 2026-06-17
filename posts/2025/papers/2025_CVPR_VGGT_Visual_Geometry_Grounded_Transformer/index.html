@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            VGGT: Visual Geometry Grounded Transformer - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">VGGT: Visual Geometry Grounded Transformer</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2025年03月14日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Visual Geometry Estimation<br>Method: Feed-forward Geometry Transformer, Point Maps, Depth Maps, Camera Parameters, 3D Tracks<br>Venue: CVPR 2025<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2503.11651">https://arxiv.org/abs/2503.11651</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/vggt">https://github.com/facebookresearch/vggt</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>VGGT 是一个前向式视觉几何模型，目标是把过去分散的 camera parameter estimation、depth estimation、point cloud reconstruction 和 3D point tracking 统一到同一个网络中。给定一张、少量或大量图像，模型直接输出 camera parameters、point maps、depth maps 和 3D point tracks。</p>
+<p>VGGT 最重要的变化，不是“又做了一个深度估计模型”，而是把视觉几何从传统的多阶段优化流程推进为一个统一前向接口。过去 SfM &#x2F; MVS &#x2F; SLAM 往往需要特征匹配、几何验证、BA 优化和任务专用模块；VGGT 则试图让一个模型直接预测主要几何属性。</p>
+<p>对自动驾驶来说，VGGT 本身不是闭环驾驶系统，但它提供了一个重要信号：未来感知系统不一定只能从 object boxes 或 BEV features 出发，也可以保留更底层的 metric geometry。</p>
+<p><strong>核心论点</strong>：视觉几何正在从“优化管线”走向“前向基础模型”，VGGT 的价值在于给多个几何任务提供统一接口，而不是只优化某一个单点任务。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>传统 SfM &#x2F; MVS &#x2F; SLAM 系统通常依赖特征匹配、几何优化和任务专用模块。它们精度高，但流程复杂，对输入条件敏感，且难以作为深度模型的通用 backbone。</p>
+<table>
+<thead>
+<tr>
+<th align="left">传统几何流程</th>
+<th align="left">问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">特征提取与匹配</td>
+<td align="left">对纹理、视角变化和遮挡敏感</td>
+</tr>
+<tr>
+<td align="left">相机位姿估计</td>
+<td align="left">需要多阶段几何验证和优化</td>
+</tr>
+<tr>
+<td align="left">深度 &#x2F; 点云重建</td>
+<td align="left">往往依赖任务专用算法</td>
+</tr>
+<tr>
+<td align="left">点跟踪</td>
+<td align="left">与重建和相机估计割裂</td>
+</tr>
+</tbody></table>
+<p>VGGT 试图回答一个更基础的问题：视觉模型能否直接从图像集合中恢复主要 3D 属性，而不是为每个几何任务训练一个单独模型？</p>
+<p>这对自动驾驶也有启发：如果一个模型可以直接输出 metric geometry，那么下游感知和规划不必只依赖 object boxes 或 BEV features。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：把几何任务统一成一个前向预测问题"><a href="#洞察-1：把几何任务统一成一个前向预测问题" class="headerlink" title="洞察 1：把几何任务统一成一个前向预测问题"></a>洞察 1：把几何任务统一成一个前向预测问题</h3><p>VGGT 不再把 camera pose、depth、point map、track 当成四个割裂任务，而是让同一个 Transformer 在共享表示上同时预测这些几何属性。这个统一性有两个价值：</p>
+<ol>
+<li>多个几何量之间可以互相约束，避免单任务模型各自犯错；</li>
+<li>下游任务可以从同一个几何 backbone 中取需要的输出，而不是重新搭一套几何管线。</li>
+</ol>
+<h3 id="洞察-2：point-map-是比-depth-更通用的几何接口"><a href="#洞察-2：point-map-是比-depth-更通用的几何接口" class="headerlink" title="洞察 2：point map 是比 depth 更通用的几何接口"></a>洞察 2：point map 是比 depth 更通用的几何接口</h3><p>Depth 依赖相机坐标，point map 直接给出像素对应的 3D 点，更容易连接多视图几何、点云重建和后续空间理解。</p>
+<p>可以把 depth 看作“沿当前相机光线走多远”，而 point map 更像“这个像素在三维世界中对应哪里”。后者天然更适合多视图对齐和三维结构推理。</p>
+<h3 id="洞察-3：通用几何-backbone-可以迁移到下游任务"><a href="#洞察-3：通用几何-backbone-可以迁移到下游任务" class="headerlink" title="洞察 3：通用几何 backbone 可以迁移到下游任务"></a>洞察 3：通用几何 backbone 可以迁移到下游任务</h3><p>论文指出，预训练 VGGT 作为特征 backbone 可以增强非刚体点跟踪和前向 novel view synthesis。这说明模型学到的不只是单一任务的输出头，而是可迁移的几何表征。</p>
+<p>这也是它对自动驾驶有意义的原因：驾驶系统需要的不只是“深度图”，而是可被检测、occupancy、world model 和 planning 复用的空间结构。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2503.11651/assets/x1.png" alt="VGGT 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+input views
+    │
+    ▼
+shared visual geometry transformer
+    │
+    ├── camera parameters
+    ├── depth maps
+    ├── point maps
+    └── 3D point tracks
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">多视图输入编码</td>
+<td align="left">接收一张、少量或大量视图，形成共享视觉表示</td>
+</tr>
+<tr>
+<td align="left">Geometry Transformer</td>
+<td align="left">建模视图间关系和空间结构</td>
+</tr>
+<tr>
+<td align="left">多头几何输出</td>
+<td align="left">同时预测 camera、depth、point map、track</td>
+</tr>
+<tr>
+<td align="left">下游特征复用</td>
+<td align="left">将预训练几何表示迁移到点跟踪、NVS 等任务</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-输出之间的关系"><a href="#4-3-输出之间的关系" class="headerlink" title="4.3 输出之间的关系"></a>4.3 输出之间的关系</h3><table>
+<thead>
+<tr>
+<th align="left">输出</th>
+<th align="left">解决的问题</th>
+<th align="left">下游价值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Camera parameters</td>
+<td align="left">相机之间如何相对摆放</td>
+<td align="left">多视图对齐、重建、SLAM</td>
+</tr>
+<tr>
+<td align="left">Depth maps</td>
+<td align="left">每个像素沿视线方向的距离</td>
+<td align="left">单视图 &#x2F; 多视图深度理解</td>
+</tr>
+<tr>
+<td align="left">Point maps</td>
+<td align="left">像素对应的 3D 点</td>
+<td align="left">点云重建、空间结构</td>
+</tr>
+<tr>
+<td align="left">3D point tracks</td>
+<td align="left">点在多帧 &#x2F; 多视图中的对应</td>
+<td align="left">动态几何、跟踪、运动理解</td>
+</tr>
+</tbody></table>
+<p>这些输出共同构成一个“几何接口层”，比单一 depth head 更完整。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 camera parameter estimation、multi-view depth estimation、dense point cloud reconstruction 和 3D point tracking 等任务上报告了领先结果。这里不展开未逐表核验的细节分数，重点保留方法层面的结论：VGGT 的优势在于用统一模型覆盖多个视觉几何任务，并且推理无需传统几何优化后处理。</p>
+<p>实验评价更接近“统一性”验证，而不是单一指标竞赛：</p>
+<table>
+<thead>
+<tr>
+<th align="left">任务</th>
+<th align="left">验证什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Camera estimation</td>
+<td align="left">模型是否理解视图关系</td>
+</tr>
+<tr>
+<td align="left">Depth estimation</td>
+<td align="left">模型是否恢复局部几何</td>
+</tr>
+<tr>
+<td align="left">Point cloud reconstruction</td>
+<td align="left">多视图几何是否一致</td>
+</tr>
+<tr>
+<td align="left">3D tracking</td>
+<td align="left">几何表示是否可跨时间&#x2F;视图对应</td>
+</tr>
+</tbody></table>
+<p>这些任务共同证明：VGGT 学到的是一个多用途几何表示，而不是只针对某个 benchmark 的专用技巧。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>4 类输出</strong>：camera parameters、point maps、depth maps、3D point tracks。</li>
+<li><strong>1 次前向</strong>：核心流程是 feed-forward inference。</li>
+<li><strong>&lt; 1 秒</strong>：arXiv 摘要说明模型可以在一秒内重建图像。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>官方代码提供了推理、COLMAP 导出和下游使用示例。工程上更适合作为几何预处理或 backbone，而不是直接替代自动驾驶任务模型。若用于驾驶场景，需要额外处理：</p>
+<ul>
+<li><strong>多相机标定与同步</strong>：车载相机阵列和通用多视图输入并不完全相同；</li>
+<li><strong>动态物体</strong>：驾驶场景中大量对象在运动，静态几何假设会被破坏；</li>
+<li><strong>实时延迟</strong>：前向几何模型仍需满足车端计算预算；</li>
+<li><strong>任务接口</strong>：point map &#x2F; depth 需要转成 BEV、occupancy 或 planning 可用的约束。</li>
+</ul>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>VGGT 的启示是：视觉几何正在从“优化管线”走向“前向基础模型”。对自动驾驶而言，它提供的是上游几何能力，不等同于闭环驾驶系统；真正的挑战在于如何把 dense geometry 稳定接入在线感知、预测和规划。</p>
+<p>路线关系可以这样看：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">VGGT: 通用前向视觉几何</span><br><span class="line">        ↓</span><br><span class="line">D4RT: 动态 4D 重建与查询接口</span><br><span class="line">        ↓</span><br><span class="line">DVGT: 驾驶多相机 dense geometry</span><br><span class="line">        ↓</span><br><span class="line">DVGT-2: streaming geometry + planning</span><br></pre></td></tr></table></figure>
+
+<p>因此，VGGT 是 geometry-centric 自动驾驶路线的“几何底座”，不是终点。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E6%8A%8A%E5%87%A0%E4%BD%95%E4%BB%BB%E5%8A%A1%E7%BB%9F%E4%B8%80%E6%88%90%E4%B8%80%E4%B8%AA%E5%89%8D%E5%90%91%E9%A2%84%E6%B5%8B%E9%97%AE%E9%A2%98"><span class="toc-text">洞察 1：把几何任务统一成一个前向预测问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Apoint-map-%E6%98%AF%E6%AF%94-depth-%E6%9B%B4%E9%80%9A%E7%94%A8%E7%9A%84%E5%87%A0%E4%BD%95%E6%8E%A5%E5%8F%A3"><span class="toc-text">洞察 2：point map 是比 depth 更通用的几何接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E9%80%9A%E7%94%A8%E5%87%A0%E4%BD%95-backbone-%E5%8F%AF%E4%BB%A5%E8%BF%81%E7%A7%BB%E5%88%B0%E4%B8%8B%E6%B8%B8%E4%BB%BB%E5%8A%A1"><span class="toc-text">洞察 3：通用几何 backbone 可以迁移到下游任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E8%BE%93%E5%87%BA%E4%B9%8B%E9%97%B4%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.3 输出之间的关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%B8%89%E7%BB%B4%E9%87%8D%E5%BB%BA/" class="tag">#三维重建</a>
+                            
+                            <a href="/tags/%E8%A7%86%E8%A7%89%E5%87%A0%E4%BD%95/" class="tag">#视觉几何</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

@@ -122,7 +122,7 @@ $$R_{\text{input}} = 512 + \phi \cdot 128$$
 <p>Backbone 则直接复用 EfficientNet-B0~B6 的缩放。$\phi &#x3D; 0$ 得到 D0（512 输入，3 层 BiFPN，64 通道），$\phi &#x3D; 7$ 得到 D7（1536 输入，8 层 BiFPN，384 通道）。</p>
 <h3 id="洞察-3：EfficientNet-作为高效-Backbone"><a href="#洞察-3：EfficientNet-作为高效-Backbone" class="headerlink" title="洞察 3：EfficientNet 作为高效 Backbone"></a>洞察 3：EfficientNet 作为高效 Backbone</h3><p>传统做法：大多数检测器使用 ResNet&#x2F;ResNeXt 作为 backbone，这些网络为分类设计，用于检测时效率不是最优。</p>
 <p>本文做法：采用 EfficientNet 作为 backbone，它本身就通过复合缩放实现了分类任务上的高效性。替换 backbone 从 ResNet-50 到 EfficientNet-B3 即可在参数更少的情况下提升约 3 AP（37.0 → 40.3）。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>55.1 AP</strong>：EfficientDet-D7x 在 COCO test-dev 上的 SOTA 精度，77M 参数 &#x2F; 410B FLOPs</li>
 <li><strong>28×</strong>：EfficientDet-D0（33.8 AP）相比 YOLOv3（33.0 AP）减少的 FLOPs 倍数</li>

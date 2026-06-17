@@ -151,7 +151,7 @@ $$B = S_B(x), \quad C = S_C(x), \quad \Delta = \text{softplus}(S_\Delta(x))$$
 </ol>
 <p>VMamba 按层级设计（类似 Swin Transformer），每个 stage 下采样 2 倍。</p>
 <p><strong>效果</strong>：VMamba 具有全局有效感受野（ERF），类似 ViT 但计算量对序列长度线性增长。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>5×</strong>：Mamba 相比 Transformer 的推理吞吐量提升倍数，得益于线性复杂度和硬件感知算法</li>
 <li>**83.9%**：VMamba-B 在 ImageNet-1K 上的 top-1 精度，以 89M 参数超越同量级 Swin-B (83.5%)</li>

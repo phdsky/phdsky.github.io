@@ -160,7 +160,7 @@ $$F_i^{3d} = \psi(F_i^{2d}, P_i^{3d}), \quad i = 1, 2, \ldots, N$$
 </ul>
 <p>DETR3D 通过让 query 预测 3D 参考点来解决这一问题，但仍依赖逐层投影采样。PETR 则引入 3D 可学习锚点（learned anchor points），在 3D 世界空间中直接初始化均匀分布的锚点坐标，再通过小型 MLP 将其转换为 query embedding，为每个 query 赋予明确的 3D 空间起点——无需投影，query 直接与 3D 位置感知特征交互。</p>
 <p>消融实验表明：不使用锚点（DETR 式纯可学习 query）模型不收敛；固定 BEV 网格锚点（39×39）达到 0.337 NDS；固定 3D 网格锚点（16×16×6）达到 0.343 NDS；<strong>可学习 3D 锚点达到 0.359 NDS</strong>。锚点数量从 600 增加到 1500 时性能持续提升（0.339 → 0.359 NDS），最终选择 900 个作为精度与计算量的折中。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>50.4% NDS</strong>：PETR（V2-99）在 nuScenes test 上达到的 SOTA，首个突破 50% NDS 的纯视觉方法</li>
 <li><strong>30.5% mAP</strong>：仅用 3D PE（无 2D PE &#x2F; 多视图先验）即可达到的性能，证明 3D PE 的核心作用</li>

@@ -108,7 +108,7 @@
 <h3 id="洞察-3：感知为预测服务——跟踪和建图对运动预测的关键作用"><a href="#洞察-3：感知为预测服务——跟踪和建图对运动预测的关键作用" class="headerlink" title="洞察 3：感知为预测服务——跟踪和建图对运动预测的关键作用"></a>洞察 3：感知为预测服务——跟踪和建图对运动预测的关键作用</h3><p><strong>传统做法</strong>：检测、跟踪和建图作为独立感知任务，其输出直接提供给下游使用，不关注对后续任务的贡献。</p>
 <p><strong>UniAD 做法</strong>：将跟踪和建图嵌入端到端管线，其输出 query 直接供 MotionFormer 使用——Track query 提供历史轨迹和身份信息（agent-agent 交互），Map query 提供道路结构（agent-map 交互），两者合力使运动预测精度大幅提升。</p>
 <p><strong>为什么更好</strong>：Table 2 Exp.4-6 显示，纯 MotionFormer 的 minADE 为 0.815，加入 TrackFormer 后降至 0.751（-7.9%），再加入 MapFormer 后降至 0.736（-9.7%），建图和跟踪共同为运动预测带来了 <strong>-12.9% minFDE</strong> 的提升。且感知模块在共同训练中 <strong>不出现显著性能下降</strong>。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>1.03m avg L2</strong>：UniAD-B 的规划平均 L2 误差，比 ST-P3（2.11m）降低 51.2%</li>
 <li><strong>0.31% avg Col</strong>：UniAD-B 的规划平均碰撞率，比 ST-P3（0.71%）降低 56.3%</li>

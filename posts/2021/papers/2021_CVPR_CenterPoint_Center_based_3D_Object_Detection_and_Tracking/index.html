@@ -115,7 +115,7 @@ $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F
 <p>$$\hat{\mathbf{p}}^{(t)}_{projected} &#x3D; \hat{\mathbf{p}}^{(t)} + \hat{\mathbf{v}}^{(t)} \cdot \Delta t$$</p>
 <p>匹配完成 → 继承 ID。无 Kalman Filter、无 ReID、无匈牙利算法，推理开销 ≈ 0。</p>
 <p>**对比 <a href="/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/">CenterTrack</a>**：CenterTrack 需要输入前一帧图像和 heatmap（额外 4 通道 + 额外 forward pass 开销），CenterPoint 的速度是标量回归头，无需看到前一帧，开销为零。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>65.5 NDS &#x2F; 58.0 mAP</strong>：nuScenes 检测 SOTA</li>
 <li><strong>63.8 AMOTA</strong>：nuScenes 跟踪 SOTA</li>

@@ -138,7 +138,7 @@ $$p(a) = \text{MLP}\big(\text{Transformer}(E(a),\ E_{env}) + E_{navi} + E_{state
 <li><strong>交互</strong>（VAD）：ego query 通过 attention 隐式吸收 agent &#x2F; map 信息；</li>
 <li><strong>决策</strong>（VADv2）：把”回归一条”换成”在词汇表上分布建模”，捕捉真实驾驶的多模态。</li>
 </ol>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>avg L2 0.72 m &#x2F; Col 0.22% &#x2F; 4.5 FPS（VAD-Base）</strong>：vs UniAD 1.03 &#x2F; 0.31% &#x2F; 1.8 FPS，<strong>−30% L2 + 2.5× speed</strong>；</li>
 <li><strong>DS 85.1 vs 76.1（VADv2 vs DriveMLM, CARLA Town05 Long）</strong>：概率规划在闭环上的纯增益；</li>

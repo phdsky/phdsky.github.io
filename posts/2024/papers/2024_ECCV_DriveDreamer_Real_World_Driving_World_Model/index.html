@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            DriveDreamer: Towards Real-world-driven World Models for Autonomous Driving - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">DriveDreamer: Towards Real-world-driven World Models for Autonomous Driving</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2024年07月02日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Real-world Driving World Model<br>Method: Diffusion World Model, Two-stage Training, ActionFormer, Auto-DM<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2309.09777">https://arxiv.org/abs/2309.09777</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/JeffWang987/DriveDreamer">https://github.com/JeffWang987/DriveDreamer</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DriveDreamer 是一个从真实驾驶场景中学习的 driving world model。它沿着 <a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a> 开启的可控驾驶视频生成路线继续往前走，但把重点放在“真实道路结构约束”上：生成模型不能只让画面看起来像驾驶场景，还要符合 HDMap、3D box、自车动作等交通结构。</p>
+<p>方法上，DriveDreamer 使用 diffusion world model，并采用两阶段训练：第一阶段学习结构化交通约束，第二阶段学习未来状态预测。它通过 ActionFormer 预测未来结构特征，再由 Auto-DM 生成未来驾驶视频，同时支持 future driving actions 的生成。</p>
+<p>DriveDreamer 的关键问题是：<strong>如何让驾驶世界模型既有生成能力，又不脱离真实道路结构和动作条件？</strong></p>
+<p><strong>核心论点</strong>：驾驶 world model 的可用性不只取决于视频真实感，还取决于是否能被地图、目标、动作等结构化条件约束，从而生成对规划和评估更有意义的未来。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>早期 world model 很多来自游戏、机器人或仿真环境，它们容易控制，但和真实道路有明显差距。自动驾驶场景至少有三类结构不能忽略：</p>
+<table>
+<thead>
+<tr>
+<th align="left">结构</th>
+<th align="left">为什么重要</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">道路拓扑与车道约束</td>
+<td align="left">决定车辆能在哪里走、怎样转向</td>
+</tr>
+<tr>
+<td align="left">交通参与者 3D 状态</td>
+<td align="left">决定碰撞风险和交互关系</td>
+</tr>
+<tr>
+<td align="left">自车动作条件</td>
+<td align="left">决定未来世界如何随 ego 行为变化</td>
+</tr>
+</tbody></table>
+<p>如果生成模型只根据视频外观延续未来，很容易得到“视觉上合理但交通上不可信”的结果。DriveDreamer 的目标是用真实 nuScenes 驾驶数据训练 world model，并显式引入结构化条件，使生成结果保留真实交通规律。</p>
+<p>所以它补的不是“生成未来视频”这个空白，而是“生成受真实交通结构约束的未来驾驶场景”。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：真实驾驶-world-model-需要结构约束"><a href="#洞察-1：真实驾驶-world-model-需要结构约束" class="headerlink" title="洞察 1：真实驾驶 world model 需要结构约束"></a>洞察 1：真实驾驶 world model 需要结构约束</h3><p>DriveDreamer 不只生成视频外观，还引入 HDMap 和 3D box 等 road structural information。HDMap 约束静态道路结构，3D boxes 约束交通参与者的位置和尺度，这让模型在生成未来时不至于随意改变道路边界或物体几何。</p>
+<p>这条洞察很关键：驾驶视频生成的难点不是“画面是否清晰”，而是“画面是否符合可驾驶世界的结构”。</p>
+<h3 id="洞察-2：两阶段训练降低生成难度"><a href="#洞察-2：两阶段训练降低生成难度" class="headerlink" title="洞察 2：两阶段训练降低生成难度"></a>洞察 2：两阶段训练降低生成难度</h3><p>第一阶段学习结构化交通约束，第二阶段学习未来状态预测。这样的分解降低了训练难度：模型先学会什么是合理的道路与交通参与者结构，再学习这些结构如何随时间和动作演化。</p>
+<p>这和很多端到端方法的思路相似：不要把所有难题压进一个黑盒，而是把关键中间表示设计成可学习、可约束的状态。</p>
+<h3 id="洞察-3：视频生成和动作生成可以放在同一世界模型中"><a href="#洞察-3：视频生成和动作生成可以放在同一世界模型中" class="headerlink" title="洞察 3：视频生成和动作生成可以放在同一世界模型中"></a>洞察 3：视频生成和动作生成可以放在同一世界模型中</h3><p>DriveDreamer 同时支持 future driving videos 和 future driving actions，使它不只是视觉生成模型，也接近策略模拟工具。视频生成回答“未来世界看起来怎样”，动作生成回答“未来自车可能怎么动”，二者共同指向动作条件 world model。</p>
+<p>这也让 DriveDreamer 和纯粹的视频 diffusion 模型区分开来：它生成的是与驾驶动作和交通结构耦合的未来，而不是无条件视频。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2309.09777/assets/x1.png" alt="DriveDreamer 架构图" style="max-width:100%;">
+</div>
+
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+reference frame + HDMap + 3D boxes
+        │
+        ▼
+ActionFormer predicts future structural features
+        │
+        ▼
+Auto-DM generates future driving video
+        │
+        ▼
+action head predicts future driving actions
+</pre>
+</div>
+
+<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Road structure input</td>
+<td align="left">提供 HDMap 和 3D box 约束</td>
+</tr>
+<tr>
+<td align="left">ActionFormer</td>
+<td align="left">预测未来道路结构特征</td>
+</tr>
+<tr>
+<td align="left">Auto-DM</td>
+<td align="left">根据条件生成未来驾驶视频</td>
+</tr>
+<tr>
+<td align="left">Action prediction</td>
+<td align="left">生成合理未来驾驶动作</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-两阶段训练的理解"><a href="#4-3-两阶段训练的理解" class="headerlink" title="4.3 两阶段训练的理解"></a>4.3 两阶段训练的理解</h3><table>
+<thead>
+<tr>
+<th align="left">阶段</th>
+<th align="left">学习目标</th>
+<th align="left">解决的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Stage 1</td>
+<td align="left">结构化交通约束</td>
+<td align="left">避免生成结果偏离道路和目标结构</td>
+</tr>
+<tr>
+<td align="left">Stage 2</td>
+<td align="left">未来状态预测</td>
+<td align="left">学习动作条件下的时间演化</td>
+</tr>
+</tbody></table>
+<p>这使 DriveDreamer 更像“结构约束下的 diffusion world model”，而不是简单的 image-to-video 模型。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上验证 DriveDreamer 可以生成与文本提示、结构约束和动作交互一致的未来视频，并能预测 future driving actions。其重点是 world model 的真实驾驶场景生成能力，而不是传统检测或规划表格指标。</p>
+<p>实验应按三类证据理解：</p>
+<table>
+<thead>
+<tr>
+<th align="left">证据类型</th>
+<th align="left">支撑的结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">可控视频生成</td>
+<td align="left">模型能在结构条件下生成驾驶场景</td>
+</tr>
+<tr>
+<td align="left">Action-conditioned prediction</td>
+<td align="left">自车动作可以影响未来视频</td>
+</tr>
+<tr>
+<td align="left">Driving action generation</td>
+<td align="left">world model 与策略&#x2F;动作空间存在接口</td>
+</tr>
+</tbody></table>
+<p>这些结果说明 DriveDreamer 更接近 learned simulator 的方向，但还不能直接等价于闭环驾驶系统。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>2 阶段训练</strong>：先结构约束，再未来状态。</li>
+<li><strong>3 类结构&#x2F;控制输入</strong>：reference frame、HDMap、3D box。</li>
+<li><strong>4 类展示能力</strong>：多样视频、文本控制、动作交互、动作生成。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DriveDreamer 可作为驾驶视频生成和场景交互模拟工具。工程使用时要关注：</p>
+<ul>
+<li><strong>多视角一致性</strong>：真实车载系统通常是多相机输入，单视角真实感不足以保证多视角几何一致。</li>
+<li><strong>交通结构一致性</strong>：生成视频必须尊重车道、目标尺度和碰撞关系。</li>
+<li><strong>动作条件覆盖</strong>：如果动作条件空间太窄，模型无法评估足够多的规划备选。</li>
+<li><strong>规划接口</strong>：生成视频仍需转成 occupancy、cost、risk 或 trajectory 才能服务规划。</li>
+</ul>
+<p>这解释了为什么 <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 会转向 4D occupancy：它希望让 world model 的输出更接近规划代价。</p>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DriveDreamer 说明真实驾驶 world model 不能只追求视觉真实感，还要显式建模交通结构和动作后果。它把 GAIA-1 式生成路线推进到更具体的真实数据和交通约束场景。</p>
+<p>从路线关系看：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">GAIA-1: video / text / action 条件生成</span><br><span class="line">        ↓</span><br><span class="line">DriveDreamer: diffusion + 真实道路结构约束</span><br><span class="line">        ↓</span><br><span class="line">Drive-OccWorld: 4D occupancy + planning cost</span><br></pre></td></tr></table></figure>
+
+<p>DriveDreamer 的位置是承上启下：它保留视频生成的直观性，又把生成过程拉回到真实驾驶结构和动作条件上。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E7%9C%9F%E5%AE%9E%E9%A9%BE%E9%A9%B6-world-model-%E9%9C%80%E8%A6%81%E7%BB%93%E6%9E%84%E7%BA%A6%E6%9D%9F"><span class="toc-text">洞察 1：真实驾驶 world model 需要结构约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E4%B8%A4%E9%98%B6%E6%AE%B5%E8%AE%AD%E7%BB%83%E9%99%8D%E4%BD%8E%E7%94%9F%E6%88%90%E9%9A%BE%E5%BA%A6"><span class="toc-text">洞察 2：两阶段训练降低生成难度</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E8%A7%86%E9%A2%91%E7%94%9F%E6%88%90%E5%92%8C%E5%8A%A8%E4%BD%9C%E7%94%9F%E6%88%90%E5%8F%AF%E4%BB%A5%E6%94%BE%E5%9C%A8%E5%90%8C%E4%B8%80%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B%E4%B8%AD"><span class="toc-text">洞察 3：视频生成和动作生成可以放在同一世界模型中</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%B8%A4%E9%98%B6%E6%AE%B5%E8%AE%AD%E7%BB%83%E7%9A%84%E7%90%86%E8%A7%A3"><span class="toc-text">4.3 两阶段训练的理解</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#自动驾驶</a>
+                            
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B/" class="tag">#世界模型</a>
+                            
+                            <a href="/tags/%E7%94%9F%E6%88%90%E6%A8%A1%E5%9E%8B/" class="tag">#生成模型</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

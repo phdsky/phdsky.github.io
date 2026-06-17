@@ -142,7 +142,7 @@ $$\text{TSA}(Q_p, \{Q, B'_{t-1}\}) = \sum_{V \in \{Q, B'_{t-1}\}} \text{DeformAt
 
 <p>训练时，从过去 2 秒序列中随机采样 3 帧 + 当前帧共 4 帧，前 3 帧无梯度递归生成 ${B_{t-3}, B_{t-2}, B_{t-1}}$，仅最后一帧计算 loss。推理时按时间序列在线递推，仅保存上一帧 BEV 特征，几乎无额外计算开销。</p>
 <p><strong>为什么更好</strong>：递归方式使时序信息理论上可无限传播，而堆叠方式的时序窗口固定。BEVFormer vs BEVFormer-S（无时序）：NDS 51.7 → 44.8（+6.9），速度估计 mAVE 从 0.802 降至 0.394，低可见度（0-40%）目标召回率提升 6.0% 以上。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>56.9% NDS</strong>：nuScenes test 集 SOTA，比 DETR3D 高 9.0 个点，逼近 LiDAR 基线</li>
 <li><strong>mAVE 0.378 m&#x2F;s</strong>：速度估计误差，时序融合使纯相机方法首次接近 LiDAR 水平</li>

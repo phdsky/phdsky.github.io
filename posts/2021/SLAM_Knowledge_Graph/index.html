@@ -65,6 +65,217 @@
   <img src="/images/SLAM知识图谱.svg" alt="SLAM 知识图谱" style="max-width: 100%; height: auto;" />
 </div>
 
+<h2 id="1-SLAM-到底在解什么问题"><a href="#1-SLAM-到底在解什么问题" class="headerlink" title="1. SLAM 到底在解什么问题"></a>1. SLAM 到底在解什么问题</h2><p>SLAM 的全称是 Simultaneous Localization and Mapping，也就是“同步定位与建图”。这个名字容易让人误以为它是两个独立任务的简单相加：一边定位，一边建图。实际上，SLAM 的难点恰恰在于二者互相依赖：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">没有地图，就很难知道自己在哪；</span><br><span class="line">不知道自己在哪，又很难把观测拼成地图。</span><br></pre></td></tr></table></figure>
+
+<p>所以 SLAM 的核心不是“画地图”，而是在不完全知道自身位姿的情况下，持续估计：</p>
+
+$$
+p(x_{1:t}, m \mid z_{1:t}, u_{1:t})
+$$
+
+
+<p>其中 $x_{1:t}$ 是机器人从过去到现在的轨迹，$m$ 是地图，$z_{1:t}$ 是传感器观测，$u_{1:t}$ 是运动控制或里程计输入。</p>
+<p>这篇知识图谱可以按一句话理解：<strong>SLAM 是一个把传感器观测、运动模型、几何约束和概率优化放在一起的状态估计系统。</strong></p>
+<h2 id="2-一条主线：从观测到地图"><a href="#2-一条主线：从观测到地图" class="headerlink" title="2. 一条主线：从观测到地图"></a>2. 一条主线：从观测到地图</h2><p>SLAM 最容易让人迷路，是因为名词太多：VO、VIO、LiDAR SLAM、BA、Pose Graph、Loop Closure、ICP、Bundle Adjustment、Factor Graph。把它们放到系统流水线里，会清楚很多：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">传感器输入</span><br><span class="line">    ↓</span><br><span class="line">前端：提取可匹配的几何 / 视觉约束</span><br><span class="line">    ↓</span><br><span class="line">后端：把约束放进优化问题</span><br><span class="line">    ↓</span><br><span class="line">回环：发现走回旧地方，修正累计漂移</span><br><span class="line">    ↓</span><br><span class="line">建图：输出稀疏点、稠密点云、栅格或语义地图</span><br></pre></td></tr></table></figure>
+
+<p>每一层解决的问题不同：</p>
+<table>
+<thead>
+<tr>
+<th align="left">模块</th>
+<th align="left">主要问题</th>
+<th align="left">常见方法</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">传感器</td>
+<td align="left">世界怎么被观测</td>
+<td align="left">Camera、IMU、LiDAR、Wheel Odometry</td>
+</tr>
+<tr>
+<td align="left">前端里程计</td>
+<td align="left">相邻帧之间怎么对齐</td>
+<td align="left">Feature matching、Optical Flow、ICP、Scan Matching</td>
+</tr>
+<tr>
+<td align="left">后端优化</td>
+<td align="left">多个观测约束如何一致</td>
+<td align="left">Bundle Adjustment、Pose Graph、Factor Graph</td>
+</tr>
+<tr>
+<td align="left">回环检测</td>
+<td align="left">如何发现累计漂移</td>
+<td align="left">Bag-of-Words、Place Recognition、Scan Context</td>
+</tr>
+<tr>
+<td align="left">地图表示</td>
+<td align="left">建出的地图服务什么任务</td>
+<td align="left">Sparse Map、Point Cloud、Occupancy Grid、Semantic Map</td>
+</tr>
+</tbody></table>
+<p>这条线索比背术语更重要：每个 SLAM 方法都可以问，它主要改的是前端、后端、回环，还是地图表示。</p>
+<h2 id="3-前端：把观测变成约束"><a href="#3-前端：把观测变成约束" class="headerlink" title="3. 前端：把观测变成约束"></a>3. 前端：把观测变成约束</h2><p>前端的任务是从原始传感器数据里提取“可用于估计位姿的约束”。不同传感器决定了不同前端风格：</p>
+<table>
+<thead>
+<tr>
+<th align="left">前端类型</th>
+<th align="left">输入</th>
+<th align="left">输出约束</th>
+<th align="left">典型难点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Visual Odometry</td>
+<td align="left">图像</td>
+<td align="left">特征匹配、重投影误差</td>
+<td align="left">光照变化、低纹理、动态物体</td>
+</tr>
+<tr>
+<td align="left">Visual-Inertial Odometry</td>
+<td align="left">图像 + IMU</td>
+<td align="left">视觉重投影 + 惯性预积分</td>
+<td align="left">时间同步、尺度、IMU bias</td>
+</tr>
+<tr>
+<td align="left">LiDAR Odometry</td>
+<td align="left">点云</td>
+<td align="left">点到点 &#x2F; 点到面约束</td>
+<td align="left">稀疏、运动畸变、退化场景</td>
+</tr>
+<tr>
+<td align="left">RGB-D SLAM</td>
+<td align="left">RGB + 深度</td>
+<td align="left">像素&#x2F;点云几何约束</td>
+<td align="left">深度噪声、范围限制</td>
+</tr>
+</tbody></table>
+<p>前端不是最终答案，它只是产生约束。真正决定系统全局一致性的，是后端如何把这些约束组织起来。</p>
+<h2 id="4-后端：把局部约束变成全局一致"><a href="#4-后端：把局部约束变成全局一致" class="headerlink" title="4. 后端：把局部约束变成全局一致"></a>4. 后端：把局部约束变成全局一致</h2><p>SLAM 后端通常被写成一个优化问题。最常见的形式是最小化所有观测误差：</p>
+
+$$
+\min_{\mathbf{x}, \mathbf{m}} \sum_i \left\| r_i(\mathbf{x}, \mathbf{m}, \mathbf{z}_i) \right\|_{\Sigma_i}^{2}
+$$
+
+
+<p>其中 $r_i$ 是第 $i$ 个残差项，$\Sigma_i$ 表示该观测的不确定性。不同 SLAM 系统的差别，往往体现在残差怎么设计、变量怎么选、优化图怎么维护。</p>
+<table>
+<thead>
+<tr>
+<th align="left">后端形式</th>
+<th align="left">优化变量</th>
+<th align="left">更适合</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Bundle Adjustment</td>
+<td align="left">相机位姿 + 3D 点</td>
+<td align="left">视觉 SLAM &#x2F; SfM</td>
+</tr>
+<tr>
+<td align="left">Pose Graph Optimization</td>
+<td align="left">位姿节点 + 相对位姿边</td>
+<td align="left">大规模轨迹与回环修正</td>
+</tr>
+<tr>
+<td align="left">Factor Graph</td>
+<td align="left">多类变量 + 多类因子</td>
+<td align="left">VIO、多传感器融合</td>
+</tr>
+<tr>
+<td align="left">Sliding Window Optimization</td>
+<td align="left">最近一段窗口内变量</td>
+<td align="left">实时 VIO &#x2F; 在线系统</td>
+</tr>
+</tbody></table>
+<p>直观地说，前端回答“这两帧怎么对上”，后端回答“所有帧一起看，怎样最一致”。</p>
+<h2 id="5-回环：为什么系统需要记得来过哪里"><a href="#5-回环：为什么系统需要记得来过哪里" class="headerlink" title="5. 回环：为什么系统需要记得来过哪里"></a>5. 回环：为什么系统需要记得来过哪里</h2><p>只靠相邻帧估计位姿，误差会持续累积。机器人走一圈回到原地时，如果系统没有意识到“这里来过”，地图就会出现错位或扭曲。回环检测的作用就是发现这种闭环约束：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">当前观测 ≈ 历史某一地点</span><br><span class="line">        ↓</span><br><span class="line">添加一条长距离约束</span><br><span class="line">        ↓</span><br><span class="line">全局优化修正累计漂移</span><br></pre></td></tr></table></figure>
+
+<p>回环的难点有两个：</p>
+<ul>
+<li><strong>感知别名</strong>：不同地方看起来很像，容易误回环；</li>
+<li><strong>外观变化</strong>：同一地方在光照、季节、动态物体变化后不再相似。</li>
+</ul>
+<p>因此，回环检测既是视觉识别问题，也是几何验证问题。只靠图像相似度不够，通常还需要位姿一致性或几何约束确认。</p>
+<h2 id="6-地图表示：地图不是越密越好"><a href="#6-地图表示：地图不是越密越好" class="headerlink" title="6. 地图表示：地图不是越密越好"></a>6. 地图表示：地图不是越密越好</h2><p>SLAM 输出的地图服务不同任务，因此表示形式也不同：</p>
+<table>
+<thead>
+<tr>
+<th align="left">地图类型</th>
+<th align="left">表达内容</th>
+<th align="left">适合任务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Sparse Landmark Map</td>
+<td align="left">少量稳定特征点</td>
+<td align="left">定位、BA、轻量地图</td>
+</tr>
+<tr>
+<td align="left">Dense Point Cloud</td>
+<td align="left">稠密几何结构</td>
+<td align="left">重建、测绘、可视化</td>
+</tr>
+<tr>
+<td align="left">Occupancy Grid</td>
+<td align="left">空间是否可通行</td>
+<td align="left">导航、避障、规划</td>
+</tr>
+<tr>
+<td align="left">TSDF &#x2F; SDF</td>
+<td align="left">表面距离场</td>
+<td align="left">稠密重建、机器人操作</td>
+</tr>
+<tr>
+<td align="left">Semantic Map</td>
+<td align="left">几何 + 类别语义</td>
+<td align="left">自动驾驶、场景理解</td>
+</tr>
+</tbody></table>
+<p>地图不是越密越好，而是要服务下游任务。自动驾驶更关心可通行空间、道路结构和动态目标；AR&#x2F;重建更关心表面细节；机器人导航更关心障碍物和拓扑连通性。</p>
+<h2 id="7-SLAM-与自动驾驶感知的关系"><a href="#7-SLAM-与自动驾驶感知的关系" class="headerlink" title="7. SLAM 与自动驾驶感知的关系"></a>7. SLAM 与自动驾驶感知的关系</h2><p>SLAM 和现代自动驾驶感知看似分属不同路线，但底层问题是相通的：</p>
+<table>
+<thead>
+<tr>
+<th align="left">SLAM 问题</th>
+<th align="left">自动驾驶对应问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">位姿估计</td>
+<td align="left">ego pose &#x2F; ego motion</td>
+</tr>
+<tr>
+<td align="left">地图构建</td>
+<td align="left">在线 HD map、BEV map、occupancy</td>
+</tr>
+<tr>
+<td align="left">回环一致性</td>
+<td align="left">长时序记忆、跨帧对齐</td>
+</tr>
+<tr>
+<td align="left">多传感器融合</td>
+<td align="left">Camera-LiDAR BEV fusion</td>
+</tr>
+<tr>
+<td align="left">动态物体处理</td>
+<td align="left">tracking、motion prediction、world model</td>
+</tr>
+</tbody></table>
+<p>区别在于，传统 SLAM 更强调几何一致性和定位精度；自动驾驶感知更强调语义、动态交互和规划可用性。近年来的 <a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">BEV 感知</a> 和 <a href="/posts/2026/Geometry_World_Model_Occupancy_Object_Centric_Driving/">4D Geometry &#x2F; World Model</a> 其实是在把 SLAM 的几何思想和深度学习的表示能力重新连接起来。</p>
+<h2 id="8-SLAM-的知识依赖链"><a href="#8-SLAM-的知识依赖链" class="headerlink" title="8. SLAM 的知识依赖链"></a>8. SLAM 的知识依赖链</h2><ol>
+<li><strong>几何基础</strong>：先理解相机模型、对极几何、PnP、三角化，可参考 <a href="/posts/2026/Epipolar_Geometry_Matrix_Methods/">《多视图几何中的矩阵估计与位姿求解》</a>。</li>
+<li><strong>视觉里程计</strong>：理解两帧&#x2F;多帧之间如何通过特征或直接法估计运动。</li>
+<li><strong>后端优化</strong>：理解 BA、Pose Graph、Factor Graph 和滑窗优化。</li>
+<li><strong>回环检测</strong>：理解 place recognition 如何把局部轨迹拉回全局一致。</li>
+<li><strong>地图表示</strong>：比较稀疏地图、稠密点云、occupancy 和语义地图。</li>
+<li><strong>多传感器融合</strong>：再看 VIO、LiDAR-Inertial、Camera-LiDAR fusion。</li>
+<li><strong>与自动驾驶连接</strong>：最后回到 BEV、occupancy、world model，看深度学习如何重新组织空间表示。</li>
+</ol>
+<p>这张 SLAM 知识图谱目前承担主题入口的角色。后续如果继续扩展，ORB-SLAM、VINS、LOAM、LIO-SAM、Cartographer 等代表系统可以各自形成论文笔记，再接入前端、后端、回环和多传感器融合这几条分支。</p>
+
             </div>
 
             
@@ -73,7 +284,7 @@
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9F%A5%E8%AF%86%E5%9B%BE%E8%B0%B1"><span class="toc-text">知识图谱</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9F%A5%E8%AF%86%E5%9B%BE%E8%B0%B1"><span class="toc-text">知识图谱</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-SLAM-%E5%88%B0%E5%BA%95%E5%9C%A8%E8%A7%A3%E4%BB%80%E4%B9%88%E9%97%AE%E9%A2%98"><span class="toc-text">1. SLAM 到底在解什么问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E4%B8%80%E6%9D%A1%E4%B8%BB%E7%BA%BF%EF%BC%9A%E4%BB%8E%E8%A7%82%E6%B5%8B%E5%88%B0%E5%9C%B0%E5%9B%BE"><span class="toc-text">2. 一条主线：从观测到地图</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%89%8D%E7%AB%AF%EF%BC%9A%E6%8A%8A%E8%A7%82%E6%B5%8B%E5%8F%98%E6%88%90%E7%BA%A6%E6%9D%9F"><span class="toc-text">3. 前端：把观测变成约束</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%90%8E%E7%AB%AF%EF%BC%9A%E6%8A%8A%E5%B1%80%E9%83%A8%E7%BA%A6%E6%9D%9F%E5%8F%98%E6%88%90%E5%85%A8%E5%B1%80%E4%B8%80%E8%87%B4"><span class="toc-text">4. 后端：把局部约束变成全局一致</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%9B%9E%E7%8E%AF%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E7%B3%BB%E7%BB%9F%E9%9C%80%E8%A6%81%E8%AE%B0%E5%BE%97%E6%9D%A5%E8%BF%87%E5%93%AA%E9%87%8C"><span class="toc-text">5. 回环：为什么系统需要记得来过哪里</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%9C%B0%E5%9B%BE%E8%A1%A8%E7%A4%BA%EF%BC%9A%E5%9C%B0%E5%9B%BE%E4%B8%8D%E6%98%AF%E8%B6%8A%E5%AF%86%E8%B6%8A%E5%A5%BD"><span class="toc-text">6. 地图表示：地图不是越密越好</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-SLAM-%E4%B8%8E%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6%E6%84%9F%E7%9F%A5%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">7. SLAM 与自动驾驶感知的关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-SLAM-%E7%9A%84%E7%9F%A5%E8%AF%86%E4%BE%9D%E8%B5%96%E9%93%BE"><span class="toc-text">8. SLAM 的知识依赖链</span></a></li></ol>
                         </div>
                     </aside>
                 

@@ -129,7 +129,7 @@ $$\mathbf{p}'_{\text{camera}} = I^{-1}(A^{-1} \cdot \mathbf{p}'_{\text{image}} \
 <h3 id="洞察-3：模块化设计——BEV-范式的可扩展性基础"><a href="#洞察-3：模块化设计——BEV-范式的可扩展性基础" class="headerlink" title="洞察 3：模块化设计——BEV 范式的可扩展性基础"></a>洞察 3：模块化设计——BEV 范式的可扩展性基础</h3><p>BEVDet 的核心设计哲学是<strong>模块化</strong>：每个模块（Image Encoder、View Transformer、BEV Encoder、Head）独立且可替换。这不是技术创新，但是范式选择的深远影响。</p>
 <p><strong>图像视图方法</strong>（FCOS3D）：检测在图像坐标系完成，难以感知 BEV 空间的尺度&#x2F;朝向&#x2F;速度<br><strong>BEVDet</strong>：检测在 BEV 坐标系完成，天然适合感知这些在 BEV 空间有清晰几何含义的属性</p>
 <p>BEVDet 在预测位移（ATE）、尺度（ASE）、朝向（AOE）、速度（AVE）上均显著优于 FCOS3D，仅在属性预测（AAE）上稍弱（属性依赖外观线索，图像视图更擅长）。更重要的是，模块化设计使 BEVDet 成为<strong>可持续演进的框架</strong>——后续的 BEVDet4D（时序融合）、BEVDepth（深度监督）、BEVPoolv2（部署优化）都是在此基础上替换或增强单个模块。</p>
-<p><strong>要记住的 3 个数字</strong>：</p>
+<p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>39.3% mAP &#x2F; 47.2% NDS</strong>：BEVDet-Base 在 nuScenes val 上达到的 SOTA 性能，超 PGD 达 +5.8% mAP &#x2F; +6.3% NDS</li>
 <li><strong>15.6 FPS</strong>：BEVDet-Tiny 的推理速度，是 FCOS3D（1.7 FPS）的 9.2 倍</li>
