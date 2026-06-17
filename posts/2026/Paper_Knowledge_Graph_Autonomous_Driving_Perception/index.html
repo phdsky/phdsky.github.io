@@ -87,7 +87,7 @@
 <li>🩵 <strong>青色</strong>：Transformer Query 系 + 矢量化建图（DETR3D → PETR → Sparse4D → StreamPETR；BEVFormer；HDMapNet → VectorMapNet → MapTR → MapTRv2）</li>
 <li>🔵 <strong>蓝色</strong>：3D 语义占用预测（Mask2Former → OccFormer）</li>
 <li>🟣 <strong>紫色</strong>：端到端自动驾驶（UniAD → VAD &#x2F; VADv2 → SparseDrive 系列 → DiffusionDrive）</li>
-<li>🟫 <strong>棕色</strong>：视觉几何与 4D 几何（VGGT → D4RT &#x2F; DVGT → DVGT-2）</li>
+<li>🟫 <strong>棕色</strong>：视觉几何与 4D 几何（VGGT → D4RT &#x2F; DVGT 系列）</li>
 <li>⚫ <strong>蓝灰色</strong>：驾驶世界模型（GAIA-1 → DriveDreamer；OccWorld → Drive-OccWorld；UniWorld → DriveWorld）</li>
 <li>🩷 <strong>粉色</strong>：车道线检测分支（LaneAF）</li>
 <li><strong>实线</strong>：直接继承&#x2F;改进关系  |  <strong>虚线</strong>：对比&#x2F;互补关系</li>
@@ -268,9 +268,9 @@
 <td align="left">分解式词表（path×velocity 26 万候选）+ 粗到细层级评分，92.0 PDMS &#x2F; 90.1 EPDMS</td>
 </tr>
 </tbody></table>
-<h3 id="路线七：世界模型与几何表示（GAIA-1-OccWorld-VGGT-→-DVGT）"><a href="#路线七：世界模型与几何表示（GAIA-1-OccWorld-VGGT-→-DVGT）" class="headerlink" title="路线七：世界模型与几何表示（GAIA-1 &#x2F; OccWorld &#x2F; VGGT → DVGT）"></a>路线七：世界模型与几何表示（GAIA-1 &#x2F; OccWorld &#x2F; VGGT → DVGT）</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">GAIA-1 (2023) → DriveDreamer (2024)</span><br><span class="line"></span><br><span class="line">OccFormer (2023) → OccWorld (2024) → Drive-OccWorld (2025)</span><br><span class="line"></span><br><span class="line">UniWorld (2023) → DriveWorld (2024)</span><br><span class="line"></span><br><span class="line">VGGT (2025) → DVGT (2025) → DVGT-2 (2026)</span><br><span class="line">       └────→ D4RT (2025) [dynamic 4D reconstruction]</span><br></pre></td></tr></table></figure>
+<h3 id="路线七：世界模型与几何表示（GAIA-1-OccWorld-VGGT-→-DVGT）"><a href="#路线七：世界模型与几何表示（GAIA-1-OccWorld-VGGT-→-DVGT）" class="headerlink" title="路线七：世界模型与几何表示（GAIA-1 &#x2F; OccWorld &#x2F; VGGT → DVGT）"></a>路线七：世界模型与几何表示（GAIA-1 &#x2F; OccWorld &#x2F; VGGT → DVGT）</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">GAIA-1 (2023) → DriveDreamer (2024)</span><br><span class="line"></span><br><span class="line">OccFormer (2023) → OccWorld (2024) → Drive-OccWorld (2025)</span><br><span class="line"></span><br><span class="line">UniWorld (2023) → DriveWorld (2024)</span><br><span class="line"></span><br><span class="line">VGGT (2025) → DVGT 系列 (2025-2026)</span><br><span class="line">       └────→ D4RT (2025) [dynamic 4D reconstruction]</span><br></pre></td></tr></table></figure>
 
-<p>这条路线补充了传统感知与端到端规划之间的“世界状态”问题。<strong>GAIA-1</strong> 和 <strong>DriveDreamer</strong> 把 world model 推向可控驾驶视频生成；<strong>OccWorld</strong> 和 <strong>Drive-OccWorld</strong> 把未来演化放到 3D &#x2F; 4D occupancy 空间中，使预测结果更容易转成规划代价；<strong>UniWorld</strong> 和 <strong>DriveWorld</strong> 把 world model 用作预训练目标，强调 4D scene understanding；<strong>VGGT &#x2F; D4RT &#x2F; DVGT &#x2F; DVGT-2</strong> 则代表几何路线：从通用 3D 几何、动态 4D 重建，走向驾驶多相机几何和在线规划。</p>
+<p>这条路线补充了传统感知与端到端规划之间的“世界状态”问题。<strong>GAIA-1</strong> 和 <strong>DriveDreamer</strong> 把 world model 推向可控驾驶视频生成；<strong>OccWorld</strong> 和 <strong>Drive-OccWorld</strong> 把未来演化放到 3D &#x2F; 4D occupancy 空间中，使预测结果更容易转成规划代价；<strong>UniWorld</strong> 和 <strong>DriveWorld</strong> 把 world model 用作预训练目标，强调 4D scene understanding；<strong>VGGT &#x2F; D4RT &#x2F; DVGT 系列</strong> 则代表几何路线：从通用 3D 几何、动态 4D 重建，走向驾驶多相机几何和在线规划。</p>
 <table>
 <thead>
 <tr>
@@ -306,7 +306,7 @@
 </tr>
 <tr>
 <td align="center">视觉几何</td>
-<td align="center"><strong>VGGT &#x2F; D4RT &#x2F; DVGT &#x2F; DVGT-2</strong></td>
+<td align="center"><strong>VGGT &#x2F; D4RT &#x2F; DVGT 系列</strong></td>
 <td align="left">从通用视觉几何到驾驶 dense geometry，再到 VGA 在线规划</td>
 </tr>
 </tbody></table>
@@ -409,7 +409,7 @@
 <li><strong>OccWorld</strong> → <strong>Drive-OccWorld</strong> — 理解 occupancy world model 如何从未来占用预测走向规划代价</li>
 <li><strong>GAIA-1</strong> → <strong>DriveDreamer</strong> — 理解可控驾驶视频生成路线</li>
 <li><strong>UniWorld</strong> → <strong>DriveWorld</strong> — 理解 world model 如何成为 4D 预训练目标</li>
-<li><strong>VGGT</strong> → <strong>D4RT</strong> → <strong>DVGT</strong> → <strong>DVGT-2</strong> — 理解视觉几何从通用 3D、动态 4D 走向驾驶在线规划</li>
+<li><strong>VGGT</strong> → <strong>D4RT</strong> → <strong>DVGT 系列</strong> — 理解视觉几何从通用 3D、动态 4D 走向驾驶 dense geometry 与在线规划</li>
 <li><strong>LaneAF</strong> — 了解车道线检测的不同思路</li>
 </ol>
 <blockquote>

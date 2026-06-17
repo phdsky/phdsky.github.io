@@ -124,6 +124,25 @@ downstream driving tasks
 </pre>
 </div>
 
+<p>更细地看，DriveWorld 的 Memory State-Space Model 把“动态”和“静态”拆成两条互相补充的记忆路径：</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+DriveWorld detailed architecture
+
+<p>Input sequence:<br>  multi-frame driving observations<br>  task prompt for downstream adaptation</p>
+<pre><code>    ┌────────────────────────────────────────────┐
+    │  1. Visual / Scene Encoder                 │
+    │  frames -&gt; scene tokens                    │
+    │  encode agents, road layout, context       │
+    └────────────────────────────────────────────┘
+                     │
+       ┌─────────────┴─────────────┐
+       ▼                           ▼
+</code></pre>
+<p>┌──────────────────────┐     ┌────────────────────────┐<br>│ Dynamic Memory Bank  │     │ Static Scene Propagation│<br>│ temporal latent flow │     │ stable road&#x2F;background  │<br>│ motion and evolution │     │ spatial layout memory   │<br>└──────────────────────┘     └────────────────────────┘<br>           │                           │<br>           └─────────────┬─────────────┘<br>                         ▼<br>        ┌────────────────────────────────────────────┐<br>        │  2. Memory State-Space Fusion              │<br>        │  combine dynamic state + static scene      │<br>        │  form 4D driving representation            │<br>        └────────────────────────────────────────────┘<br>                         │<br>                         ▼<br>        ┌────────────────────────────────────────────┐<br>        │  3. Task Prompt Adapter                    │<br>        │  task-conditioned decoding                 │<br>        │  detection &#x2F; motion &#x2F; scene understanding  │<br>        └────────────────────────────────────────────┘<br></pre></p>
+</div>
+
+<p>这张图里最重要的是分工：动态 memory 负责“什么在变”，静态传播负责“什么应保持稳定”，task prompt 再告诉同一套 4D 表示当前要服务哪个下游任务。这样 DriveWorld 才能避免每个任务单独训练一套割裂的时序模型。</p>
 <h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
 <thead>
 <tr>
@@ -158,6 +177,41 @@ $$
 
 
 <p>其中 static latent 保留空间背景和道路约束，dynamic latent 建模运动变化，task prompt 再把统一表示引导到具体任务。这样设计的好处是：预训练目标和下游任务之间不再完全断裂。</p>
+<h3 id="4-4-Task-Prompt-的接口作用"><a href="#4-4-Task-Prompt-的接口作用" class="headerlink" title="4.4 Task Prompt 的接口作用"></a>4.4 Task Prompt 的接口作用</h3><p>DriveWorld 的 task prompt 不是装饰性的任务名，而是让同一个 4D 表示适配不同输出接口。没有这个条件信号，模型容易退化成“统一 backbone + 多个 head”的普通多任务结构。</p>
+<table>
+<thead>
+<tr>
+<th align="left">Prompt 作用</th>
+<th align="left">对应任务</th>
+<th align="left">为什么需要</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">指定静态结构输出</td>
+<td align="left">map &#x2F; scene layout</td>
+<td align="left">强调道路拓扑和背景稳定性</td>
+</tr>
+<tr>
+<td align="left">指定动态行为输出</td>
+<td align="left">motion prediction</td>
+<td align="left">强调 agent 状态和时间演化</td>
+</tr>
+<tr>
+<td align="left">指定空间理解输出</td>
+<td align="left">3D perception &#x2F; occupancy</td>
+<td align="left">强调几何与语义对齐</td>
+</tr>
+<tr>
+<td align="left">指定下游适配方式</td>
+<td align="left">fine-tuning tasks</td>
+<td align="left">避免每个任务重新学习一套时序表示</td>
+</tr>
+</tbody></table>
+<p>换句话说，DriveWorld 的核心不是“记忆模块越多越好”，而是动态记忆、静态传播和 task prompt 三者共同把 4D scene understanding 变成可复用的预训练接口。</p>
+<h3 id="4-5-训练和下游适配的信息流"><a href="#4-5-训练和下游适配的信息流" class="headerlink" title="4.5 训练和下游适配的信息流"></a>4.5 训练和下游适配的信息流</h3><p>DriveWorld 的信息流可以拆成“先学世界状态，再按任务读取状态”：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">pre-training:</span><br><span class="line">  multi-frame driving observations</span><br><span class="line">        -&gt; dynamic memory + static propagation</span><br><span class="line">        -&gt; 4D scene representation</span><br><span class="line"></span><br><span class="line">task adaptation:</span><br><span class="line">  4D scene representation + task prompt</span><br><span class="line">        -&gt; task-conditioned features</span><br><span class="line">        -&gt; detection / mapping / prediction / planning</span><br></pre></td></tr></table></figure>
+
+<p>这样设计的重点，是避免每个下游任务重新学习一遍时序世界。dynamic memory 负责把历史变化带进表示，static propagation 负责保持道路结构稳定，task prompt 负责把同一表示读成不同任务需要的信息。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文报告在 OpenScene 预训练后，DriveWorld 在多个下游自动驾驶任务上提升，包括 3D detection、online mapping、tracking、motion forecasting、occupancy prediction 和 planning。</p>
 <p>这些实验的价值在于覆盖了“静态结构”和“动态行为”两类任务：</p>
 <table>
@@ -192,6 +246,32 @@ $$
 <td align="left">表征是否能服务决策</td>
 </tr>
 </tbody></table>
+<p>这组任务覆盖面很宽，所以读实验时不要只盯住某一个分数，而要看三类能力是否同时被验证：</p>
+<table>
+<thead>
+<tr>
+<th align="left">能力</th>
+<th align="left">对应实验信号</th>
+<th align="left">若缺失会怎样</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">空间结构理解</td>
+<td align="left">detection、online mapping、occupancy</td>
+<td align="left">4D 表示只会记动态，缺少道路约束</td>
+</tr>
+<tr>
+<td align="left">时间动态理解</td>
+<td align="left">tracking、motion forecasting</td>
+<td align="left">memory 模块无法证明自己学到演化</td>
+</tr>
+<tr>
+<td align="left">决策相关性</td>
+<td align="left">planning</td>
+<td align="left">预训练表示停留在感知侧，未进入驾驶闭环</td>
+</tr>
+</tbody></table>
+<p>DriveWorld 的实验设计因此比普通 backbone 预训练更接近自动驾驶系统评估：它不只问“特征是否更强”，还问“这个特征是否同时服务静态结构、动态行为和规划接口”。</p>
 <p>因此，DriveWorld 的实验证据不是单一任务涨点，而是试图证明 4D pre-training 可以成为多任务驾驶表征的公共底座。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
@@ -222,7 +302,7 @@ $$
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6%E9%A2%84%E8%AE%AD%E7%BB%83%E5%BA%94%E6%98%BE%E5%BC%8F%E5%BB%BA%E6%A8%A1%E6%97%B6%E9%97%B4"><span class="toc-text">洞察 1：自动驾驶预训练应显式建模时间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%8A%A8%E6%80%81%E5%92%8C%E9%9D%99%E6%80%81%E4%BF%A1%E6%81%AF%E9%9C%80%E8%A6%81%E5%88%86%E5%B7%A5"><span class="toc-text">洞察 2：动态和静态信息需要分工</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9ATask-Prompt-%E5%B8%AE%E5%8A%A9%E7%BB%9F%E4%B8%80%E9%A2%84%E8%AE%AD%E7%BB%83%E9%80%82%E9%85%8D%E5%A4%9A%E4%BB%BB%E5%8A%A1"><span class="toc-text">洞察 3：Task Prompt 帮助统一预训练适配多任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%8A%A8%E6%80%81-%E9%9D%99%E6%80%81%E8%AE%B0%E5%BF%86%E7%9A%84%E4%BD%9C%E7%94%A8%E9%93%BE"><span class="toc-text">4.3 动态&#x2F;静态记忆的作用链</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6%E9%A2%84%E8%AE%AD%E7%BB%83%E5%BA%94%E6%98%BE%E5%BC%8F%E5%BB%BA%E6%A8%A1%E6%97%B6%E9%97%B4"><span class="toc-text">洞察 1：自动驾驶预训练应显式建模时间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E5%8A%A8%E6%80%81%E5%92%8C%E9%9D%99%E6%80%81%E4%BF%A1%E6%81%AF%E9%9C%80%E8%A6%81%E5%88%86%E5%B7%A5"><span class="toc-text">洞察 2：动态和静态信息需要分工</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9ATask-Prompt-%E5%B8%AE%E5%8A%A9%E7%BB%9F%E4%B8%80%E9%A2%84%E8%AE%AD%E7%BB%83%E9%80%82%E9%85%8D%E5%A4%9A%E4%BB%BB%E5%8A%A1"><span class="toc-text">洞察 3：Task Prompt 帮助统一预训练适配多任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%8A%A8%E6%80%81-%E9%9D%99%E6%80%81%E8%AE%B0%E5%BF%86%E7%9A%84%E4%BD%9C%E7%94%A8%E9%93%BE"><span class="toc-text">4.3 动态&#x2F;静态记忆的作用链</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-Task-Prompt-%E7%9A%84%E6%8E%A5%E5%8F%A3%E4%BD%9C%E7%94%A8"><span class="toc-text">4.4 Task Prompt 的接口作用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E8%AE%AD%E7%BB%83%E5%92%8C%E4%B8%8B%E6%B8%B8%E9%80%82%E9%85%8D%E7%9A%84%E4%BF%A1%E6%81%AF%E6%B5%81"><span class="toc-text">4.5 训练和下游适配的信息流</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
                         </div>
                     </aside>
                 

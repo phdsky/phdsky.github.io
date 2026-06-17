@@ -131,6 +131,44 @@ action-conditioned world decoder
 </pre>
 </div>
 
+<p>Drive-OccWorld 比 OccWorld 多走了一步：未来 occupancy 不只是被预测出来，还要在候选动作条件下转成规划代价。</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+Drive-OccWorld detailed architecture
+
+<p>Input:<br>  multi-view camera history<br>  candidate ego actions &#x2F; trajectories<br>  semantic and motion context</p>
+<pre><code>    ┌──────────────────────────────────────────┐
+    │  1. History Encoder                      │
+    │  images -&gt; historical BEV embeddings     │
+    │  preserve multi-frame scene context      │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  2. Conditional Memory Aggregation       │
+    │  semantic-conditioned normalization      │
+    │  motion-conditioned normalization        │
+    │  align static layout and moving agents   │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  3. Action-conditioned World Decoder     │
+    │  for each candidate ego action           │
+    │  predict future occupancy and flow       │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  4. Occupancy-based Planning Cost        │
+    │  collision / drivable / dynamic risk     │
+    │  choose lower-cost trajectory            │
+    └──────────────────────────────────────────┘
+</code></pre>
+<p></pre></p>
+</div>
+
+<p>这里的 action condition 是关键：world model 不再只回答“未来会怎样”，而是回答“如果 ego 这么开，未来 occupancy 和 flow 会怎样”。规划器比较的也不只是轨迹几何，而是轨迹诱发的未来空间风险。</p>
 <h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
 <thead>
 <tr>
@@ -159,6 +197,41 @@ action-conditioned world decoder
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">history BEV memory</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned future occupancy / flow</span><br><span class="line">        ↓</span><br><span class="line">occupancy-based cost</span><br><span class="line">        ↓</span><br><span class="line">trajectory selection</span><br></pre></td></tr></table></figure>
 
 <p>其中，occupancy 提供未来空间约束，flow 提供动态演化线索，action condition 让系统可以比较多个候选动作的未来后果。</p>
+<h3 id="4-4-cost-的信息来源"><a href="#4-4-cost-的信息来源" class="headerlink" title="4.4 cost 的信息来源"></a>4.4 cost 的信息来源</h3><p>Drive-OccWorld 的 planning cost 不是一个孤立规则，而是来自 action-conditioned future occupancy &#x2F; flow。它把候选动作放进世界模型中，让每条候选轨迹都有对应的未来空间风险。</p>
+<table>
+<thead>
+<tr>
+<th align="left">信息</th>
+<th align="left">来自哪里</th>
+<th align="left">影响哪类代价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Future occupancy</td>
+<td align="left">world decoder</td>
+<td align="left">碰撞风险、可通行性</td>
+</tr>
+<tr>
+<td align="left">Future flow</td>
+<td align="left">motion forecasting branch</td>
+<td align="left">动态障碍物接近速度</td>
+</tr>
+<tr>
+<td align="left">Semantic memory</td>
+<td align="left">conditional memory</td>
+<td align="left">不同类别空间风险</td>
+</tr>
+<tr>
+<td align="left">Ego action condition</td>
+<td align="left">candidate trajectory</td>
+<td align="left">反事实未来演化</td>
+</tr>
+</tbody></table>
+<p>因此 Drive-OccWorld 比 OccWorld 更接近闭环规划：OccWorld 证明 occupancy 可以作为未来 world state，Drive-OccWorld 则把“不同 ego action 下的 future occupancy”转成轨迹选择依据。</p>
+<h3 id="4-5-反事实未来的信息流"><a href="#4-5-反事实未来的信息流" class="headerlink" title="4.5 反事实未来的信息流"></a>4.5 反事实未来的信息流</h3><p>Drive-OccWorld 的关键是把候选动作放进世界模型，而不是只在模型输出之后再打分：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">history multi-view observations</span><br><span class="line">        ↓</span><br><span class="line">BEV history memory</span><br><span class="line">        ↓</span><br><span class="line">candidate ego action / trajectory</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned occupancy and flow decoder</span><br><span class="line">        ↓</span><br><span class="line">future occupancy / flow under this action</span><br><span class="line">        ↓</span><br><span class="line">planning cost and trajectory ranking</span><br></pre></td></tr></table></figure>
+
+<p>这个信息流让 world model 具备反事实能力：同一段历史下，不同 ego action 会对应不同未来 occupancy &#x2F; flow。规划器真正需要的正是这种“如果我这样开，世界会怎样变化”的接口。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes、nuScenes-Occupancy 和 Lyft-Level5 上评估 4D occupancy generation 与 planning。关键结论是：world model 的生成能力可以和规划结合，但生成目标需要贴近几何和碰撞约束。</p>
 <p>实验可以按两条线理解：</p>
 <table>
@@ -177,6 +250,10 @@ action-conditioned world decoder
 <td align="left">预测出的未来状态是否能改善轨迹选择</td>
 </tr>
 </tbody></table>
+<p>两条评估线之间的连接，是 Drive-OccWorld 最值得记住的地方：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">candidate ego action</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned future occupancy / flow</span><br><span class="line">        ↓</span><br><span class="line">occupancy-based planning cost</span><br><span class="line">        ↓</span><br><span class="line">trajectory ranking</span><br></pre></td></tr></table></figure>
+
+<p>这个链条使实验不再只是“未来预测准不准”，而是进一步追问“预测结果是否会改变动作选择”。如果 action condition 只是作为额外输入，却没有影响未来 occupancy 或 planning cost，那么方法就不能真正称为 action-conditioned world model。</p>
 <p>如果只看第一条线，Drive-OccWorld 是 occupancy forecasting；只有加上第二条线，它才真正体现“world model via planning”的价值。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
@@ -207,7 +284,7 @@ action-conditioned world decoder
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%8E%86%E5%8F%B2-BEV-memory-%E9%9C%80%E8%A6%81%E8%AF%AD%E4%B9%89%E5%92%8C%E8%BF%90%E5%8A%A8%E6%9D%A1%E4%BB%B6%E5%8C%96"><span class="toc-text">洞察 1：历史 BEV memory 需要语义和运动条件化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Aaction-condition-%E8%AE%A9-world-model-%E5%8F%AF%E6%8E%A7"><span class="toc-text">洞察 2：action condition 让 world model 可控</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A4D-occupancy-%E5%8F%AF%E4%BB%A5%E7%9B%B4%E6%8E%A5%E6%8E%A5%E8%A7%84%E5%88%92%E4%BB%A3%E4%BB%B7"><span class="toc-text">洞察 3：4D occupancy 可以直接接规划代价</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%BB%8E%E9%A2%84%E6%B5%8B%E5%88%B0%E8%A7%84%E5%88%92%E7%9A%84%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.3 从预测到规划的接口</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%8E%86%E5%8F%B2-BEV-memory-%E9%9C%80%E8%A6%81%E8%AF%AD%E4%B9%89%E5%92%8C%E8%BF%90%E5%8A%A8%E6%9D%A1%E4%BB%B6%E5%8C%96"><span class="toc-text">洞察 1：历史 BEV memory 需要语义和运动条件化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Aaction-condition-%E8%AE%A9-world-model-%E5%8F%AF%E6%8E%A7"><span class="toc-text">洞察 2：action condition 让 world model 可控</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A4D-occupancy-%E5%8F%AF%E4%BB%A5%E7%9B%B4%E6%8E%A5%E6%8E%A5%E8%A7%84%E5%88%92%E4%BB%A3%E4%BB%B7"><span class="toc-text">洞察 3：4D occupancy 可以直接接规划代价</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%BB%8E%E9%A2%84%E6%B5%8B%E5%88%B0%E8%A7%84%E5%88%92%E7%9A%84%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.3 从预测到规划的接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-cost-%E7%9A%84%E4%BF%A1%E6%81%AF%E6%9D%A5%E6%BA%90"><span class="toc-text">4.4 cost 的信息来源</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E5%8F%8D%E4%BA%8B%E5%AE%9E%E6%9C%AA%E6%9D%A5%E7%9A%84%E4%BF%A1%E6%81%AF%E6%B5%81"><span class="toc-text">4.5 反事实未来的信息流</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
                         </div>
                     </aside>
                 

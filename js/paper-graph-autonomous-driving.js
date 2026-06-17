@@ -55,7 +55,7 @@
       { id: 'vggt', label: 'VGGT\n(CVPR 2025)', color: '#795548', font: { color: '#fff' }, url: '/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/', x: 760, y: 120 },
       { id: 'd4rt', label: 'D4RT\n(arXiv 2025)', color: '#795548', font: { color: '#fff' }, url: '/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/', x: 920, y: 120 },
       { id: 'dvgt', label: 'DVGT\n(arXiv 2025)', color: '#795548', font: { color: '#fff' }, url: '/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/', x: 760, y: 300 },
-      { id: 'dvgt2', label: 'DVGT-2\n(arXiv 2026)', color: '#795548', font: { color: '#fff' }, url: '/posts/2026/papers/2026_arXiv_DVGT2_Vision_Geometry_Action_Autonomous_Driving/', x: 920, y: 300 },
+      { id: 'dvgt2', label: 'DVGT-2\n(series)', color: '#795548', font: { color: '#fff' }, url: '/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/', x: 920, y: 300 },
       { id: 'occworld', label: 'OccWorld\n(ECCV 2024)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/', x: -20, y: 640 },
       { id: 'driveoccworld', label: 'Drive-OccWorld\n(AAAI 2025)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/', x: -160, y: 760 },
       { id: 'gaia1', label: 'GAIA-1\n(arXiv 2023)', color: '#607d8b', font: { color: '#fff' }, url: '/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/', x: 620, y: 640 },

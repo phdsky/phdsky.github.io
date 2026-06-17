@@ -99,6 +99,43 @@ spatial-temporal world representation
 </pre>
 </div>
 
+<p>把这条链拆开，UniWorld 的架构重点在于“用 LiDAR 构造几何监督，用图像学习可迁移表示”：</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+UniWorld detailed pre-training pipeline
+
+<p>Raw data:<br>  synchronized images<br>  paired LiDAR sweeps<br>  no expensive task-specific 3D labels</p>
+<pre><code>    ┌─────────────────────────────────────────┐
+    │  1. Image Encoder                       │
+    │  multi-view images -&gt; visual features   │
+    │  learn appearance + camera context      │
+    └─────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  2. 4D Occupancy Target Construction    │
+    │  LiDAR pairs -&gt; geometric occupancy     │
+    │  space + time as pre-training state     │
+    └─────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  3. World Representation Learning       │
+    │  predict 4D geometric occupancy         │
+    │  align image features with world state  │
+    └─────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  4. Downstream Transfer                 │
+    │  detection / motion / scene completion  │
+    │  reuse pre-trained world features       │
+    └─────────────────────────────────────────┘
+</code></pre>
+<p></pre></p>
+</div>
+
+<p>这套设计和视频生成式 world model 的差别很明显：UniWorld 不追求输出“看起来像未来”的 RGB 视频，而是让模型先学会空间占用和时间演化。它把 world model 当成预训练任务，而不是直接当成规划器或渲染器。</p>
 <h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
 <thead>
 <tr>
@@ -149,6 +186,41 @@ spatial-temporal world representation
 </tr>
 </tbody></table>
 <p>这三层共同构成“world model as pretraining”的核心：不是把世界模型作为最终输出，而是作为训练模型理解世界的中间任务。</p>
+<h3 id="4-4-label-free-监督为什么成立"><a href="#4-4-label-free-监督为什么成立" class="headerlink" title="4.4 label-free 监督为什么成立"></a>4.4 label-free 监督为什么成立</h3><p>UniWorld 的 label-free 不是“没有监督”，而是监督来自图像与 LiDAR 的几何配对关系，而不是人工 3D 框、人工 occupancy 或人工轨迹标注。</p>
+<table>
+<thead>
+<tr>
+<th align="left">信号来源</th>
+<th align="left">构造出的监督</th>
+<th align="left">学到的能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Image-LiDAR pair</td>
+<td align="left">当前空间占用状态</td>
+<td align="left">图像特征与 3D 空间对齐</td>
+</tr>
+<tr>
+<td align="left">多帧序列</td>
+<td align="left">4D occupancy &#x2F; temporal change</td>
+<td align="left">时间演化和动态结构</td>
+</tr>
+<tr>
+<td align="left">缺失区域预测</td>
+<td align="left">被遮挡或未来状态估计</td>
+<td align="left">世界补全能力</td>
+</tr>
+<tr>
+<td align="left">下游微调</td>
+<td align="left">detection &#x2F; motion &#x2F; completion loss</td>
+<td align="left">任务适配能力</td>
+</tr>
+</tbody></table>
+<p>这套监督的优势是可扩展：只要车队采集图像和 LiDAR，就能持续构造预训练目标。限制也同样清楚：预训练目标仍依赖传感器覆盖和几何投影质量，若 LiDAR 稀疏或时间同步不准，world representation 会带入系统误差。</p>
+<h3 id="4-5-预训练到下游的接口"><a href="#4-5-预训练到下游的接口" class="headerlink" title="4.5 预训练到下游的接口"></a>4.5 预训练到下游的接口</h3><p>UniWorld 的关键不是把 occupancy 当作最终任务，而是把它作为预训练时的世界状态接口。训练阶段用 image-LiDAR pair 构造 4D occupancy 监督；迁移阶段保留视觉 backbone，再接不同任务 head。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">pre-training:</span><br><span class="line">  image sequence + LiDAR-derived geometry</span><br><span class="line">        -&gt; 4D occupancy objective</span><br><span class="line">        -&gt; world-aware visual representation</span><br><span class="line"></span><br><span class="line">fine-tuning:</span><br><span class="line">  image sequence</span><br><span class="line">        -&gt; pretrained representation</span><br><span class="line">        -&gt; detection / motion / completion head</span><br></pre></td></tr></table></figure>
+
+<p>这种分工使 UniWorld 和纯 occupancy 方法不同：occupancy 在这里是“教模型理解世界”的老师，而不是部署时必须保留的唯一输出形式。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上报告了相对 monocular pre-training 的多任务改进：motion prediction、3D object detection 和 semantic scene completion 均获得提升，并指出可降低 3D training annotation costs。</p>
 <p>这些实验不应只用单个任务涨点衡量，更关键的是它是否支撑“统一预训练”的主张：</p>
 <table>
@@ -175,6 +247,10 @@ spatial-temporal world representation
 <td align="left">label-free pre-training 是否减少人工 3D 标注依赖</td>
 </tr>
 </tbody></table>
+<p>可以把 UniWorld 的实验看成一条从“几何监督”到“任务迁移”的证据链：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">image-LiDAR pair</span><br><span class="line">        ↓</span><br><span class="line">label-free 4D occupancy pre-training</span><br><span class="line">        ↓</span><br><span class="line">shared driving representation</span><br><span class="line">        ↓</span><br><span class="line">motion / detection / completion improvement</span><br></pre></td></tr></table></figure>
+
+<p>这条链路成立，才说明 4D occupancy 不是一个孤立的中间输出，而是一种能迁移到多个驾驶任务的表征学习目标。反过来，如果只在 semantic scene completion 上有效，却不能迁移到 detection 或 motion prediction，那么 UniWorld 的主张就会退化成“占用补全预训练”，而不是“统一驾驶世界预训练”。</p>
 <p>因此，UniWorld 的实验重点不是某个 benchmark 的单点 SOTA，而是同一预训练目标能否跨任务稳定带来收益。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
@@ -209,7 +285,7 @@ spatial-temporal world representation
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9Aoccupancy-grid-%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BA%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B%E7%8A%B6%E6%80%81"><span class="toc-text">洞察 1：occupancy grid 可以作为世界模型状态</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Alabel-free-image-LiDAR-pairs-%E5%8F%AF%E4%BB%A5%E6%94%AF%E6%92%91%E9%A2%84%E8%AE%AD%E7%BB%83"><span class="toc-text">洞察 2：label-free image-LiDAR pairs 可以支撑预训练</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E5%90%8C%E4%B8%80%E9%A2%84%E8%AE%AD%E7%BB%83%E8%A1%A8%E7%A4%BA%E5%8F%AF%E4%BB%A5%E8%BF%81%E7%A7%BB%E5%88%B0%E5%A4%9A%E4%BB%BB%E5%8A%A1"><span class="toc-text">洞察 3：同一预训练表示可以迁移到多任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E9%A2%84%E8%AE%AD%E7%BB%83%E9%80%BB%E8%BE%91"><span class="toc-text">4.3 预训练逻辑</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9Aoccupancy-grid-%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BA%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B%E7%8A%B6%E6%80%81"><span class="toc-text">洞察 1：occupancy grid 可以作为世界模型状态</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Alabel-free-image-LiDAR-pairs-%E5%8F%AF%E4%BB%A5%E6%94%AF%E6%92%91%E9%A2%84%E8%AE%AD%E7%BB%83"><span class="toc-text">洞察 2：label-free image-LiDAR pairs 可以支撑预训练</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E5%90%8C%E4%B8%80%E9%A2%84%E8%AE%AD%E7%BB%83%E8%A1%A8%E7%A4%BA%E5%8F%AF%E4%BB%A5%E8%BF%81%E7%A7%BB%E5%88%B0%E5%A4%9A%E4%BB%BB%E5%8A%A1"><span class="toc-text">洞察 3：同一预训练表示可以迁移到多任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E9%A2%84%E8%AE%AD%E7%BB%83%E9%80%BB%E8%BE%91"><span class="toc-text">4.3 预训练逻辑</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-label-free-%E7%9B%91%E7%9D%A3%E4%B8%BA%E4%BB%80%E4%B9%88%E6%88%90%E7%AB%8B"><span class="toc-text">4.4 label-free 监督为什么成立</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E9%A2%84%E8%AE%AD%E7%BB%83%E5%88%B0%E4%B8%8B%E6%B8%B8%E7%9A%84%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.5 预训练到下游的接口</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
                         </div>
                     </aside>
                 

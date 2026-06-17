@@ -129,6 +129,42 @@ GPT-like spatial-temporal transformer
 </pre>
 </div>
 
+<p>OccWorld 的核心不是“把 occupancy 做成另一个预测头”，而是先把 3D occupancy 压成离散 token，再像语言模型一样预测未来 token 序列：</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+OccWorld detailed architecture
+
+<p>Input world state:<br>  current &#x2F; historical 3D occupancy<br>  semantic occupancy grid if available<br>  ego context</p>
+<pre><code>    ┌─────────────────────────────────────────┐
+    │  1. Scene Tokenizer                     │
+    │  3D occupancy -&gt; discrete scene tokens  │
+    │  compress spatial occupancy structure   │
+    └─────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  2. Spatial-Temporal Token Sequence     │
+    │  token order encodes space and time     │
+    │  represent world state as sequence      │
+    └─────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  3. GPT-like Generative Transformer     │
+    │  autoregressively model future tokens   │
+    │  learn occupancy world dynamics         │
+    └─────────────────────────────────────────┘
+              │                       │
+              ▼                       ▼
+    ┌───────────────────┐   ┌──────────────────────┐
+    │ Occupancy Decoder │   │ Ego Trajectory Head   │
+    │ future 3D voxels  │   │ future ego motion     │
+    └───────────────────┘   └──────────────────────┘
+</code></pre>
+<p></pre></p>
+</div>
+
+<p>这张图解释了 OccWorld 为什么更接近 world model：它不是只预测下一帧 occupancy，而是把空间状态离散成 token 后学习时空演化规律。未来 occupancy 和 ego trajectory 共享同一个生成式场景状态。</p>
 <h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
 <thead>
 <tr>
@@ -157,6 +193,41 @@ GPT-like spatial-temporal transformer
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">3D occupancy volume</span><br><span class="line">        ↓</span><br><span class="line">discrete scene tokens</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal generation</span><br><span class="line">        ↓</span><br><span class="line">future occupancy volume</span><br></pre></td></tr></table></figure>
 
 <p>这条链路的关键不是“离散化”本身，而是让 occupancy world model 可以借用语言模型式的序列建模能力。</p>
+<h3 id="4-4-occupancy-token-与规划接口"><a href="#4-4-occupancy-token-与规划接口" class="headerlink" title="4.4 occupancy token 与规划接口"></a>4.4 occupancy token 与规划接口</h3><p>OccWorld 的 occupancy token 不是普通压缩编码，它的下游价值在于能重新解码为空间状态，再和规划风险发生关系。</p>
+<table>
+<thead>
+<tr>
+<th align="left">接口</th>
+<th align="left">作用</th>
+<th align="left">对规划的意义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Current occupancy token</td>
+<td align="left">表示当前 3D 空间状态</td>
+<td align="left">提供 world state 初值</td>
+</tr>
+<tr>
+<td align="left">Future occupancy token</td>
+<td align="left">表示未来空间演化</td>
+<td align="left">预测哪些区域将被占用</td>
+</tr>
+<tr>
+<td align="left">Ego trajectory head</td>
+<td align="left">预测自车未来运动</td>
+<td align="left">把 world state 与 ego future 对齐</td>
+</tr>
+<tr>
+<td align="left">Occupancy decoder</td>
+<td align="left">token -&gt; voxel state</td>
+<td align="left">让结果回到可检查的物理空间</td>
+</tr>
+</tbody></table>
+<p>和 object-box forecasting 相比，occupancy token 的优势在于它不要求每个障碍物都有明确类别。只要某块空间可能被占用，就能成为未来规划的约束。这也是它适合作为 world model state 的根本原因。</p>
+<h3 id="4-5-生成式-occupancy-的信息流"><a href="#4-5-生成式-occupancy-的信息流" class="headerlink" title="4.5 生成式 occupancy 的信息流"></a>4.5 生成式 occupancy 的信息流</h3><p>OccWorld 的训练和推理都围绕 occupancy token 展开：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">past 3D occupancy</span><br><span class="line">        ↓</span><br><span class="line">scene tokenizer</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal token sequence</span><br><span class="line">        ↓</span><br><span class="line">generative transformer</span><br><span class="line">        ↓</span><br><span class="line">future occupancy tokens</span><br><span class="line">        ↓</span><br><span class="line">occupancy decoder + ego trajectory head</span><br></pre></td></tr></table></figure>
+
+<p>这里的 tokenizer 不是工程细节，而是把高维 voxel world 压成可生成序列的关键步骤。生成 transformer 负责学习 token 的时间演化，decoder 再把预测拉回 3D 空间，使结果可以被规划约束检查。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上验证模型能预测 driving scene evolution，并能在不使用 instance 和 map supervision 的条件下产生有竞争力的规划结果。重要的是，它把 world model 从视频生成或 latent prediction 推进到显式 3D occupancy 状态。</p>
 <p>实验结论可以分成两层：</p>
 <table>
@@ -175,6 +246,10 @@ GPT-like spatial-temporal transformer
 <td align="left">未来 occupancy 是否能服务规划</td>
 </tr>
 </tbody></table>
+<p>这两层之间有一个关键过渡：occupancy prediction 必须能被 ego trajectory 使用，才能说明 world model 真的进入了驾驶决策接口。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">past occupancy tokens</span><br><span class="line">        ↓</span><br><span class="line">future occupancy distribution</span><br><span class="line">        ↓</span><br><span class="line">collision / free-space implication</span><br><span class="line">        ↓</span><br><span class="line">ego trajectory prediction</span><br></pre></td></tr></table></figure>
+
+<p>因此，OccWorld 的实验重点不是单纯让 voxel 预测更像真值，而是证明这种未来空间状态能给自车未来提供约束。若只预测 occupancy 而不影响 ego trajectory，它更像一个场景补全模型；若 trajectory 能利用 occupancy 风险，它才开始具备 world model 的决策意义。</p>
 <p>OccWorld 的重点不是取代所有规划模块，而是证明 occupancy state 可以作为 world model 与 planning 之间的中间桥梁。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
@@ -204,7 +279,7 @@ GPT-like spatial-temporal transformer
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A3D-occupancy-%E6%9B%B4%E9%80%82%E5%90%88%E4%BD%9C%E4%B8%BA-world-state"><span class="toc-text">洞察 1：3D occupancy 更适合作为 world state</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E4%B8%96%E7%95%8C%E6%BC%94%E5%8C%96%E5%8F%AF%E4%BB%A5%E5%9C%A8%E7%A6%BB%E6%95%A3-scene-tokens-%E4%B8%8A%E5%BB%BA%E6%A8%A1"><span class="toc-text">洞察 2：世界演化可以在离散 scene tokens 上建模</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E8%A7%84%E5%88%92%E5%8F%AF%E4%BB%A5%E4%BB%8E%E6%9C%AA%E6%9D%A5-occupancy-%E4%B8%AD%E5%8F%97%E7%9B%8A"><span class="toc-text">洞察 3：规划可以从未来 occupancy 中受益</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-Token-%E5%8C%96%E4%B8%BA%E4%BB%80%E4%B9%88%E9%87%8D%E8%A6%81"><span class="toc-text">4.3 Token 化为什么重要</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A3D-occupancy-%E6%9B%B4%E9%80%82%E5%90%88%E4%BD%9C%E4%B8%BA-world-state"><span class="toc-text">洞察 1：3D occupancy 更适合作为 world state</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E4%B8%96%E7%95%8C%E6%BC%94%E5%8C%96%E5%8F%AF%E4%BB%A5%E5%9C%A8%E7%A6%BB%E6%95%A3-scene-tokens-%E4%B8%8A%E5%BB%BA%E6%A8%A1"><span class="toc-text">洞察 2：世界演化可以在离散 scene tokens 上建模</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E8%A7%84%E5%88%92%E5%8F%AF%E4%BB%A5%E4%BB%8E%E6%9C%AA%E6%9D%A5-occupancy-%E4%B8%AD%E5%8F%97%E7%9B%8A"><span class="toc-text">洞察 3：规划可以从未来 occupancy 中受益</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-Token-%E5%8C%96%E4%B8%BA%E4%BB%80%E4%B9%88%E9%87%8D%E8%A6%81"><span class="toc-text">4.3 Token 化为什么重要</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-occupancy-token-%E4%B8%8E%E8%A7%84%E5%88%92%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.4 occupancy token 与规划接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E7%94%9F%E6%88%90%E5%BC%8F-occupancy-%E7%9A%84%E4%BF%A1%E6%81%AF%E6%B5%81"><span class="toc-text">4.5 生成式 occupancy 的信息流</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
                         </div>
                     </aside>
                 

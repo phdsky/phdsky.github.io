@@ -115,6 +115,40 @@ query decoder
 </pre>
 </div>
 
+<p>D4RT 的关键是 query-based decoding：encoder 不必为每一帧完整解码 dense geometry，而是让 decoder 回答特定时刻、特定像素、特定目标相机下的 4D 几何查询。</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+D4RT detailed architecture
+
+<p>Input:<br>  monocular &#x2F; multi-view video clip<br>  dynamic objects + moving camera</p>
+<pre><code>    ┌──────────────────────────────────────────┐
+    │  1. Unified Video Transformer Encoder    │
+    │  frames -&gt; global scene representation   │
+    │  encode camera motion and object motion  │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  2. 4D Query Construction                │
+    │  source pixel (u, v)                     │
+    │  source time t_src                       │
+    │  target time / target camera             │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  3. Lightweight Query Decoder            │
+    │  query global representation             │
+    │  output 3D point in requested frame      │
+    └──────────────────────────────────────────┘
+          │                 │                  │
+          ▼                 ▼                  ▼
+    depth / point cloud   3D tracks       camera parameters
+</code></pre>
+<p></pre></p>
+</div>
+
+<p>这种接口比逐帧 dense decoding 更适合动态世界：系统可以只查询关键像素、关键时间或关键物体，而不是把所有帧都完整重建一遍。对自动驾驶而言，这正好对应“只在规划相关区域上追踪 4D 几何”的潜在使用方式。</p>
 <h3 id="4-2-查询接口"><a href="#4-2-查询接口" class="headerlink" title="4.2 查询接口"></a>4.2 查询接口</h3><p>核心查询可以写成：</p>
 
 $$
@@ -124,7 +158,31 @@ $$
 
 
 <p>也就是给定源时刻的像素和目标时空位置，输出对应 3D 点。</p>
-<h3 id="4-3-与-VGGT-的关系"><a href="#4-3-与-VGGT-的关系" class="headerlink" title="4.3 与 VGGT 的关系"></a>4.3 与 VGGT 的关系</h3><table>
+<h3 id="4-3-query-decoder-如何降低解码成本"><a href="#4-3-query-decoder-如何降低解码成本" class="headerlink" title="4.3 query decoder 如何降低解码成本"></a>4.3 query decoder 如何降低解码成本</h3><p>传统 dense reconstruction 常见做法是对每一帧、每个像素都输出完整几何，再从这些 dense 输出里寻找对应关系。D4RT 的 query decoder 则反过来：先形成全局场景表示，再按需求查询 4D 点。</p>
+<table>
+<thead>
+<tr>
+<th align="left">解码方式</th>
+<th align="left">计算对象</th>
+<th align="left">优点</th>
+<th align="left">代价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Dense per-frame decoding</td>
+<td align="left">每帧所有像素</td>
+<td align="left">输出完整、直观</td>
+<td align="left">对长视频和多视角开销大</td>
+</tr>
+<tr>
+<td align="left">Query-based decoding</td>
+<td align="left">指定像素 &#x2F; 时间 &#x2F; 相机</td>
+<td align="left">只解规划或跟踪关心的点</td>
+<td align="left">需要设计查询采样策略</td>
+</tr>
+</tbody></table>
+<p>这个设计对自动驾驶尤其有启发：车辆并不总需要重建整条街的每个像素，它更关心未来轨迹附近、遮挡边界、动态物体表面和可通行区域的 4D 几何。query decoder 给这种“按需几何”提供了接口。</p>
+<h3 id="4-4-与-VGGT-的关系"><a href="#4-4-与-VGGT-的关系" class="headerlink" title="4.4 与 VGGT 的关系"></a>4.4 与 VGGT 的关系</h3><table>
 <thead>
 <tr>
 <th align="left">方法</th>
@@ -144,6 +202,10 @@ $$
 </tr>
 </tbody></table>
 <p>D4RT 更强调动态场景中的“查询式几何”，这使它特别适合被放到 4D geometry 路线中理解。</p>
+<h3 id="4-5-query-based-4D-reconstruction-的信息流"><a href="#4-5-query-based-4D-reconstruction-的信息流" class="headerlink" title="4.5 query-based 4D reconstruction 的信息流"></a>4.5 query-based 4D reconstruction 的信息流</h3><p>D4RT 的信息流不是“每帧解出全部几何”，而是“先编码动态视频，再按查询取出 4D 点”：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">single video sequence</span><br><span class="line">        ↓</span><br><span class="line">unified video transformer encoder</span><br><span class="line">        ↓</span><br><span class="line">dynamic 4D scene representation</span><br><span class="line">        ↓</span><br><span class="line">query: pixel + source time + target time + target camera</span><br><span class="line">        ↓</span><br><span class="line">lightweight query decoder</span><br><span class="line">        ↓</span><br><span class="line">target 3D point / correspondence / geometry</span><br></pre></td></tr></table></figure>
+
+<p>这个设计把计算重心从 dense decoding 转移到 representation learning 和 query decoding。对长视频、动态场景和下游选择性使用几何的任务来说，它比“全部重建后再筛选”更灵活。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文报告 D4RT 在多类 4D reconstruction 任务上达到新的领先表现。这里保留已经由摘要和项目页直接支撑的结论：D4RT 的贡献不是一个新损失函数，而是把动态 4D 几何变成统一、轻量、可查询的前向模型。</p>
 <p>实验应关注三件事：</p>
 <table>
@@ -166,6 +228,32 @@ $$
 <td align="left">模型是否能区分相机运动和场景运动</td>
 </tr>
 </tbody></table>
+<p>这三类评估共同指向 D4RT 的核心：动态重建不只是“深度更准”，还要同时解决时空对应和相机运动分解。</p>
+<table>
+<thead>
+<tr>
+<th align="left">难点</th>
+<th align="left">D4RT 需要证明的能力</th>
+<th align="left">为什么重要</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">物体和相机都在动</td>
+<td align="left">分离 scene motion 与 camera motion</td>
+<td align="left">否则 4D 场会把运动来源混在一起</td>
+</tr>
+<tr>
+<td align="left">点会跨帧遮挡或重现</td>
+<td align="left">维持 spatio-temporal correspondence</td>
+<td align="left">否则 tracking 接口不稳定</td>
+</tr>
+<tr>
+<td align="left">输出不能过于笨重</td>
+<td align="left">query decoder 按需返回 3D 点</td>
+<td align="left">否则难以扩展到长视频</td>
+</tr>
+</tbody></table>
+<p>因此，D4RT 的实验应当被理解为“动态几何接口”的验证，而不只是单一重建 benchmark。它的潜在价值在于把 4D geometry 做成可查询模块，让下游系统可以按任务需要取点、跟踪或重建。</p>
 <p>这些证据共同说明 D4RT 学的是动态 4D 场，而不是孤立的单帧深度。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
@@ -183,6 +271,38 @@ $$
 <p>因此，它更适合启发驾驶系统的 4D geometry interface，而不是直接替代 perception&#x2F;planning pipeline。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>D4RT 把“几何模型”从静态 3D 推向动态 4D。它和 VGGT 共同说明，几何基础模型正在从重建工具走向通用视觉表示；而驾驶任务的下一步，是把这种动态几何能力接入实时、多传感器、闭环的决策系统。</p>
 <p>在本站路线中，D4RT 是一个“横向启发”节点：它不属于自动驾驶专用方法，但它的 query-based 4D decoding 对 DVGT &#x2F; DVGT-2 这类驾驶几何方法很有参考价值。</p>
+<h2 id="8-方法边界与站内关系"><a href="#8-方法边界与站内关系" class="headerlink" title="8. 方法边界与站内关系"></a>8. 方法边界与站内关系</h2><p>D4RT 的边界也要讲清楚：它不是端到端驾驶方法，也不是 occupancy planner。它解决的是动态场景 4D 几何如何高效重建和查询的问题。自动驾驶读者关心它，是因为驾驶世界天然就是多相机、自车运动、物体运动和遮挡交织的动态 4D 场。</p>
+<table>
+<thead>
+<tr>
+<th align="left">方向</th>
+<th align="left">关注点</th>
+<th align="left">D4RT 的贡献</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">通用视觉几何</td>
+<td align="left">从图像恢复空间结构</td>
+<td align="left">提供动态 4D 重建接口</td>
+</tr>
+<tr>
+<td align="left">跟踪与对应</td>
+<td align="left">跨时间找到同一点</td>
+<td align="left">用 spatio-temporal query 建模</td>
+</tr>
+<tr>
+<td align="left">自动驾驶几何</td>
+<td align="left">在线理解动态世界</td>
+<td align="left">启发按需查询规划相关区域</td>
+</tr>
+<tr>
+<td align="left">规划世界模型</td>
+<td align="left">比较未来动作后果</td>
+<td align="left">D4RT 本身尚未提供 cost 或 action condition</td>
+</tr>
+</tbody></table>
+<p>和 <a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a> 相比，D4RT 把几何从多视图静态理解推进到动态时空查询；和 <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT 系列</a> 相比，它缺少驾驶专用的多相机和规划接口，但提供了非常重要的 query-based 思路。</p>
+<p>这也是 D4RT 在路线图里的价值：它提醒驾驶几何模型不一定要每一帧都 dense 输出，系统可以先学一个统一 4D 场，再对关键像素、关键时间、关键区域发起查询。真正进入自动驾驶时，这个思想需要和 BEV&#x2F;occupancy、ego motion、trajectory candidate 以及 planning cost 接起来。</p>
 
             </div>
 
@@ -192,7 +312,7 @@ $$
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%8A%A8%E6%80%81%E5%9C%BA%E6%99%AF%E9%9C%80%E8%A6%81-4D-%E8%80%8C%E4%B8%8D%E6%98%AF%E9%80%90%E5%B8%A7-3D"><span class="toc-text">洞察 1：动态场景需要 4D 而不是逐帧 3D</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Aquery-based-decoding-%E6%AF%94-dense-per-frame-decoding-%E6%9B%B4%E5%8F%AF%E6%89%A9%E5%B1%95"><span class="toc-text">洞察 2：query-based decoding 比 dense per-frame decoding 更可扩展</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E7%BB%9F%E4%B8%80-Transformer-%E8%83%BD%E5%87%8F%E5%B0%91%E4%BB%BB%E5%8A%A1%E9%97%B4%E5%89%B2%E8%A3%82"><span class="toc-text">洞察 3：统一 Transformer 能减少任务间割裂</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%9F%A5%E8%AF%A2%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.2 查询接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%B8%8E-VGGT-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.3 与 VGGT 的关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E5%8A%A8%E6%80%81%E5%9C%BA%E6%99%AF%E9%9C%80%E8%A6%81-4D-%E8%80%8C%E4%B8%8D%E6%98%AF%E9%80%90%E5%B8%A7-3D"><span class="toc-text">洞察 1：动态场景需要 4D 而不是逐帧 3D</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Aquery-based-decoding-%E6%AF%94-dense-per-frame-decoding-%E6%9B%B4%E5%8F%AF%E6%89%A9%E5%B1%95"><span class="toc-text">洞察 2：query-based decoding 比 dense per-frame decoding 更可扩展</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E7%BB%9F%E4%B8%80-Transformer-%E8%83%BD%E5%87%8F%E5%B0%91%E4%BB%BB%E5%8A%A1%E9%97%B4%E5%89%B2%E8%A3%82"><span class="toc-text">洞察 3：统一 Transformer 能减少任务间割裂</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%9F%A5%E8%AF%A2%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.2 查询接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-query-decoder-%E5%A6%82%E4%BD%95%E9%99%8D%E4%BD%8E%E8%A7%A3%E7%A0%81%E6%88%90%E6%9C%AC"><span class="toc-text">4.3 query decoder 如何降低解码成本</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E4%B8%8E-VGGT-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.4 与 VGGT 的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-query-based-4D-reconstruction-%E7%9A%84%E4%BF%A1%E6%81%AF%E6%B5%81"><span class="toc-text">4.5 query-based 4D reconstruction 的信息流</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%96%B9%E6%B3%95%E8%BE%B9%E7%95%8C%E4%B8%8E%E7%AB%99%E5%86%85%E5%85%B3%E7%B3%BB"><span class="toc-text">8. 方法边界与站内关系</span></a></li></ol>
                         </div>
                     </aside>
                 

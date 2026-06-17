@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         
-            DVGT: Driving Visual Geometry Transformer - 
+            DVGT / DVGT-2: Driving Visual Geometry Transformer Series - 
                     phdsky
     </title>
     <meta name="description" content="">
@@ -44,7 +44,7 @@
                 <article class="post-detail">
     <div class="container">
         <header class="post-header">
-            <h1 class="post-title">DVGT: Driving Visual Geometry Transformer</h1>
+            <h1 class="post-title">DVGT / DVGT-2: Driving Visual Geometry Transformer Series</h1>
             <div class="post-meta">
                 <span class="post-date">
                     2025年12月18日
@@ -55,175 +55,370 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Driving Dense Geometry Perception<br>Method: Driving Visual Geometry Transformer, Dense Point Map, Ego Pose Estimation<br>Venue: arXiv<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.16919">https://arxiv.org/abs/2512.16919</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/DVGT">https://github.com/wzzheng/DVGT</a></p>
+                <p>Task: Driving Dense Geometry Perception &#x2F; Vision-Geometry-Action Driving<br>Method: DVGT, DVGT-2, Dense Point Map, Streaming Geometry, Temporal Causal Attention, Historical Cache<br>Venue: arXiv<br>Year: 2025-2026<br>Paper: DVGT <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.16919">https://arxiv.org/abs/2512.16919</a> ; DVGT-2 <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2604.00813">https://arxiv.org/abs/2604.00813</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/DVGT">https://github.com/wzzheng/DVGT</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DVGT 是面向自动驾驶场景的 dense geometry perception 模型。它从未给定位姿的多视角驾驶图像序列中，重建第一帧 ego 坐标系下的全局稠密 3D point map，并估计每帧 ego pose。</p>
-<p>和传统依赖精确相机参数或外部传感器对齐的方法不同，DVGT 强调直接从图像序列预测 metric-scaled geometry，适配不同场景和相机配置。它把 VGGT 式的通用视觉几何能力推进到驾驶场景：输入不再只是任意多视图图像，而是多相机、多帧、动态道路环境。</p>
-<p>DVGT 抛出的核心问题是：<strong>自动驾驶是否可以在 object boxes &#x2F; BEV features 之外，直接学习一个 dense metric geometry 中间表示？</strong></p>
-<p><strong>核心论点</strong>：驾驶系统需要的不只是“检测到哪些物体”，还需要真实尺度的 3D 空间结构；DVGT 尝试把 dense geometry 变成自动驾驶视觉感知的一等表示。</p>
-<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>自动驾驶视觉感知长期围绕 BEV、object query 和 occupancy 展开，但 dense metric geometry 仍然缺少面向驾驶的统一模型。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DVGT 系列回答的是同一个问题：自动驾驶能否在 object boxes、BEV features 和 occupancy 之外，直接学习一个真实尺度的 dense metric geometry 中间表示，并把这个表示进一步接到规划动作上？</p>
+<p>第一篇 <strong>DVGT</strong> 更像“驾驶几何底座”。它从未给定位姿的多视角驾驶图像序列中，重建第一帧 ego 坐标系下的全局稠密 3D point map，并估计每帧 ego pose。它的重点不是检测框，也不是 BEV 网格，而是让模型直接输出 metric-scaled geometry：道路表面在哪里、相机运动如何变化、多相机之间看到的空间如何对齐。</p>
+<p>第二篇 <strong>DVGT-2</strong> 则把问题从 geometry perception 推进到 <strong>Vision-Geometry-Action（VGA）</strong>。DVGT 证明 dense geometry 可以被学出来，但 batch 式多帧处理很难进入真实在线驾驶链路；DVGT-2 因此引入 streaming 结构、temporal causal attention、historical feature cache 和 sliding-window 推理，让 dense geometry 可以在线更新，并进一步服务 trajectory planning。</p>
+<p><strong>核心论点</strong>：DVGT 系列不是在用 dense point map 替代所有 BEV &#x2F; sparse query 方法，而是在补一条被端到端驾驶长期压缩掉的物理接口：从 vision 到 action 之间需要一个真实尺度、可时序更新、可规划使用的 geometry grounding。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>自动驾驶视觉感知长期有三类主流表示。Object boxes 稀疏、可解释、贴近预测；BEV features 统一空间、方便多任务共享；occupancy 能回答 free &#x2F; occupied &#x2F; unknown，适合做安全兜底。但这三类表示都有一个共同代价：它们会把真实世界的表面结构、细粒度几何和度量尺度压缩掉。</p>
 <table>
 <thead>
 <tr>
 <th align="left">表示</th>
 <th align="left">优点</th>
-<th align="left">几何缺口</th>
+<th align="left">被压缩掉的几何信息</th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="left">Object boxes</td>
 <td align="left">稀疏、贴近检测和预测</td>
-<td align="left">丢失表面、free space、未知障碍细节</td>
+<td align="left">物体表面、free space、非盒状障碍物</td>
 </tr>
 <tr>
 <td align="left">BEV features</td>
-<td align="left">统一空间，便于多任务</td>
-<td align="left">高度、点级结构和真实尺度可能被压缩</td>
+<td align="left">统一空间，方便检测、地图、规划共享</td>
+<td align="left">高度结构、点级表面、相机运动细节</td>
 </tr>
 <tr>
 <td align="left">Occupancy</td>
-<td align="left">表达空间占用</td>
-<td align="left">分辨率有限，几何表面不够细</td>
+<td align="left">表达空间可通行性</td>
+<td align="left">表面连续性、细粒度形状、点级对应关系</td>
 </tr>
 <tr>
 <td align="left">Dense point map</td>
-<td align="left">直接表达度量 3D 结构</td>
-<td align="left">计算和时序建模更难</td>
+<td align="left">直接表达 metric 3D structure</td>
+<td align="left">计算更重，时序和在线推理更难</td>
 </tr>
 </tbody></table>
-<p>通用重建模型通常不是为多相机驾驶序列设计，传统驾驶系统又往往把几何压缩为 boxes 或 BEV features。DVGT 的目标是在两者之间补上驾驶视觉几何底座。</p>
-<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：驾驶几何需要跨视角和跨时间共同建模"><a href="#洞察-1：驾驶几何需要跨视角和跨时间共同建模" class="headerlink" title="洞察 1：驾驶几何需要跨视角和跨时间共同建模"></a>洞察 1：驾驶几何需要跨视角和跨时间共同建模</h3><p>单帧多视角只能提供空间关系，多帧序列还包含 ego motion 和动态线索。DVGT 同时使用 cross-view spatial attention 和 cross-frame temporal attention。</p>
-<p>这对应驾驶几何的两个基本维度：</p>
+<p>DVGT 的动机来自这个缺口：通用视觉几何模型能做多视角重建，但通常没有面向驾驶多相机、多帧、动态场景设计；自动驾驶系统有强任务闭环，却常把几何压缩成 box、BEV 或 voxel。DVGT 系列试图把这两条线接上。</p>
+<p>这个问题在 DVGT-2 中进一步变尖锐。即使 DVGT 能输出 dense point map，如果它只能离线 batch 处理，就仍然像一个重建模块，而不是驾驶系统的一部分。在线自动驾驶要求当前帧输出只能依赖历史信息，不能看未来帧；历史特征需要缓存复用，不能每次重新处理完整窗口；几何结果还要能被 planning head 消化，而不是停在可视化重建。</p>
+<p>因此 DVGT 系列的版本演进可以压成一句话：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">DVGT:   Vision -&gt; Metric Geometry</span><br><span class="line">DVGT-2: Vision -&gt; Streaming Metric Geometry -&gt; Action</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：驾驶几何不是单帧深度，而是跨视角、跨时间的统一空间"><a href="#洞察-1：驾驶几何不是单帧深度，而是跨视角、跨时间的统一空间" class="headerlink" title="洞察 1：驾驶几何不是单帧深度，而是跨视角、跨时间的统一空间"></a>洞察 1：驾驶几何不是单帧深度，而是跨视角、跨时间的统一空间</h3><p>单帧图像只能提供局部外观线索，多相机同一时刻提供空间互补，多帧序列又包含 ego motion 和动态变化。DVGT 的关键不是简单加一个 depth head，而是让模型同时处理三个几何关系：</p>
 <ul>
-<li><strong>cross-view</strong>：不同相机如何共同观察同一个三维世界；</li>
-<li><strong>cross-frame</strong>：同一个世界如何随自车运动和场景动态变化。</li>
+<li><strong>intra-view local relation</strong>：单个相机内部的局部纹理、边缘和表面线索；</li>
+<li><strong>cross-view spatial relation</strong>：不同相机对同一个三维空间的互补观测；</li>
+<li><strong>cross-frame temporal relation</strong>：相机随自车运动后的时序对应和场景动态。</li>
 </ul>
-<p>只有两者结合，模型才可能从环视相机序列中恢复稳定几何。</p>
-<h3 id="洞察-2：直接预测-metric-point-map-可以减少后处理"><a href="#洞察-2：直接预测-metric-point-map-可以减少后处理" class="headerlink" title="洞察 2：直接预测 metric point map 可以减少后处理"></a>洞察 2：直接预测 metric point map 可以减少后处理</h3><p>模型直接输出 metric-scaled geometry，不依赖外部传感器后对齐。这使它更接近一个端到端几何感知模块。</p>
-<p>这点对自动驾驶很重要：如果几何结果需要大量后处理或外部传感器补齐，它就很难作为轻量中间表示进入端到端系统。DVGT 的目标是让 dense point map 本身成为网络输出。</p>
-<h3 id="洞察-3：相机配置不应被写死在模型里"><a href="#洞察-3：相机配置不应被写死在模型里" class="headerlink" title="洞察 3：相机配置不应被写死在模型里"></a>洞察 3：相机配置不应被写死在模型里</h3><p>DVGT 不显式依赖固定 3D geometric priors，因此能处理不同 camera configurations。</p>
-<p>量产车队中相机布局、视场角和安装位置可能不同。一个过度依赖固定相机配置的方法，跨车型迁移会很困难；DVGT 希望通过视觉特征和注意力机制学习更通用的几何关系。</p>
-<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
+<p>这三个关系合在一起，dense point map 才不只是“每张图各估一张深度”，而是一个统一 ego 坐标系下的全局几何结果。</p>
+<h3 id="洞察-2：dense-geometry-的价值在于物理-grounding，不在于替代所有中间表示"><a href="#洞察-2：dense-geometry-的价值在于物理-grounding，不在于替代所有中间表示" class="headerlink" title="洞察 2：dense geometry 的价值在于物理 grounding，不在于替代所有中间表示"></a>洞察 2：dense geometry 的价值在于物理 grounding，不在于替代所有中间表示</h3><p>DVGT 系列容易被误解成“BEV 不重要了”或“sparse query 可以被 dense point map 替代”。更准确的理解是：dense geometry 提供的是物理 grounding，它可以给 BEV、occupancy、object query 或 planning feature 提供更稳定的空间底座。</p>
+<p>这点在自动驾驶里很重要。一个 planning head 可以基于 sparse scene tokens 生成轨迹，也可以基于 occupancy cost 避障，但它最终面对的是物理空间：路面高度、障碍物表面、遮挡边界、相机运动误差。DVGT 的 dense point map 正是把这些被压缩的几何因素重新显式化。</p>
+<h3 id="洞察-3：从-geometry-到-action-的关键不是多一个-head，而是改成-streaming-系统"><a href="#洞察-3：从-geometry-到-action-的关键不是多一个-head，而是改成-streaming-系统" class="headerlink" title="洞察 3：从 geometry 到 action 的关键不是多一个 head，而是改成 streaming 系统"></a>洞察 3：从 geometry 到 action 的关键不是多一个 head，而是改成 streaming 系统</h3><p>DVGT-2 的真正变化不是“在 DVGT 后面接一个 trajectory head”这么简单，而是把几何模型改造成在线系统。它引入 temporal causal attention，保证当前帧只看历史；引入 historical cache，复用过去特征；引入 sliding-window streaming strategy，控制时序上下文和计算开销。</p>
+<p>这一步让 dense geometry 从离线重建结果变成可持续更新的驾驶状态。只有完成这个转变，geometry 才能进入 action 链路；否则它只是一个漂亮但难以部署的 3D 重建模块。</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>DVGT 和 DVGT-2 的官方架构图分别对应系列的两个阶段：前者强调 batch 式 dense geometry perception，后者强调 streaming VGA driving。</p>
+<div style="text-align:center; margin: 24px 0;">
   <img src="https://ar5iv.labs.arxiv.org/html/2512.16919/assets/x1.png" alt="DVGT 架构图" style="max-width:100%;">
+  <div style="font-size:0.9em;color:#666;margin-top:0.5rem;">DVGT：从 unposed multi-view driving images 到 dense point map 与 ego poses。</div>
 </div>
 
+<div style="text-align:center; margin: 24px 0;">
+  <img src="https://ar5iv.labs.arxiv.org/html/2604.00813/assets/x1.png" alt="DVGT-2 架构图" style="max-width:100%;">
+  <div style="font-size:0.9em;color:#666;margin-top:0.5rem;">DVGT-2：将 streaming dense geometry reconstruction 接入 trajectory planning。</div>
+</div>
+
+<p>更细地拆开，DVGT 的结构可以理解为三层 attention 加两个几何输出头：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
 <pre>
-unposed multi-view image sequence
-        │
-        ▼
-DINO visual backbone
-        │
-        ▼
-intra-view local attention
-        │
-        ▼
-cross-view spatial attention
-        │
-        ▼
-cross-frame temporal attention
-        │
-        ├── global dense point map
-        └── ego poses
-</pre>
+DVGT: batch dense geometry perception
+
+<p>Input:<br>  multi-camera image sequence<br>  {I_{t-k:t}^{cam_1}, …, I_{t-k:t}^{cam_N}}<br>  camera poses are not given as fixed supervision interface</p>
+<pre><code>    ┌────────────────────────────────────────────┐
+    │  1. Visual Tokenization                    │
+    │  DINO / visual backbone                    │
+    │  image patches -&gt; per-view visual tokens   │
+    └────────────────────────────────────────────┘
+                          │
+                          ▼
+    ┌────────────────────────────────────────────┐
+    │  2. Intra-view Local Attention             │
+    │  within each camera image                  │
+    │  texture / edge / local surface cues        │
+    └────────────────────────────────────────────┘
+                          │
+                          ▼
+    ┌────────────────────────────────────────────┐
+    │  3. Cross-view Spatial Attention           │
+    │  same timestamp, multiple cameras          │
+    │  align overlapping and complementary views │
+    └────────────────────────────────────────────┘
+                          │
+                          ▼
+    ┌────────────────────────────────────────────┐
+    │  4. Cross-frame Temporal Attention         │
+    │  multiple timestamps                       │
+    │  infer ego motion and temporal consistency │
+    └────────────────────────────────────────────┘
+               │                          │
+               ▼                          ▼
+    ┌───────────────────┐      ┌──────────────────────┐
+    │ Point Map Head    │      │ Ego Pose Head         │
+    │ global dense 3D   │      │ per-frame ego poses   │
+    │ point map in ego0 │      │ camera/ego trajectory │
+    └───────────────────┘      └──────────────────────┘
+</code></pre>
+<p></pre></p>
 </div>
 
-<h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
+<p>DVGT-2 则把 batch 几何模型改造成在线 VGA pipeline：</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+DVGT-2: streaming Vision-Geometry-Action
+
+<p>At time t:<br>  current multi-camera frames I_t<br>  historical cache C_{t-1}<br>  no future frames are allowed</p>
+<pre><code>    ┌─────────────────────────────────────────────┐
+    │  1. Current-frame Visual Encoder            │
+    │  multi-camera images -&gt; current tokens      │
+    └─────────────────────────────────────────────┘
+                          │
+                          ▼
+    ┌─────────────────────────────────────────────┐
+    │  2. Temporal Causal Attention               │
+    │  query: current tokens                      │
+    │  key/value: historical cache + current      │
+    │  constraint: only information &lt;= t          │
+    └─────────────────────────────────────────────┘
+                          │
+                          ▼
+    ┌─────────────────────────────────────────────┐
+    │  3. Historical Feature Cache                │
+    │  cache update / feature reuse               │
+    │  sliding window controls memory length      │
+    └─────────────────────────────────────────────┘
+               │                          │
+               ▼                          ▼
+    ┌───────────────────┐      ┌──────────────────────┐
+    │ Geometry Decoder  │      │ Planning Adapter     │
+    │ current dense 3D  │─────▶│ geometry-aware state  │
+    │ point map / cues  │      │ for action decoding  │
+    └───────────────────┘      └──────────────────────┘
+                                         │
+                                         ▼
+                              ┌──────────────────────┐
+                              │ Trajectory Head      │
+                              │ ego future trajectory│
+                              └──────────────────────┘
+</code></pre>
+<p></pre></p>
+</div>
+
+<p>如果把系列的接口关系单独抽出来，关键变化是：DVGT 输出的是几何状态，DVGT-2 则把几何状态变成 action 的条件。</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+Representation interface
+
+<p>Camera images<br>    │<br>    ├── BEV-centric route:<br>    │       images -&gt; BEV feature -&gt; detection &#x2F; map &#x2F; planning<br>    │<br>    ├── Sparse-query route:<br>    │       images -&gt; object&#x2F;map&#x2F;motion queries -&gt; planning<br>    │<br>    └── DVGT series:<br>            images -&gt; dense metric geometry<br>                     │<br>                     ├── DVGT:   point map + ego poses<br>                     └── DVGT-2: streaming geometry + trajectory planning<br></pre></p>
+</div>
+
+<h3 id="4-2-DVGT：batch-dense-geometry-perception"><a href="#4-2-DVGT：batch-dense-geometry-perception" class="headerlink" title="4.2 DVGT：batch dense geometry perception"></a>4.2 DVGT：batch dense geometry perception</h3><p>DVGT 的输入是多相机、多帧驾驶图像序列，目标是在第一帧 ego 坐标系下恢复全局 dense point map，并估计每帧 ego pose。这里有两个设计重点。</p>
+<p>第一，模型不把相机配置写死成固定几何先验。量产车队中相机数量、视场角、安装位置可能发生变化；如果方法过度依赖固定外参或硬编码投影，跨车型迁移会困难。DVGT 通过视觉 token 和注意力机制学习视角之间的几何关系，希望让模型具有更强的相机配置适应性。</p>
+<p>第二，模型输出的是 metric-scaled geometry，而不是只输出 relative depth 或局部深度图。对于自动驾驶来说，尺度是规划接口的一部分：一块障碍物离车 3 米还是 6 米，直接影响轨迹选择。DVGT 把 dense point map 放在 ego 坐标系下，本质上是在给下游提供可度量的空间状态。</p>
+<h3 id="4-3-DVGT-2：streaming-geometry-到-action"><a href="#4-3-DVGT-2：streaming-geometry-到-action" class="headerlink" title="4.3 DVGT-2：streaming geometry 到 action"></a>4.3 DVGT-2：streaming geometry 到 action</h3><p>DVGT-2 保留 dense geometry 的核心思想，但把系统约束换成在线自动驾驶。这里的难点不只是速度，而是因果性和状态复用。</p>
+<table>
 <thead>
 <tr>
-<th align="left">模块</th>
-<th align="left">作用</th>
+<th align="left">设计</th>
+<th align="left">解决的问题</th>
+<th align="left">对规划的意义</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">DINO backbone</td>
-<td align="left">提取鲁棒视觉特征</td>
+<td align="left">Temporal causal attention</td>
+<td align="left">当前帧不能使用未来帧信息</td>
+<td align="left">避免训练&#x2F;推理不一致</td>
 </tr>
 <tr>
-<td align="left">Intra-view local attention</td>
-<td align="left">建模单图局部几何</td>
+<td align="left">Historical feature cache</td>
+<td align="left">避免重复处理全部历史帧</td>
+<td align="left">让 dense geometry 有在线可能性</td>
 </tr>
 <tr>
-<td align="left">Cross-view spatial attention</td>
-<td align="left">建模多相机空间关系</td>
+<td align="left">Sliding-window streaming</td>
+<td align="left">控制历史上下文长度</td>
+<td align="left">在记忆、延迟、算力之间折中</td>
 </tr>
 <tr>
-<td align="left">Cross-frame temporal attention</td>
-<td align="left">建模时间连续性和 ego motion</td>
-</tr>
-<tr>
-<td align="left">多头输出</td>
-<td align="left">解码全局 point map 与 ego poses</td>
+<td align="left">Planning head &#x2F; adapter</td>
+<td align="left">将几何特征接到轨迹输出</td>
+<td align="left">检验 geometry 是否真正服务 action</td>
 </tr>
 </tbody></table>
-<h3 id="4-3-与-BEV-Occupancy-的关系"><a href="#4-3-与-BEV-Occupancy-的关系" class="headerlink" title="4.3 与 BEV &#x2F; Occupancy 的关系"></a>4.3 与 BEV &#x2F; Occupancy 的关系</h3><p>DVGT 不是 BEV 感知的简单替代，而是提供另一种中间表示。</p>
+<p>DVGT-2 与 VLA 的关系也需要分清。VLA 借助语言或大模型语义能力处理复杂指令和常识推理；VGA 强调 metric geometry 作为物理约束。二者不互斥，但解决的问题不同：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">VLA: Vision -&gt; Language / semantic reasoning -&gt; Action</span><br><span class="line">VGA: Vision -&gt; metric Geometry -&gt; Action</span><br></pre></td></tr></table></figure>
+
+<p>VLA 可以回答“前方黄色车辆后面停一下”这种语义问题；VGA 更关注“道路边界在哪里、可通行空间在哪里、障碍表面离自车多远”这种物理问题。自动驾驶最终可能同时需要二者，但 DVGT-2 的贡献是把 geometry 这条路线推到了 action 层。</p>
+<h3 id="4-4-从-DVGT-到-DVGT-2：版本演进表"><a href="#4-4-从-DVGT-到-DVGT-2：版本演进表" class="headerlink" title="4.4 从 DVGT 到 DVGT-2：版本演进表"></a>4.4 从 DVGT 到 DVGT-2：版本演进表</h3><table>
+<thead>
+<tr>
+<th align="left">维度</th>
+<th align="left">DVGT</th>
+<th align="left">DVGT-2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">核心任务</td>
+<td align="left">driving dense geometry perception</td>
+<td align="left">Vision-Geometry-Action driving</td>
+</tr>
+<tr>
+<td align="left">输入方式</td>
+<td align="left">batch 多相机多帧序列</td>
+<td align="left">streaming 多相机输入</td>
+</tr>
+<tr>
+<td align="left">时序约束</td>
+<td align="left">cross-frame temporal attention</td>
+<td align="left">temporal causal attention</td>
+</tr>
+<tr>
+<td align="left">历史信息</td>
+<td align="left">batch 内统一处理</td>
+<td align="left">historical feature cache + sliding window</td>
+</tr>
+<tr>
+<td align="left">主要输出</td>
+<td align="left">dense point map + ego poses</td>
+<td align="left">dense geometry + trajectory planning</td>
+</tr>
+<tr>
+<td align="left">系统定位</td>
+<td align="left">几何感知底座</td>
+<td align="left">在线规划中间表示</td>
+</tr>
+<tr>
+<td align="left">关键风险</td>
+<td align="left">dense geometry 较重，在线性不足</td>
+<td align="left">geometry 到 action 的收益需覆盖计算成本</td>
+</tr>
+</tbody></table>
+<p>这张表也解释了为什么两篇应该写成一篇：DVGT-2 不是另起炉灶的新路线，而是 DVGT 从“能否学出驾驶几何”到“几何能否进入在线规划”的直接延伸。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>DVGT 系列的实验不应按传统检测论文的 mAP 逻辑理解。它真正要证明的是三件事：第一，dense point map 和 ego pose 能否在驾驶数据上稳定恢复；第二，streaming 改造后几何质量和推理效率是否还能保住；第三，geometry feature 接入 planning 后是否能在规划评估中体现价值。</p>
+<table>
+<thead>
+<tr>
+<th align="left">实验层级</th>
+<th align="left">对应版本</th>
+<th align="left">证明的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Dense geometry quality</td>
+<td align="left">DVGT</td>
+<td align="left">多相机驾驶序列能否恢复 metric 3D structure</td>
+</tr>
+<tr>
+<td align="left">Ego pose estimation</td>
+<td align="left">DVGT</td>
+<td align="left">模型是否理解自车运动和跨帧几何</td>
+</tr>
+<tr>
+<td align="left">Cross-dataset generalization</td>
+<td align="left">DVGT</td>
+<td align="left">几何模型是否适配不同驾驶数据分布</td>
+</tr>
+<tr>
+<td align="left">Streaming geometry quality &#x2F; speed</td>
+<td align="left">DVGT-2</td>
+<td align="left">causal + cache 后是否仍保留可靠几何</td>
+</tr>
+<tr>
+<td align="left">Planning evaluation</td>
+<td align="left">DVGT-2</td>
+<td align="left">dense geometry 是否能穿透到 trajectory output</td>
+</tr>
+</tbody></table>
+<p>需要注意，DVGT 系列的价值不是“立刻替代 SparseDrive &#x2F; DiffusionDrive 并刷新所有规划榜单”。它更像一个新的表示假设：如果端到端规划只依赖 sparse queries 或 action distribution，可能会缺少 metric geometry grounding；如果加入 dense geometry，模型也许能更好地处理道路表面、遮挡边界和非标准障碍物。但这条路线必须付出更高的计算代价，因此实验重点应同时看几何收益和系统开销。</p>
+<p><strong>三个关键数字</strong>：</p>
+<ul>
+<li><strong>2 个版本</strong>：DVGT 负责 dense geometry perception，DVGT-2 负责 streaming VGA planning。</li>
+<li><strong>3 类 attention &#x2F; memory 机制</strong>：intra-view local attention、cross-view &#x2F; cross-frame geometry attention、temporal causal attention + historical cache。</li>
+<li><strong>3 类输出接口</strong>：dense point map、ego poses、trajectory planning。</li>
+</ul>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DVGT 系列如果进入真实系统，最重要的不是“有没有 point map”，而是 point map 如何成为可部署接口。</p>
+<h3 id="6-1-Geometry-到下游任务的接口"><a href="#6-1-Geometry-到下游任务的接口" class="headerlink" title="6.1 Geometry 到下游任务的接口"></a>6.1 Geometry 到下游任务的接口</h3><p>Dense point map 本身不是最终任务。它需要被转成下游能使用的形式：</p>
+<table>
+<thead>
+<tr>
+<th align="left">下游接口</th>
+<th align="left">转换方式</th>
+<th align="left">风险</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Occupancy &#x2F; free space</td>
+<td align="left">point map -&gt; voxel &#x2F; occupancy grid</td>
+<td align="left">分辨率与稀疏区域处理</td>
+</tr>
+<tr>
+<td align="left">BEV planning feature</td>
+<td align="left">point map -&gt; BEV-aligned feature</td>
+<td align="left">高度信息可能再次被压缩</td>
+</tr>
+<tr>
+<td align="left">Cost map</td>
+<td align="left">geometry -&gt; collision &#x2F; drivable cost</td>
+<td align="left">动态物体和语义不确定性</td>
+</tr>
+<tr>
+<td align="left">Sparse query grounding</td>
+<td align="left">point map -&gt; object &#x2F; map query refinement</td>
+<td align="left">需要稳定关联和采样策略</td>
+</tr>
+<tr>
+<td align="left">Direct planning feature</td>
+<td align="left">geometry tokens -&gt; planning head</td>
+<td align="left">端到端可解释性和安全约束</td>
+</tr>
+</tbody></table>
+<h3 id="6-2-Streaming-系统的工程风险"><a href="#6-2-Streaming-系统的工程风险" class="headerlink" title="6.2 Streaming 系统的工程风险"></a>6.2 Streaming 系统的工程风险</h3><p>DVGT-2 把问题推进到在线系统后，工程风险会集中在时序状态管理：</p>
+<ul>
+<li><strong>cache 生命周期</strong>：历史特征太短会丢时序线索，太长会引入陈旧信息和算力压力；</li>
+<li><strong>causal 约束</strong>：训练阶段不能泄漏未来帧，否则离线指标好看、在线推理掉点；</li>
+<li><strong>相机掉线</strong>：多相机系统缺一路输入时，geometry attention 是否还能稳定；</li>
+<li><strong>动态物体区域</strong>：动态对象会破坏静态几何假设，需要和 motion &#x2F; segmentation 交互；</li>
+<li><strong>尺度一致性</strong>：多数据集训练时 metric scale 必须稳定，否则规划代价会漂；</li>
+<li><strong>算力预算</strong>：dense geometry 比 sparse query 更重，必须证明收益覆盖延迟和显存成本。</li>
+</ul>
+<h3 id="6-3-与-SparseDrive-DiffusionDrive-的互补关系"><a href="#6-3-与-SparseDrive-DiffusionDrive-的互补关系" class="headerlink" title="6.3 与 SparseDrive &#x2F; DiffusionDrive 的互补关系"></a>6.3 与 SparseDrive &#x2F; DiffusionDrive 的互补关系</h3><p>DVGT 系列、SparseDrive 和 DiffusionDrive 都可以服务规划，但它们优化的是不同对象。</p>
 <table>
 <thead>
 <tr>
 <th align="left">路线</th>
-<th align="left">中间表示</th>
-<th align="left">更擅长</th>
+<th align="left">核心表示</th>
+<th align="left">更强的地方</th>
+<th align="left">更弱的地方</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">BEV-centric</td>
-<td align="left">鸟瞰特征图</td>
-<td align="left">多任务共享、检测、地图</td>
+<td align="left">SparseDrive</td>
+<td align="left">sparse scene tokens</td>
+<td align="left">高效、贴近任务实体</td>
+<td align="left">可能丢失细粒度表面和 free space</td>
 </tr>
 <tr>
-<td align="left">Occupancy-centric</td>
-<td align="left">空间占用格</td>
-<td align="left">free &#x2F; occupied &#x2F; unknown</td>
+<td align="left">DiffusionDrive</td>
+<td align="left">action distribution</td>
+<td align="left">多模态动作生成</td>
+<td align="left">对世界物理状态依赖上游表示</td>
 </tr>
 <tr>
-<td align="left">Geometry-centric</td>
-<td align="left">dense point map + ego pose</td>
-<td align="left">metric 3D grounding、表面与空间结构</td>
+<td align="left">DVGT &#x2F; DVGT-2</td>
+<td align="left">dense metric geometry</td>
+<td align="left">真实尺度空间 grounding</td>
+<td align="left">计算重，接口复杂</td>
 </tr>
 </tbody></table>
-<p>真正的系统可能不是三选一，而是把 dense geometry 用作 BEV &#x2F; occupancy &#x2F; planning 的 grounding。</p>
-<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes、OpenScene、Waymo、KITTI、DDAD 等驾驶数据混合训练，并报告在多场景上优于已有模型。这里保留核心实验结论：DVGT 的评估重点不是检测 mAP，而是 metric geometry 是否能在驾驶场景中泛化。</p>
-<p>实验评价的关键对象是：</p>
-<table>
-<thead>
-<tr>
-<th align="left">评价对象</th>
-<th align="left">说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">Dense point map</td>
-<td align="left">是否恢复真实尺度 3D 结构</td>
-</tr>
-<tr>
-<td align="left">Ego pose</td>
-<td align="left">是否理解自车运动</td>
-</tr>
-<tr>
-<td align="left">Cross-dataset generalization</td>
-<td align="left">是否适配不同驾驶数据分布</td>
-</tr>
-</tbody></table>
-<p>这和常规 BEV 检测论文不同：DVGT 的价值不是立刻提高规划分数，而是提供更可靠的几何底座。</p>
-<p><strong>三个关键数字</strong>：</p>
-<ul>
-<li><strong>5 个数据源</strong>：nuScenes、OpenScene、Waymo、KITTI、DDAD。</li>
-<li><strong>3 类注意力</strong>：intra-view、cross-view、cross-frame。</li>
-<li><strong>2 类主输出</strong>：dense point map 与 ego poses。</li>
-</ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DVGT 适合放在自动驾驶几何分支中，为后续 occupancy、planning 或 object grounding 提供度量几何输入。工程落地时需要关注：</p>
-<ul>
-<li><strong>实时性</strong>：dense point map 比 sparse query 更重；</li>
-<li><strong>动态物体区域</strong>：动态对象会破坏静态重建假设；</li>
-<li><strong>相机掉线</strong>：环视系统缺少某一路输入时几何是否稳定；</li>
-<li><strong>尺度一致性</strong>：多数据集训练时 metric scale 是否保持一致；</li>
-<li><strong>下游接口</strong>：point map 如何变成 occupancy、cost map 或 planning feature。</li>
-</ul>
-<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DVGT 的意义在于把 VGGT 式通用几何模型推进到驾驶场景。它说明自动驾驶中的 dense geometry 不只是离线重建问题，也可以成为在线感知和规划链路中的中间表示。</p>
-<p>但 DVGT 本身更偏感知几何，还没有完全解决在线规划问题。这个缺口正是 <a href="/posts/2026/papers/2026_arXiv_DVGT2_Vision_Geometry_Action_Autonomous_Driving/">DVGT-2</a> 要补的：把 dense geometry 从 batch 重建推进到 streaming planning。</p>
+<p>更合理的系统可能不是三选一，而是让 sparse query 负责任务实体，diffusion &#x2F; scoring 负责动作候选，dense geometry 负责物理约束。</p>
+<h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DVGT 系列的意义在于把视觉几何重新带回自动驾驶主线。过去几年，端到端驾驶很容易把中间表示压缩成 BEV feature、object query 或 action token；这些表示高效、任务友好，但可能把真实三维世界的物理结构压得太薄。DVGT 提醒这条路线：车不是在 token 空间里行驶，而是在有尺度、有表面、有遮挡的三维世界里行驶。</p>
+<p>从研究定位看，DVGT 是从 VGGT &#x2F; D4RT 这类视觉几何基础能力走向驾驶场景的关键一步；DVGT-2 则是把这条几何路线继续推到在线规划。它们与 <a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a> 和 <a href="/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/">D4RT</a> 构成一条清楚的几何链：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">VGGT: 统一视觉几何前向模型</span><br><span class="line">   ↓</span><br><span class="line">D4RT: 动态 4D 几何查询与跟踪</span><br><span class="line">   ↓</span><br><span class="line">DVGT: 驾驶多相机 dense metric geometry</span><br><span class="line">   ↓</span><br><span class="line">DVGT-2: streaming geometry + trajectory planning</span><br></pre></td></tr></table></figure>
+
+<p>这条链和 <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a> &#x2F; <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 不是替代关系，而是互补关系。前者回答“世界在三维空间里是什么结构”，后者回答“自车应该从哪些候选动作里选择”。真正强的驾驶系统，很可能需要同时保留任务实体、动作分布和 metric geometry 三类信息。</p>
+<p>DVGT-2 代表 geometry-centric 路线进入规划层。它不必否定 object-centric planning，但它提出了一个很值得继续追问的问题：如果端到端规划缺少可靠的几何 grounding，它到底是在理解物理世界，还是只是在拟合数据集中常见轨迹？</p>
 
             </div>
 
@@ -233,7 +428,7 @@ cross-frame temporal attention
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E9%A9%BE%E9%A9%B6%E5%87%A0%E4%BD%95%E9%9C%80%E8%A6%81%E8%B7%A8%E8%A7%86%E8%A7%92%E5%92%8C%E8%B7%A8%E6%97%B6%E9%97%B4%E5%85%B1%E5%90%8C%E5%BB%BA%E6%A8%A1"><span class="toc-text">洞察 1：驾驶几何需要跨视角和跨时间共同建模</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9A%E7%9B%B4%E6%8E%A5%E9%A2%84%E6%B5%8B-metric-point-map-%E5%8F%AF%E4%BB%A5%E5%87%8F%E5%B0%91%E5%90%8E%E5%A4%84%E7%90%86"><span class="toc-text">洞察 2：直接预测 metric point map 可以减少后处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E7%9B%B8%E6%9C%BA%E9%85%8D%E7%BD%AE%E4%B8%8D%E5%BA%94%E8%A2%AB%E5%86%99%E6%AD%BB%E5%9C%A8%E6%A8%A1%E5%9E%8B%E9%87%8C"><span class="toc-text">洞察 3：相机配置不应被写死在模型里</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%B8%8E-BEV-Occupancy-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.3 与 BEV &#x2F; Occupancy 的关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E9%A9%BE%E9%A9%B6%E5%87%A0%E4%BD%95%E4%B8%8D%E6%98%AF%E5%8D%95%E5%B8%A7%E6%B7%B1%E5%BA%A6%EF%BC%8C%E8%80%8C%E6%98%AF%E8%B7%A8%E8%A7%86%E8%A7%92%E3%80%81%E8%B7%A8%E6%97%B6%E9%97%B4%E7%9A%84%E7%BB%9F%E4%B8%80%E7%A9%BA%E9%97%B4"><span class="toc-text">洞察 1：驾驶几何不是单帧深度，而是跨视角、跨时间的统一空间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Adense-geometry-%E7%9A%84%E4%BB%B7%E5%80%BC%E5%9C%A8%E4%BA%8E%E7%89%A9%E7%90%86-grounding%EF%BC%8C%E4%B8%8D%E5%9C%A8%E4%BA%8E%E6%9B%BF%E4%BB%A3%E6%89%80%E6%9C%89%E4%B8%AD%E9%97%B4%E8%A1%A8%E7%A4%BA"><span class="toc-text">洞察 2：dense geometry 的价值在于物理 grounding，不在于替代所有中间表示</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9A%E4%BB%8E-geometry-%E5%88%B0-action-%E7%9A%84%E5%85%B3%E9%94%AE%E4%B8%8D%E6%98%AF%E5%A4%9A%E4%B8%80%E4%B8%AA-head%EF%BC%8C%E8%80%8C%E6%98%AF%E6%94%B9%E6%88%90-streaming-%E7%B3%BB%E7%BB%9F"><span class="toc-text">洞察 3：从 geometry 到 action 的关键不是多一个 head，而是改成 streaming 系统</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-DVGT%EF%BC%9Abatch-dense-geometry-perception"><span class="toc-text">4.2 DVGT：batch dense geometry perception</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-DVGT-2%EF%BC%9Astreaming-geometry-%E5%88%B0-action"><span class="toc-text">4.3 DVGT-2：streaming geometry 到 action</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E4%BB%8E-DVGT-%E5%88%B0-DVGT-2%EF%BC%9A%E7%89%88%E6%9C%AC%E6%BC%94%E8%BF%9B%E8%A1%A8"><span class="toc-text">4.4 从 DVGT 到 DVGT-2：版本演进表</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-Geometry-%E5%88%B0%E4%B8%8B%E6%B8%B8%E4%BB%BB%E5%8A%A1%E7%9A%84%E6%8E%A5%E5%8F%A3"><span class="toc-text">6.1 Geometry 到下游任务的接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-Streaming-%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%B7%A5%E7%A8%8B%E9%A3%8E%E9%99%A9"><span class="toc-text">6.2 Streaming 系统的工程风险</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E4%B8%8E-SparseDrive-DiffusionDrive-%E7%9A%84%E4%BA%92%E8%A1%A5%E5%85%B3%E7%B3%BB"><span class="toc-text">6.3 与 SparseDrive &#x2F; DiffusionDrive 的互补关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
                         </div>
                     </aside>
                 
@@ -249,6 +444,8 @@ cross-frame temporal attention
                             <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
                             
                             <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%87%AA%E5%8A%A8%E9%A9%BE%E9%A9%B6/" class="tag">#端到端自动驾驶</a>
                             
                             <a href="/tags/%E4%B8%89%E7%BB%B4%E9%87%8D%E5%BB%BA/" class="tag">#三维重建</a>
                             

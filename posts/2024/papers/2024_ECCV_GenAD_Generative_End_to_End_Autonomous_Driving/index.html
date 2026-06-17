@@ -103,6 +103,43 @@ temporal model
 </pre>
 </div>
 
+<p>GenAD 的更细结构可以拆成“场景 token 化、结构 latent、未来联合生成、任务解码”四层：</p>
+<div style="display:flex; justify-content:center; margin: 24px 0;">
+<pre>
+GenAD detailed architecture
+
+<p>Input:<br>  camera &#x2F; scene observations<br>  map-agent-ego context</p>
+<pre><code>    ┌──────────────────────────────────────────┐
+    │  1. Instance-centric Tokenizer           │
+    │  agents, map elements, ego state         │
+    │  preserve traffic participant structure  │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  2. Structural Latent Space              │
+    │  compress future evolution factors       │
+    │  shared by ego and surroundings          │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  3. Generative Future Model              │
+    │  jointly generate ego future             │
+    │  and surrounding agents&#39; motion          │
+    └──────────────────────────────────────────┘
+                      │
+                      ▼
+    ┌──────────────────────────────────────────┐
+    │  4. Task Heads                           │
+    │  motion prediction / planning outputs    │
+    │  evaluate coherent future evolution      │
+    └──────────────────────────────────────────┘
+</code></pre>
+<p></pre></p>
+</div>
+
+<p>这套结构解释了 GenAD 为什么不只是“规划 head 换成生成模型”：它把 ego planning 和 surrounding motion 放进同一个未来演化 latent 中，使自车动作和他车运动不再是两个孤立输出。</p>
 <h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
 <thead>
 <tr>
@@ -157,6 +194,46 @@ temporal model
 </tr>
 </tbody></table>
 <p>GenAD 的位置在于：它把“未来分布”引入端到端驾驶，但仍然以 latent representation 为核心，而不是固定词表或扩散过程。</p>
+<h3 id="4-4-structural-latent-与轨迹词表的差别"><a href="#4-4-structural-latent-与轨迹词表的差别" class="headerlink" title="4.4 structural latent 与轨迹词表的差别"></a>4.4 structural latent 与轨迹词表的差别</h3><p>VADv2 &#x2F; SparseDriveV2 这类评分派方法通常把未来动作离散成候选轨迹，再学习候选分数；GenAD 则把 future evolution 压到 structural latent space 中，让 ego 和 surrounding agents 在同一个 latent 中生成。</p>
+<table>
+<thead>
+<tr>
+<th align="left">维度</th>
+<th align="left">轨迹词表 &#x2F; scoring</th>
+<th align="left">GenAD structural latent</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">表示对象</td>
+<td align="left">ego 候选轨迹</td>
+<td align="left">ego + surrounding future evolution</td>
+</tr>
+<tr>
+<td align="left">多模态来源</td>
+<td align="left">多个离散候选</td>
+<td align="left">latent distribution</td>
+</tr>
+<tr>
+<td align="left">与他车关系</td>
+<td align="left">通常作为上下文或约束</td>
+<td align="left">与 ego future 联合建模</td>
+</tr>
+<tr>
+<td align="left">工程优势</td>
+<td align="left">易评分、易筛选</td>
+<td align="left">更自然表达交互未来</td>
+</tr>
+<tr>
+<td align="left">工程风险</td>
+<td align="left">候选覆盖率瓶颈</td>
+<td align="left">latent 可解释性较弱</td>
+</tr>
+</tbody></table>
+<p>这也是 GenAD 的价值边界：它提出了生成式端到端驾驶的结构化思路，但后续 DiffusionDrive 进一步把生成分布落到更直接的 trajectory distribution 上。</p>
+<h3 id="4-5-端到端生成的信息流"><a href="#4-5-端到端生成的信息流" class="headerlink" title="4.5 端到端生成的信息流"></a>4.5 端到端生成的信息流</h3><p>GenAD 的信息流可以压缩成一句话：从视觉场景表示中生成一个结构化未来 latent，再从 latent 中同时读出 ego 与 surrounding 的未来。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">multi-view visual features</span><br><span class="line">        ↓</span><br><span class="line">scene / agent representation</span><br><span class="line">        ↓</span><br><span class="line">structural latent space</span><br><span class="line">        ↓</span><br><span class="line">ego future + surrounding future</span><br><span class="line">        ↓</span><br><span class="line">planning and motion prediction losses</span><br></pre></td></tr></table></figure>
+
+<p>这也是它和传统 cascade 系统的差别：GenAD 不先分别完成检测、预测、规划再串起来，而是试图让未来交互本身成为一个可生成的中间变量。这样的优点是统一，风险是 latent 的可解释性和可控性需要额外验证。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上报告 GenAD 在 vision-centric end-to-end autonomous driving 上达到领先表现，并强调高效性。这里保留方法层面结论：GenAD 是 DiffusionDrive 之前重要的 action-centric &#x2F; generative planning 参考，核心是把 future evolution 作为生成目标。</p>
 <p>实验部分的证据可以分成三层：</p>
 <table>
@@ -179,6 +256,32 @@ temporal model
 <td align="left">latent generation 是否比重型级联更经济</td>
 </tr>
 </tbody></table>
+<p>这三层实验对应 GenAD 的核心假设：如果 ego future 和 surrounding future 能在同一个 structural latent space 中生成，那么 planning 与 motion prediction 不应被完全拆成两个独立问题。</p>
+<table>
+<thead>
+<tr>
+<th align="left">假设</th>
+<th align="left">实验应验证的现象</th>
+<th align="left">方法意义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">ego 与他车未来相关</td>
+<td align="left">planning 和 prediction 同时受益</td>
+<td align="left">latent 学到交互结构</td>
+</tr>
+<tr>
+<td align="left">生成式 latent 有多模态能力</td>
+<td align="left">规划不只输出平均轨迹</td>
+<td align="left">更适合处理路口、变道等多解场景</td>
+</tr>
+<tr>
+<td align="left">结构化表示足够紧凑</td>
+<td align="left">保持推理效率</td>
+<td align="left">端到端系统可部署性更强</td>
+</tr>
+</tbody></table>
+<p>所以 GenAD 的实验不能只按“轨迹误差表”来读，它更重要的证据是：生成式 future representation 能否成为端到端驾驶里的公共未来变量。</p>
 <p>GenAD 的实验价值在于说明：生成式未来建模可以同时服务 motion prediction 和 planning，而不是只提升某一个单独任务。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
@@ -217,6 +320,42 @@ temporal model
 </tr>
 </tbody></table>
 <p>GenAD 处在三者交界处：它用生成式框架统一 ego 和 surroundings 的未来，但还不是严格意义上以显式 world state 为核心的 occupancy world model。</p>
+<h2 id="8-方法边界与站内关系"><a href="#8-方法边界与站内关系" class="headerlink" title="8. 方法边界与站内关系"></a>8. 方法边界与站内关系</h2><p>GenAD 的位置，最好放在端到端规划从“回归”走向“生成”的过渡期来理解。它不像 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> 那样强调规划导向的任务级联，也不像 <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 那样把轨迹分布显式交给 diffusion process，而是先提出一个 structural latent space 来容纳未来交互。</p>
+<table>
+<thead>
+<tr>
+<th align="left">路线</th>
+<th align="left">未来如何表达</th>
+<th align="left">优势</th>
+<th align="left">GenAD 的相对位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">UniAD</td>
+<td align="left">task query cascade</td>
+<td align="left">任务结构清晰</td>
+<td align="left">GenAD 更强调生成式未来变量</td>
+</tr>
+<tr>
+<td align="left"><a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD &#x2F; VADv2</a></td>
+<td align="left">vectorized scene + ego planning</td>
+<td align="left">几何约束明确</td>
+<td align="left">GenAD 更强调 latent distribution</td>
+</tr>
+<tr>
+<td align="left"><a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a></td>
+<td align="left">sparse scene tokens + scoring</td>
+<td align="left">推理高效、实例中心</td>
+<td align="left">GenAD 更像生成式先验</td>
+</tr>
+<tr>
+<td align="left">DiffusionDrive</td>
+<td align="left">diffusion trajectory distribution</td>
+<td align="left">多模态轨迹自然</td>
+<td align="left">GenAD 是前一阶段的 latent 化尝试</td>
+</tr>
+</tbody></table>
+<p>因此 GenAD 的方法边界也很清楚：它适合说明“未来交互可以作为生成变量”，但还没有把 world state 显式展开成 occupancy、geometry 或 cost。读这篇时应记住它的桥梁作用：它把端到端驾驶从确定性回归推向生成式规划，但真正接近闭环决策，还需要后续方法把生成未来变成可解释、可筛选、可约束的动作候选。</p>
 
             </div>
 
@@ -226,7 +365,7 @@ temporal model
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E7%AB%AF%E5%88%B0%E7%AB%AF%E9%A9%BE%E9%A9%B6%E5%8F%AF%E4%BB%A5%E7%94%A8%E7%94%9F%E6%88%90%E5%BC%8F%E6%A1%86%E6%9E%B6%E7%BB%9F%E4%B8%80"><span class="toc-text">洞察 1：端到端驾驶可以用生成式框架统一</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Ainstance-centric-tokenizer-%E4%BF%9D%E7%95%99%E4%BA%A4%E9%80%9A%E5%8F%82%E4%B8%8E%E8%80%85%E7%BB%93%E6%9E%84"><span class="toc-text">洞察 2：instance-centric tokenizer 保留交通参与者结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9Alatent-temporal-model-%E5%90%8C%E6%97%B6%E6%9C%8D%E5%8A%A1%E9%A2%84%E6%B5%8B%E5%92%8C%E8%A7%84%E5%88%92"><span class="toc-text">洞察 3：latent temporal model 同时服务预测和规划</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%B8%8E%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%A7%84%E5%88%92%E8%B7%AF%E7%BA%BF%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.3 与端到端规划路线的关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%91%98%E8%A6%81"><span class="toc-text">1. 摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%97%AE%E9%A2%98%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">2. 问题与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%B4%9E%E5%AF%9F"><span class="toc-text">3. 核心洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-1%EF%BC%9A%E7%AB%AF%E5%88%B0%E7%AB%AF%E9%A9%BE%E9%A9%B6%E5%8F%AF%E4%BB%A5%E7%94%A8%E7%94%9F%E6%88%90%E5%BC%8F%E6%A1%86%E6%9E%B6%E7%BB%9F%E4%B8%80"><span class="toc-text">洞察 1：端到端驾驶可以用生成式框架统一</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-2%EF%BC%9Ainstance-centric-tokenizer-%E4%BF%9D%E7%95%99%E4%BA%A4%E9%80%9A%E5%8F%82%E4%B8%8E%E8%80%85%E7%BB%93%E6%9E%84"><span class="toc-text">洞察 2：instance-centric tokenizer 保留交通参与者结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B4%9E%E5%AF%9F-3%EF%BC%9Alatent-temporal-model-%E5%90%8C%E6%97%B6%E6%9C%8D%E5%8A%A1%E9%A2%84%E6%B5%8B%E5%92%8C%E8%A7%84%E5%88%92"><span class="toc-text">洞察 3：latent temporal model 同时服务预测和规划</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%96%B9%E6%B3%95%E8%AE%BE%E8%AE%A1"><span class="toc-text">4. 方法设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">4.1 整体架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">4.2 关键组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E4%B8%8E%E7%AB%AF%E5%88%B0%E7%AB%AF%E8%A7%84%E5%88%92%E8%B7%AF%E7%BA%BF%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">4.3 与端到端规划路线的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-structural-latent-%E4%B8%8E%E8%BD%A8%E8%BF%B9%E8%AF%8D%E8%A1%A8%E7%9A%84%E5%B7%AE%E5%88%AB"><span class="toc-text">4.4 structural latent 与轨迹词表的差别</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E7%AB%AF%E5%88%B0%E7%AB%AF%E7%94%9F%E6%88%90%E7%9A%84%E4%BF%A1%E6%81%AF%E6%B5%81"><span class="toc-text">4.5 端到端生成的信息流</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E9%AA%8C%E4%B8%8E%E5%88%86%E6%9E%90"><span class="toc-text">5. 实验与分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="toc-text">6. 工程实践</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%A0%94%E7%A9%B6%E5%90%AF%E7%A4%BA"><span class="toc-text">7. 研究启示</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%96%B9%E6%B3%95%E8%BE%B9%E7%95%8C%E4%B8%8E%E7%AB%99%E5%86%85%E5%85%B3%E7%B3%BB"><span class="toc-text">8. 方法边界与站内关系</span></a></li></ol>
                         </div>
                     </aside>
                 
