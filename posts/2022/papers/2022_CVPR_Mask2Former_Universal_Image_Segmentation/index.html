@@ -55,13 +55,14 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Universal Image Segmentation (Panoptic &#x2F; Instance &#x2F; Semantic)<br>Method: Masked Attention + Multi-scale Transformer Decoder<br>Venue: CVPR 2022<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2112.01527">https://arxiv.org/abs/2112.01527</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/Mask2Former">https://github.com/facebookresearch/Mask2Former</a></p>
+                
+<p>Task: Universal Image Segmentation (Panoptic / Instance / Semantic)<br>Method: Masked Attention + Multi-scale Transformer Decoder<br>Venue: CVPR 2022<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2112.01527">https://arxiv.org/abs/2112.01527</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/Mask2Former">https://github.com/facebookresearch/Mask2Former</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>图像分割本质上是将像素按不同语义分组，不同的分组标准定义了不同的任务（全景、实例、语义分割）。尽管各任务仅语义不同，现有研究为每个任务设计专用架构。本文提出 Mask2Former，一种能够处理<strong>任意图像分割任务</strong>的通用架构。其核心创新是<strong>掩码注意力（masked attention）</strong>——将交叉注意力约束在预测掩码的前景区域内，使特征提取聚焦于局部信息，加速收敛并提升性能。此外，高效多尺度策略引入高分辨率特征改善小目标分割，优化改进（调换自注意力&#x2F;交叉注意力顺序、可学习 query 特征、去除 dropout）进一步提升性能而不增加计算量。Mask2Former 在四个数据集上以相同架构<strong>首次全面超越所有专用架构</strong>：COCO 全景分割 57.8 PQ、实例分割 50.1 AP、ADE20K 语义分割 57.7 mIoU。</p>
-<p><strong>核心论点</strong>：将交叉注意力限制在掩码预测的前景区域（masked attention）是让通用分割架构首次超越所有专用架构的关键——它将 DETR 的全局注意力转化为局部聚焦，解决了收敛慢和特征分散的根本问题。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>图像分割本质上是将像素按不同语义分组，不同的分组标准定义了不同的任务（全景、实例、语义分割）。尽管各任务仅语义不同，现有研究为每个任务设计专用架构。本文提出 Mask2Former，一种能够处理<strong>任意图像分割任务</strong>的通用架构。其核心创新是<strong>掩码注意力（masked attention）</strong>——将交叉注意力约束在预测掩码的前景区域内，使特征提取聚焦于局部信息，加速收敛并提升性能。此外，高效多尺度策略引入高分辨率特征改善小目标分割，优化改进（调换自注意力/交叉注意力顺序、可学习 query 特征、去除 dropout）进一步提升性能而不增加计算量。Mask2Former 在四个数据集上以相同架构<strong>首次全面超越所有专用架构</strong>：COCO 全景分割 57.8 PQ、实例分割 50.1 AP、ADE20K 语义分割 57.7 mIoU。</p>
+<p><strong>核心论点</strong>：将交叉注意力限制在掩码预测的前景区域（masked attention）是让通用分割架构首次超越所有专用架构的关键——它将 <a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a> 的全局注意力转化为局部聚焦，解决了收敛慢和特征分散的根本问题。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>图像分割领域长期存在<strong>架构碎片化</strong>问题：</p>
 <table>
 <thead>
@@ -81,7 +82,7 @@
 <tr>
 <td align="center">实例分割</td>
 <td align="left">掩码分类（检测+分割）</td>
-<td align="left">Mask R-CNN, HTC++</td>
+<td align="left"><a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">Mask R-CNN</a>, HTC++</td>
 <td align="left">依赖检测框，无法做语义</td>
 </tr>
 <tr>
@@ -96,26 +97,26 @@
 <h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：掩码注意力——将全局交叉注意力约束为局部关注"><a href="#洞察-1：掩码注意力——将全局交叉注意力约束为局部关注" class="headerlink" title="洞察 1：掩码注意力——将全局交叉注意力约束为局部关注"></a>洞察 1：掩码注意力——将全局交叉注意力约束为局部关注</h3><p>传统做法：标准 Transformer 交叉注意力对整张特征图做全局 softmax，导致注意力分散到大面积背景（实验证实仅 20% 权重在前景）。</p>
 <p>本文做法：Masked attention 将注意力限制在预测掩码的前景区域内——在 softmax 前对背景位置设为 $-\infty$：</p>
 
-$$\mathcal{M}_{l-1}(x,y) = \begin{cases} 0 & \text{if } \mathbf{M}_{l-1}(x,y) = 1 \\ -\infty & \text{otherwise} \end{cases}$$
+$$\mathcal{M}_{l-1}(x,y) = \begin{cases} 0 &amp; \text{if } \mathbf{M}_{l-1}(x,y) = 1 \\ -\infty &amp; \text{otherwise} \end{cases}$$
 
 
 <p>其中 $\mathbf{M}_{l-1}$ 是上一层预测掩码二值化（阈值 0.5）后的结果。这使前景注意力从 20% 提升到 60%，单层 masked attention 即超越 9 层标准交叉注意力。</p>
-<h3 id="洞察-2：高效多尺度——轮询式特征金字塔输入"><a href="#洞察-2：高效多尺度——轮询式特征金字塔输入" class="headerlink" title="洞察 2：高效多尺度——轮询式特征金字塔输入"></a>洞察 2：高效多尺度——轮询式特征金字塔输入</h3><p>传统做法：使用单一分辨率特征图（如 1&#x2F;32）或将多尺度特征拼接后输入每层解码器（计算量大）。</p>
-<p>本文做法：从像素解码器的特征金字塔（1&#x2F;32、1&#x2F;16、1&#x2F;8）中，按<strong>轮询方式</strong>逐层输入不同分辨率——第 1&#x2F;4&#x2F;7 层用 1&#x2F;32，第 2&#x2F;5&#x2F;8 层用 1&#x2F;16，第 3&#x2F;6&#x2F;9 层用 1&#x2F;8。用 $L&#x3D;3$ 组重复，共 9 层解码器。</p>
+<h3 id="洞察-2：高效多尺度——轮询式特征金字塔输入"><a href="#洞察-2：高效多尺度——轮询式特征金字塔输入" class="headerlink" title="洞察 2：高效多尺度——轮询式特征金字塔输入"></a>洞察 2：高效多尺度——轮询式特征金字塔输入</h3><p>传统做法：使用单一分辨率特征图（如 1/32）或将多尺度特征拼接后输入每层解码器（计算量大）。</p>
+<p>本文做法：从像素解码器的特征金字塔（1/32、1/16、1/8）中，按<strong>轮询方式</strong>逐层输入不同分辨率——第 1/4/7 层用 1/32，第 2/5/8 层用 1/16，第 3/6/9 层用 1/8。用 $L=3$ 组重复，共 9 层解码器。</p>
 <p>这种策略在不增加计算量的前提下（226G vs 朴素多尺度 247G FLOPs）引入高分辨率特征，显著改善小目标分割。</p>
-<h3 id="洞察-3：三项优化改进——免费提升性能"><a href="#洞察-3：三项优化改进——免费提升性能" class="headerlink" title="洞察 3：三项优化改进——免费提升性能"></a>洞察 3：三项优化改进——免费提升性能</h3><p>传统做法（DETR&#x2F;MaskFormer）：自注意力→交叉注意力→FFN 顺序；query 特征零初始化；使用 dropout。</p>
+<h3 id="洞察-3：三项优化改进——免费提升性能"><a href="#洞察-3：三项优化改进——免费提升性能" class="headerlink" title="洞察 3：三项优化改进——免费提升性能"></a>洞察 3：三项优化改进——免费提升性能</h3><p>传统做法（DETR/MaskFormer）：自注意力→交叉注意力→FFN 顺序；query 特征零初始化；使用 dropout。</p>
 <p>本文做法：</p>
 <ol>
 <li><strong>交叉注意力（masked attention）在前</strong>：让 query 先接触图像信息再做自注意力交互</li>
 <li><strong>可学习 query 特征 + 直接监督</strong>：query 在进入解码器前就生成掩码提案，相当于 region proposal</li>
 <li><strong>去除 dropout</strong>：在掩码注意力下 dropout 反而有害</li>
 </ol>
-<p>三项改进合计提升 +1.4 AP &#x2F; +1.1 PQ &#x2F; +0.9 mIoU，且<strong>不增加任何 FLOPs</strong>。</p>
+<p>三项改进合计提升 +1.4 AP / +1.1 PQ / +0.9 mIoU，且<strong>不增加任何 FLOPs</strong>。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>57.8 PQ</strong>：COCO 全景分割 SOTA（Swin-L），超越 MaskFormer 5.1 PQ</li>
 <li><strong>50.1 AP</strong>：COCO 实例分割 SOTA（Swin-L），首次超越 HTC++</li>
-<li><strong>3×</strong>：采样点损失将训练显存从 18GB 降至 6GB&#x2F;image</li>
+<li><strong>3×</strong>：采样点损失将训练显存从 18GB 降至 6GB/image</li>
 </ul>
 <h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3>
 $$\text{Image} \rightarrow \text{Backbone} \rightarrow \text{Pixel Decoder (MSDeformAttn)} \rightarrow \text{Transformer Decoder (Masked Attn)} \rightarrow N \times (\text{class}, \text{mask})$$
@@ -126,8 +127,7 @@ $$\text{Image} \rightarrow \text{Backbone} \rightarrow \text{Pixel Decoder (MSDe
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-Image (H × W × 3)
+<pre>Image (H × W × 3)
        │
        ▼
 ┌──────────────────────────┐
@@ -169,7 +169,7 @@ Image (H × W × 3)
 </thead>
 <tbody><tr>
 <td align="center">Pixel Decoder</td>
-<td align="left">6 × MSDeformAttn, FPN 1&#x2F;8-1&#x2F;32</td>
+<td align="left">6 × MSDeformAttn, FPN 1/8-1/32</td>
 <td align="left">多尺度特征生成</td>
 <td align="center">—</td>
 </tr>
@@ -183,7 +183,7 @@ Image (H × W × 3)
 <td align="center">分类头</td>
 <td align="left">Linear(256→K+1)</td>
 <td align="left">类别预测</td>
-<td align="center">$\lambda_{cls}&#x3D;2.0$</td>
+<td align="center">$\lambda_{cls}=2.0$</td>
 </tr>
 <tr>
 <td align="center">掩码头</td>
@@ -195,20 +195,20 @@ Image (H × W × 3)
 <td align="center">掩码损失</td>
 <td align="left">BCE + Dice</td>
 <td align="left">二值掩码预测</td>
-<td align="center">$\lambda_{ce}&#x3D;5.0, \lambda_{dice}&#x3D;5.0$</td>
+<td align="center">$\lambda_{ce}=5.0, \lambda_{dice}=5.0$</td>
 </tr>
 </tbody></table>
 <h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>Transformer 解码器的核心 forward 逻辑，展示了掩码注意力和轮询多尺度策略。</p>
 <p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/Mask2Former/blob/main/mask2former/modeling/transformer_decoder/mask2former_transformer_decoder.py">mask2former_transformer_decoder.py</a>）</p>
 <details><summary>📄 点击展开 MultiScaleMaskedTransformerDecoder.forward 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x, mask_features, mask=<span class="literal">None</span></span>):</span><br><span class="line">    <span class="comment"># x 是多尺度特征列表（1/32, 1/16, 1/8）</span></span><br><span class="line">    <span class="keyword">assert</span> <span class="built_in">len</span>(x) == <span class="variable language_">self</span>.num_feature_levels</span><br><span class="line">    src, pos, size_list = [], [], []</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="variable language_">self</span>.num_feature_levels):</span><br><span class="line">        size_list.append(x[i].shape[-<span class="number">2</span>:])</span><br><span class="line">        <span class="comment"># 位置编码 + 尺度级嵌入</span></span><br><span class="line">        pos.append(<span class="variable language_">self</span>.pe_layer(x[i], <span class="literal">None</span>).flatten(<span class="number">2</span>))</span><br><span class="line">        src.append(<span class="variable language_">self</span>.input_proj[i](x[i]).flatten(<span class="number">2</span>) +</span><br><span class="line">                   <span class="variable language_">self</span>.level_embed.weight[i][<span class="literal">None</span>, :, <span class="literal">None</span>])</span><br><span class="line">        pos[-<span class="number">1</span>] = pos[-<span class="number">1</span>].permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)   <span class="comment"># HW×N×C</span></span><br><span class="line">        src[-<span class="number">1</span>] = src[-<span class="number">1</span>].permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 可学习 query 特征（非零初始化）</span></span><br><span class="line">    query_embed = <span class="variable language_">self</span>.query_embed.weight.unsqueeze(<span class="number">1</span>).repeat(<span class="number">1</span>, bs, <span class="number">1</span>)</span><br><span class="line">    output = <span class="variable language_">self</span>.query_feat.weight.unsqueeze(<span class="number">1</span>).repeat(<span class="number">1</span>, bs, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 先对 query 特征做一次预测（region proposal 效果）</span></span><br><span class="line">    outputs_class, outputs_mask, attn_mask = \</span><br><span class="line">        <span class="variable language_">self</span>.forward_prediction_heads(output, mask_features,</span><br><span class="line">                                      attn_mask_target_size=size_list[<span class="number">0</span>])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="variable language_">self</span>.num_layers):</span><br><span class="line">        <span class="comment"># 轮询选择分辨率: 0→1/32, 1→1/16, 2→1/8, 3→1/32, ...</span></span><br><span class="line">        level_index = i % <span class="variable language_">self</span>.num_feature_levels</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 防止全 True 掩码导致 NaN</span></span><br><span class="line">        attn_mask[torch.where(</span><br><span class="line">            attn_mask.<span class="built_in">sum</span>(-<span class="number">1</span>) == attn_mask.shape[-<span class="number">1</span>])] = <span class="literal">False</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 1. Masked Cross-Attention（仅在前景区域内做注意力）</span></span><br><span class="line">        output = <span class="variable language_">self</span>.transformer_cross_attention_layers[i](</span><br><span class="line">            output, src[level_index],</span><br><span class="line">            memory_mask=attn_mask,      <span class="comment"># 关键：掩码注意力</span></span><br><span class="line">            pos=pos[level_index], query_pos=query_embed)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 2. Self-Attention（query 间交互）</span></span><br><span class="line">        output = <span class="variable language_">self</span>.transformer_self_attention_layers[i](</span><br><span class="line">            output, query_pos=query_embed)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 3. FFN</span></span><br><span class="line">        output = <span class="variable language_">self</span>.transformer_ffn_layers[i](output)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 预测下一层的掩码（用于下一层的 masked attention）</span></span><br><span class="line">        outputs_class, outputs_mask, attn_mask = \</span><br><span class="line">            <span class="variable language_">self</span>.forward_prediction_heads(</span><br><span class="line">                output, mask_features,</span><br><span class="line">                attn_mask_target_size=size_list[(i+<span class="number">1</span>) % <span class="variable language_">self</span>.num_feature_levels])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> &#123;<span class="string">&#x27;pred_logits&#x27;</span>: outputs_class, <span class="string">&#x27;pred_masks&#x27;</span>: outputs_mask, ...&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x, mask_features, mask=<span class="literal">None</span></span>):</span><br><span class="line">    <span class="comment"># x 是多尺度特征列表（1/32, 1/16, 1/8）</span></span><br><span class="line">    <span class="keyword">assert</span> <span class="built_in">len</span>(x) == <span class="variable language_">self</span>.num_feature_levels</span><br><span class="line">    src, pos, size_list = [], [], []</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="variable language_">self</span>.num_feature_levels):</span><br><span class="line">        size_list.append(x[i].shape[-<span class="number">2</span>:])</span><br><span class="line">        <span class="comment"># 位置编码 + 尺度级嵌入</span></span><br><span class="line">        pos.append(<span class="variable language_">self</span>.pe_layer(x[i], <span class="literal">None</span>).flatten(<span class="number">2</span>))</span><br><span class="line">        src.append(<span class="variable language_">self</span>.input_proj[i](x[i]).flatten(<span class="number">2</span>) +</span><br><span class="line">                   <span class="variable language_">self</span>.level_embed.weight[i][<span class="literal">None</span>, :, <span class="literal">None</span>])</span><br><span class="line">        pos[-<span class="number">1</span>] = pos[-<span class="number">1</span>].permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)   <span class="comment"># HW×N×C</span></span><br><span class="line">        src[-<span class="number">1</span>] = src[-<span class="number">1</span>].permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 可学习 query 特征（非零初始化）</span></span><br><span class="line">    query_embed = <span class="variable language_">self</span>.query_embed.weight.unsqueeze(<span class="number">1</span>).repeat(<span class="number">1</span>, bs, <span class="number">1</span>)</span><br><span class="line">    output = <span class="variable language_">self</span>.query_feat.weight.unsqueeze(<span class="number">1</span>).repeat(<span class="number">1</span>, bs, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 先对 query 特征做一次预测（region proposal 效果）</span></span><br><span class="line">    outputs_class, outputs_mask, attn_mask = \</span><br><span class="line">        <span class="variable language_">self</span>.forward_prediction_heads(output, mask_features,</span><br><span class="line">                                      attn_mask_target_size=size_list[<span class="number">0</span>])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="variable language_">self</span>.num_layers):</span><br><span class="line">        <span class="comment"># 轮询选择分辨率: 0→1/32, 1→1/16, 2→1/8, 3→1/32, ...</span></span><br><span class="line">        level_index = i % <span class="variable language_">self</span>.num_feature_levels</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 防止全 True 掩码导致 NaN</span></span><br><span class="line">        attn_mask[torch.where(</span><br><span class="line">            attn_mask.<span class="built_in">sum</span>(-<span class="number">1</span>) == attn_mask.shape[-<span class="number">1</span>])] = <span class="literal">False</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 1. Masked Cross-Attention（仅在前景区域内做注意力）</span></span><br><span class="line">        output = <span class="variable language_">self</span>.transformer_cross_attention_layers[i](</span><br><span class="line">            output, src[level_index],</span><br><span class="line">            memory_mask=attn_mask,      <span class="comment"># 关键：掩码注意力</span></span><br><span class="line">            pos=pos[level_index], query_pos=query_embed)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 2. Self-Attention（query 间交互）</span></span><br><span class="line">        output = <span class="variable language_">self</span>.transformer_self_attention_layers[i](</span><br><span class="line">            output, query_pos=query_embed)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 3. FFN</span></span><br><span class="line">        output = <span class="variable language_">self</span>.transformer_ffn_layers[i](output)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 预测下一层的掩码（用于下一层的 masked attention）</span></span><br><span class="line">        outputs_class, outputs_mask, attn_mask = \</span><br><span class="line">            <span class="variable language_">self</span>.forward_prediction_heads(</span><br><span class="line">                output, mask_features,</span><br><span class="line">                attn_mask_target_size=size_list[(i+<span class="number">1</span>) % <span class="variable language_">self</span>.num_feature_levels])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> {<span class="string">'pred_logits'</span>: outputs_class, <span class="string">'pred_masks'</span>: outputs_mask, ...}</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <p>掩码注意力的关键在 <code>forward_prediction_heads</code> 中生成 <code>attn_mask</code>：</p>
 <p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/Mask2Former/blob/main/mask2former/modeling/transformer_decoder/mask2former_transformer_decoder.py">mask2former_transformer_decoder.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward_prediction_heads</span>(<span class="params">self, output, mask_features, attn_mask_target_size</span>):</span><br><span class="line">    decoder_output = <span class="variable language_">self</span>.decoder_norm(output).transpose(<span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line">    outputs_class = <span class="variable language_">self</span>.class_embed(decoder_output)</span><br><span class="line">    mask_embed = <span class="variable language_">self</span>.mask_embed(decoder_output)</span><br><span class="line">    <span class="comment"># query 嵌入 × 像素嵌入 → 掩码预测</span></span><br><span class="line">    outputs_mask = torch.einsum(<span class="string">&quot;bqc,bchw-&gt;bqhw&quot;</span>, mask_embed, mask_features)</span><br><span class="line">    <span class="comment"># 二值化掩码 → 下一层的注意力掩码（&lt;0.5 的位置设为 True 即屏蔽）</span></span><br><span class="line">    attn_mask = F.interpolate(outputs_mask, size=attn_mask_target_size,</span><br><span class="line">                              mode=<span class="string">&quot;bilinear&quot;</span>, align_corners=<span class="literal">False</span>)</span><br><span class="line">    attn_mask = (attn_mask.sigmoid().flatten(<span class="number">2</span>).unsqueeze(<span class="number">1</span>)</span><br><span class="line">                 .repeat(<span class="number">1</span>, <span class="variable language_">self</span>.num_heads, <span class="number">1</span>, <span class="number">1</span>).flatten(<span class="number">0</span>, <span class="number">1</span>) &lt; <span class="number">0.5</span>).<span class="built_in">bool</span>()</span><br><span class="line">    <span class="keyword">return</span> outputs_class, outputs_mask, attn_mask.detach()</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward_prediction_heads</span>(<span class="params">self, output, mask_features, attn_mask_target_size</span>):</span><br><span class="line">    decoder_output = <span class="variable language_">self</span>.decoder_norm(output).transpose(<span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line">    outputs_class = <span class="variable language_">self</span>.class_embed(decoder_output)</span><br><span class="line">    mask_embed = <span class="variable language_">self</span>.mask_embed(decoder_output)</span><br><span class="line">    <span class="comment"># query 嵌入 × 像素嵌入 → 掩码预测</span></span><br><span class="line">    outputs_mask = torch.einsum(<span class="string">"bqc,bchw-&gt;bqhw"</span>, mask_embed, mask_features)</span><br><span class="line">    <span class="comment"># 二值化掩码 → 下一层的注意力掩码（&lt;0.5 的位置设为 True 即屏蔽）</span></span><br><span class="line">    attn_mask = F.interpolate(outputs_mask, size=attn_mask_target_size,</span><br><span class="line">                              mode=<span class="string">"bilinear"</span>, align_corners=<span class="literal">False</span>)</span><br><span class="line">    attn_mask = (attn_mask.sigmoid().flatten(<span class="number">2</span>).unsqueeze(<span class="number">1</span>)</span><br><span class="line">                 .repeat(<span class="number">1</span>, <span class="variable language_">self</span>.num_heads, <span class="number">1</span>, <span class="number">1</span>).flatten(<span class="number">0</span>, <span class="number">1</span>) &lt; <span class="number">0.5</span>).<span class="built_in">bool</span>()</span><br><span class="line">    <span class="keyword">return</span> outputs_class, outputs_mask, attn_mask.detach()</span><br></pre></td></tr></tbody></table></figure>
 
 <h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="5-1-主要结果"><a href="#5-1-主要结果" class="headerlink" title="5.1 主要结果"></a>5.1 主要结果</h3><table>
 <thead>
@@ -266,7 +266,7 @@ Image (H × W × 3)
 <ul>
 <li>Mask2Former 以 50 epochs 即可达到 MaskFormer 300 epochs 的性能（收敛快 6×）</li>
 <li>首次让通用架构在<strong>所有三个任务</strong>上超越最佳专用架构</li>
-<li>使用采样点损失，训练显存从 18GB 降至 6GB&#x2F;image（3× 节省）</li>
+<li>使用采样点损失，训练显存从 18GB 降至 6GB/image（3× 节省）</li>
 </ul>
 <h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><table>
 <thead>
@@ -323,21 +323,21 @@ Image (H × W × 3)
 </tbody></table>
 <h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
 <li><strong>小目标检测</strong>：APS 仍然落后于部分专用方法，高分辨率特征使用可进一步改善</li>
-<li><strong>多任务联合训练</strong>：在全景标注上训练的模型比专门在实例&#x2F;语义标注上训练的性能略低</li>
+<li><strong>多任务联合训练</strong>：在全景标注上训练的模型比专门在实例/语义标注上训练的性能略低</li>
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
 <li><strong>小物体密集场景</strong>：极小目标的掩码预测精度仍不足</li>
 <li><strong>多任务训练退化</strong>：仅用全景标注训练时，实例 AP 比专用训练低约 2 AP</li>
 <li><strong>高分辨率输入</strong>：多尺度推理对端到端模型非平凡，需要额外后处理（如 NMS）</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:         R50 / Swin-L (ImageNet-22K pretrained)</span><br><span class="line">Pixel Decoder:    6 × MSDeformAttn, 特征分辨率 1/8, 1/16, 1/32</span><br><span class="line">Decoder:          9 layers (L=3 × 3 scales), 100 queries</span><br><span class="line">Optimizer:        AdamW, lr=1e-4, weight_decay=0.05</span><br><span class="line">LR Schedule:      Step decay ×0.1 at 0.9/0.95 fraction</span><br><span class="line">Batch Size:       16</span><br><span class="line">Epochs:           50 (COCO panoptic/instance), 160k iter (ADE20K semantic)</span><br><span class="line">Augmentation:     Large-Scale Jittering (scale 0.1-2.0) + 1024×1024 crop</span><br><span class="line">Mask Loss Points: K=12544 (112×112) 随机采样</span><br><span class="line">Inference:        短边 800, 长边 ≤1333</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:         R50 / Swin-L (ImageNet-22K pretrained)</span><br><span class="line">Pixel Decoder:    6 × MSDeformAttn, 特征分辨率 1/8, 1/16, 1/32</span><br><span class="line">Decoder:          9 layers (L=3 × 3 scales), 100 queries</span><br><span class="line">Optimizer:        AdamW, lr=1e-4, weight_decay=0.05</span><br><span class="line">LR Schedule:      Step decay ×0.1 at 0.9/0.95 fraction</span><br><span class="line">Batch Size:       16</span><br><span class="line">Epochs:           50 (COCO panoptic/instance), 160k iter (ADE20K semantic)</span><br><span class="line">Augmentation:     Large-Scale Jittering (scale 0.1-2.0) + 1024×1024 crop</span><br><span class="line">Mask Loss Points: K=12544 (112×112) 随机采样</span><br><span class="line">Inference:        短边 800, 长边 ≤1333</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
 <li><strong>像素解码器选择</strong>：MSDeformAttn 在所有三个任务上一致最优；BiFPN 偏好实例分割，FaPN 偏好语义分割</li>
 <li><strong>采样点损失</strong>：在匹配损失和训练损失中均使用 12544 个采样点替代全掩码，节省 3× 显存且无性能损失</li>
 <li><strong>可学习 query 必须监督</strong>：不监督的可学习 query 效果等同于零初始化</li>
 <li><strong>Backbone 学习率</strong>：对 backbone 施加 0.1× 的学习率乘数</li>
-<li><strong>Query 数量</strong>：全景分割推荐 200 queries（segments 多），实例&#x2F;语义推荐 100</li>
+<li><strong>Query 数量</strong>：全景分割推荐 200 queries（segments 多），实例/语义推荐 100</li>
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
@@ -350,9 +350,9 @@ Image (H × W × 3)
 <li>使用更轻量的 pixel decoder 替代 MSDeformAttn</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li><strong>掩码注意力 &#x3D; 注意力聚焦</strong>：任何需要将全局注意力收缩到局部区域的任务（如 3D 占用预测、视频分割）都可以借鉴掩码注意力的思路</li>
+<li><strong>掩码注意力 = 注意力聚焦</strong>：任何需要将全局注意力收缩到局部区域的任务（如 3D 占用预测、视频分割）都可以借鉴掩码注意力的思路</li>
 <li><strong>轮询多尺度 &gt; 拼接多尺度</strong>：在 Transformer 解码器中逐层轮询不同分辨率特征，比暴力拼接更高效</li>
-<li><strong>OccFormer 的 3D 适配</strong>：OccFormer 将 Mask2Former 的掩码分类范式推广到 3D 体素空间，提出 preserve-pooling 和 class-guided sampling 解决 3D 稀疏性问题</li>
+<li><strong><a href="/posts/2023/papers/2023_ICCV_OccFormer_Dual_Path_Transformer_3D_Semantic_Occupancy/">OccFormer</a> 的 3D 适配</strong>：OccFormer 将 Mask2Former 的掩码分类范式推广到 3D 体素空间，提出 preserve-pooling 和 class-guided sampling 解决 3D 稀疏性问题</li>
 <li><strong>可学习 query 即 region proposal</strong>：无需显式 RPN，端到端可学习的 query 特征自动学会生成掩码提案</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
@@ -363,9 +363,10 @@ Image (H × W × 3)
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li><strong>统一分割架构的里程碑</strong>：首次证明通用架构可全面超越专用架构</li>
 <li><strong>OccFormer 的直接上游</strong>：OccFormer 的 3D Mask Classification 解码器直接继承自 Mask2Former 的掩码分类范式</li>
-<li><strong>OneFormer&#x2F;SAM 的基础</strong>：Mask2Former 的概念影响了后续的 OneFormer（一模型多任务联合训练）和 SAM（基础分割模型）等工作</li>
+<li><strong>OneFormer/SAM 的基础</strong>：Mask2Former 的概念影响了后续的 OneFormer（一模型多任务联合训练）和 SAM（基础分割模型）等工作</li>
 <li><strong>工业界广泛采用</strong>：Mask2Former 成为 Detectron2 生态中分割任务的默认基线</li>
 </ul>
+
 
             </div>
 

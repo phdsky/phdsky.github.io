@@ -60,36 +60,36 @@
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>现有端到端自动驾驶方法依赖计算昂贵的 BEV 特征，且预测和规划的设计过于简单，安全性不足。本文提出 <strong>SparseDrive</strong>，一种以稀疏表示为核心的端到端自动驾驶范式。SparseDrive 包含两大核心模块：<strong>对称稀疏感知</strong>（Symmetric Sparse Perception）用对称的模型结构统一检测、跟踪和在线建图，学习全稀疏的场景表示；<strong>并行运动规划器</strong>（Parallel Motion Planner）同时预测周围智能体和自车的多模态轨迹，并通过<strong>分层规划选择策略</strong>（命令过滤 + 碰撞感知重评分）选出安全轨迹。SparseDrive-S 仅用 ResNet-50，在所有任务上超越 UniAD，同时训练快 <strong>7.2×</strong>、推理快 <strong>5.0×</strong>（9.0 FPS）；SparseDrive-B 以 0.58m avg L2 和 0.06% avg Col 将规划性能推至新高。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>现有端到端自动驾驶方法依赖计算昂贵的 BEV 特征，且预测和规划的设计过于简单，安全性不足。本文提出 <strong>SparseDrive</strong>，一种以稀疏表示为核心的端到端自动驾驶范式。SparseDrive 包含两大核心模块：<strong>对称稀疏感知</strong>（Symmetric Sparse Perception）用对称的模型结构统一检测、跟踪和在线建图，学习全稀疏的场景表示；<strong>并行运动规划器</strong>（Parallel Motion Planner）同时预测周围智能体和自车的多模态轨迹，并通过<strong>分层规划选择策略</strong>（命令过滤 + 碰撞感知重评分）选出安全轨迹。SparseDrive-S 仅用 ResNet-50，在所有任务上超越 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a>，同时训练快 <strong>7.2×</strong>、推理快 <strong>5.0×</strong>（9.0 FPS）；SparseDrive-B 以 0.58m avg L2 和 0.06% avg Col 将规划性能推至新高。</p>
 <p><strong>核心论点</strong>：端到端自动驾驶不需要昂贵的 BEV 特征——稀疏实例表示（特征+锚框&#x2F;折线）足以编码驾驶场景，而运动预测与规划的高度相似性允许并行设计，将规划建模为多模态问题并通过碰撞感知重评分保障安全。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>UniAD 等 BEV-Centric 端到端方法取得了突破性进展，但存在两大瓶颈：</p>
 <table>
 <thead>
 <tr>
-<th>问题</th>
-<th>影响</th>
-<th>UniAD 具体表现</th>
+<th align="left">问题</th>
+<th align="left">影响</th>
+<th align="left">UniAD 具体表现</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>BEV 特征计算昂贵</td>
-<td>训练慢、推理慢、显存大</td>
-<td>1709 GFLOPs，1.8 FPS，50G 显存</td>
+<td align="left">BEV 特征计算昂贵</td>
+<td align="left">训练慢、推理慢、显存大</td>
+<td align="left">1709 GFLOPs，1.8 FPS，50G 显存</td>
 </tr>
 <tr>
-<td>预测&#x2F;规划设计简单</td>
-<td>规划安全性不足</td>
-<td>碰撞后处理反而增加碰撞率</td>
+<td align="left">预测&#x2F;规划设计简单</td>
+<td align="left">规划安全性不足</td>
+<td align="left">碰撞后处理反而增加碰撞率</td>
 </tr>
 <tr>
-<td>预测和规划串行</td>
-<td>忽略自车对周围智能体的影响</td>
-<td>单向信息流</td>
+<td align="left">预测和规划串行</td>
+<td align="left">忽略自车对周围智能体的影响</td>
+<td align="left">单向信息流</td>
 </tr>
 <tr>
-<td>规划单模态</td>
-<td>无法表达多种合理行为</td>
-<td>只预测一条确定性轨迹</td>
+<td align="left">规划单模态</td>
+<td align="left">无法表达多种合理行为</td>
+<td align="left">只预测一条确定性轨迹</td>
 </tr>
 </tbody></table>
 <p>SparseDrive 观察到运动预测和规划有三个被忽视的相似性：</p>
@@ -109,98 +109,57 @@
 <p><strong>为什么更好</strong>：碰撞感知重评分将碰撞率从 0.12% 降至 0.08%（Table 5），几乎不增加 L2 误差（0.61→0.61），且保持端到端范式一致性（不破坏梯度流）。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>0.06% avg Col</strong>：SparseDrive-B 的碰撞率，比 VAD（0.21%）降低 71.4%</li>
-<li><strong>9.0 FPS</strong>：SparseDrive-S 的推理速度，比 UniAD（1.8）快 5.0×</li>
-<li><strong>192 GFLOPs</strong>：SparseDrive-S 的计算量，仅为 UniAD（1709）的 11%</li>
+<li>0.06% avg Col<br>：SparseDrive-B 的碰撞率，比 <a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a>（0.21%）降低 71.4%</li>
+<li>9.0 FPS<br>：SparseDrive-S 的推理速度，比 UniAD（1.8）快 5.0×</li>
+<li>192 GFLOPs<br>：SparseDrive-S 的计算量，仅为 UniAD（1709）的 11%</li>
 </ul>
-<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><div style="text-align:center; margin: 24px 0;">
-  <img src="https://ar5iv.labs.arxiv.org/html/2405.19620/assets/x4.png" alt="SparseDrive 架构图" style="max-width:100%;">
-</div>
-
-<div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-多视图 6 cam
-      │
-      ▼
-┌───────────────┐
-│ ResNet + FPN  │  多尺度特征 I = {I_s}
-└─────┬─────────┘
-      │
-      ├────────────────────────────────┐
-      ▼                                ▼
-┌────────────────────┐     ┌────────────────────┐
-│ 检测分支（对称）      │     │ 建图分支（对称）     │
-│ 900 锚框 (11维)     │     │ 100 锚折线 (20点)   │
-│ 1 non-temporal dec │     │ 1 non-temporal dec │
-│ + 5 temporal dec   │     │ + 5 temporal dec   │
-│ → F_d, B_d 实例     │     │ → F_m, L_m 实例    │
-│ + ID 分配 →跟踪      │     │                    │
-└──┬─────────────────┘     └──┬─────────────────┘
-   │                          │
-   ▼                          ▼
-┌──────────────────────────────────────────────┐
-│ 并行运动规划器                                  │
-│ ① Ego 初始化：AvgPool(front_cam_S)            │
-│ ② Agent-temporal cross-attn (自身历史)        │
-│ ③ Agent-agent self-attn (所有智能体含ego)      │
-│ ④ Agent-map cross-attn (地图元素)             │
-│ ⑤ 同时解码 motion (K=6,T=12) + plan (K=6,T=6) │
-└──┬───────────────────────────────────────────┘
-   │
-   ▼
-┌──────────────────────────┐
-│ 分层规划选择               │
-│ ① 按命令(左/右/直)筛选     │
-│ ② 碰撞感知重评分           │
-│ ③ 选最高分轨迹 τ*          │
-└──────────────────────────┘
-</pre>
-</div>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p><img src="https://ar5iv.labs.arxiv.org/html/2405.19620/assets/x4.png" alt="SparseDrive 架构图"></p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">多视图 6 cam</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">┌───────────────┐</span><br><span class="line">│ ResNet + FPN  │  多尺度特征 I = &#123;I_s&#125;</span><br><span class="line">└─────┬─────────┘</span><br><span class="line">      │</span><br><span class="line">      ├────────────────────────────────┐</span><br><span class="line">      ▼                                ▼</span><br><span class="line">┌────────────────────┐     ┌────────────────────┐</span><br><span class="line">│ 检测分支（对称）      │     │ 建图分支（对称）     │</span><br><span class="line">│ 900 锚框 (11维)     │     │ 100 锚折线 (20点)   │</span><br><span class="line">│ 1 non-temporal dec │     │ 1 non-temporal dec │</span><br><span class="line">│ + 5 temporal dec   │     │ + 5 temporal dec   │</span><br><span class="line">│ → F_d, B_d 实例     │     │ → F_m, L_m 实例    │</span><br><span class="line">│ + ID 分配 →跟踪      │     │                    │</span><br><span class="line">└──┬─────────────────┘     └──┬─────────────────┘</span><br><span class="line">   │                          │</span><br><span class="line">   ▼                          ▼</span><br><span class="line">┌──────────────────────────────────────────────┐</span><br><span class="line">│ 并行运动规划器                                  │</span><br><span class="line">│ ① Ego 初始化：AvgPool(front_cam_S)            │</span><br><span class="line">│ ② Agent-temporal cross-attn (自身历史)        │</span><br><span class="line">│ ③ Agent-agent self-attn (所有智能体含ego)      │</span><br><span class="line">│ ④ Agent-map cross-attn (地图元素)             │</span><br><span class="line">│ ⑤ 同时解码 motion (K=6,T=12) + plan (K=6,T=6) │</span><br><span class="line">└──┬───────────────────────────────────────────┘</span><br><span class="line">   │</span><br><span class="line">   ▼</span><br><span class="line">┌──────────────────────────┐</span><br><span class="line">│ 分层规划选择               │</span><br><span class="line">│ ① 按命令(左/右/直)筛选     │</span><br><span class="line">│ ② 碰撞感知重评分           │</span><br><span class="line">│ ③ 选最高分轨迹 τ*          │</span><br><span class="line">└──────────────────────────┘</span><br></pre></td></tr></table></figure>
 
 <h3 id="关键组件"><a href="#关键组件" class="headerlink" title="关键组件"></a>关键组件</h3><table>
 <thead>
 <tr>
-<th>模块</th>
-<th>输入</th>
-<th>输出</th>
-<th>核心设计</th>
+<th align="left">模块</th>
+<th align="left">输入</th>
+<th align="left">输出</th>
+<th align="left">核心设计</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>对称稀疏感知（检测）</td>
-<td>多尺度图像特征 $I$</td>
-<td>实例特征 $F_d$ + 锚框 $B_d$</td>
-<td>可变形聚合 + 时序交叉注意力 + 自注意力</td>
+<td align="left">对称稀疏感知（检测）</td>
+<td align="left">多尺度图像特征 $I$</td>
+<td align="left">实例特征 $F_d$ + 锚框 $B_d$</td>
+<td align="left">可变形聚合 + 时序交叉注意力 + 自注意力</td>
 </tr>
 <tr>
-<td>对称稀疏感知（建图）</td>
-<td>同上</td>
-<td>实例特征 $F_m$ + 锚折线 $L_m$</td>
-<td>与检测分支结构对称，折线用 20 点表示</td>
+<td align="left">对称稀疏感知（建图）</td>
+<td align="left">同上</td>
+<td align="left">实例特征 $F_m$ + 锚折线 $L_m$</td>
+<td align="left">与检测分支结构对称，折线用 20 点表示</td>
 </tr>
 <tr>
-<td>稀疏跟踪</td>
-<td>时序传播实例</td>
-<td>带 ID 的跟踪结果</td>
-<td>Sparse4Dv3 式 ID 分配，无跟踪损失</td>
+<td align="left">稀疏跟踪</td>
+<td align="left">时序传播实例</td>
+<td align="left">带 ID 的跟踪结果</td>
+<td align="left">Sparse4Dv3 式 ID 分配，无跟踪损失</td>
 </tr>
 <tr>
-<td>Ego 实例初始化</td>
-<td>前视最小特征图</td>
-<td>$F_e, B_e$</td>
-<td>全局平均池化 + 辅助 ego status 预测</td>
+<td align="left">Ego 实例初始化</td>
+<td align="left">前视最小特征图</td>
+<td align="left">$F_e, B_e$</td>
+<td align="left">全局平均池化 + 辅助 ego status 预测</td>
 </tr>
 <tr>
-<td>并行运动规划器</td>
-<td>$F_d, F_e, F_m$</td>
-<td>多模态轨迹 + 分数</td>
-<td>agent-temporal&#x2F;agent-agent&#x2F;agent-map 交互</td>
+<td align="left">并行运动规划器</td>
+<td align="left">$F_d, F_e, F_m$</td>
+<td align="left">多模态轨迹 + 分数</td>
+<td align="left">agent-temporal&#x2F;agent-agent&#x2F;agent-map 交互</td>
 </tr>
 <tr>
-<td>碰撞感知重评分</td>
-<td>多模态规划方案 + 运动预测</td>
-<td>最终安全轨迹</td>
-<td>top-2 预测轨迹碰撞检测，碰撞方案分数置零</td>
+<td align="left">碰撞感知重评分</td>
+<td align="left">多模态规划方案 + 运动预测</td>
+<td align="left">最终安全轨迹</td>
+<td align="left">top-2 预测轨迹碰撞检测，碰撞方案分数置零</td>
 </tr>
 </tbody></table>
 <p><strong>损失函数</strong>：</p>
@@ -212,60 +171,60 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{map}} + \mathcal{L
 <h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="主要结果"><a href="#主要结果" class="headerlink" title="主要结果"></a>主要结果</h3><h4 id="nuScenes-val-规划（Table-2b）"><a href="#nuScenes-val-规划（Table-2b）" class="headerlink" title="nuScenes val 规划（Table 2b）"></a>nuScenes val 规划（Table 2b）</h4><table>
 <thead>
 <tr>
-<th>方法</th>
-<th>L2 1s↓</th>
-<th>L2 2s↓</th>
-<th>L2 3s↓</th>
-<th>avg L2↓</th>
-<th>Col 1s↓</th>
-<th>Col 2s↓</th>
-<th>Col 3s↓</th>
-<th>avg Col↓</th>
+<th align="left">方法</th>
+<th align="left">L2 1s↓</th>
+<th align="left">L2 2s↓</th>
+<th align="left">L2 3s↓</th>
+<th align="left">avg L2↓</th>
+<th align="left">Col 1s↓</th>
+<th align="left">Col 2s↓</th>
+<th align="left">Col 3s↓</th>
+<th align="left">avg Col↓</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>UniAD†</td>
-<td>0.45</td>
-<td>0.70</td>
-<td>1.04</td>
-<td>0.73</td>
-<td>0.62</td>
-<td>0.58</td>
-<td>0.63</td>
-<td>0.61</td>
+<td align="left">UniAD†</td>
+<td align="left">0.45</td>
+<td align="left">0.70</td>
+<td align="left">1.04</td>
+<td align="left">0.73</td>
+<td align="left">0.62</td>
+<td align="left">0.58</td>
+<td align="left">0.63</td>
+<td align="left">0.61</td>
 </tr>
 <tr>
-<td>VAD†</td>
-<td>0.41</td>
-<td>0.70</td>
-<td>1.05</td>
-<td>0.72</td>
-<td>0.03</td>
-<td>0.19</td>
-<td>0.43</td>
-<td>0.21</td>
+<td align="left">VAD†</td>
+<td align="left">0.41</td>
+<td align="left">0.70</td>
+<td align="left">1.05</td>
+<td align="left">0.72</td>
+<td align="left">0.03</td>
+<td align="left">0.19</td>
+<td align="left">0.43</td>
+<td align="left">0.21</td>
 </tr>
 <tr>
-<td><strong>SparseDrive-S</strong></td>
-<td>0.29</td>
-<td>0.58</td>
-<td>0.96</td>
-<td><strong>0.61</strong></td>
-<td>0.01</td>
-<td>0.05</td>
-<td>0.18</td>
-<td><strong>0.08</strong></td>
+<td align="left"><strong>SparseDrive-S</strong></td>
+<td align="left">0.29</td>
+<td align="left">0.58</td>
+<td align="left">0.96</td>
+<td align="left"><strong>0.61</strong></td>
+<td align="left">0.01</td>
+<td align="left">0.05</td>
+<td align="left">0.18</td>
+<td align="left"><strong>0.08</strong></td>
 </tr>
 <tr>
-<td><strong>SparseDrive-B</strong></td>
-<td><strong>0.29</strong></td>
-<td><strong>0.55</strong></td>
-<td><strong>0.91</strong></td>
-<td><strong>0.58</strong></td>
-<td><strong>0.01</strong></td>
-<td><strong>0.02</strong></td>
-<td><strong>0.13</strong></td>
-<td><strong>0.06</strong></td>
+<td align="left"><strong>SparseDrive-B</strong></td>
+<td align="left"><strong>0.29</strong></td>
+<td align="left"><strong>0.55</strong></td>
+<td align="left"><strong>0.91</strong></td>
+<td align="left"><strong>0.58</strong></td>
+<td align="left"><strong>0.01</strong></td>
+<td align="left"><strong>0.02</strong></td>
+<td align="left"><strong>0.13</strong></td>
+<td align="left"><strong>0.06</strong></td>
 </tr>
 </tbody></table>
 <blockquote>
@@ -274,159 +233,159 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{map}} + \mathcal{L
 <h4 id="感知与运动预测"><a href="#感知与运动预测" class="headerlink" title="感知与运动预测"></a>感知与运动预测</h4><table>
 <thead>
 <tr>
-<th>指标</th>
-<th>UniAD</th>
-<th>SparseDrive-S</th>
-<th>SparseDrive-B</th>
+<th align="left">指标</th>
+<th align="left">UniAD</th>
+<th align="left">SparseDrive-S</th>
+<th align="left">SparseDrive-B</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>det mAP↑</td>
-<td>0.380</td>
-<td>0.418</td>
-<td><strong>0.496</strong></td>
+<td align="left">det mAP↑</td>
+<td align="left">0.380</td>
+<td align="left">0.418</td>
+<td align="left"><strong>0.496</strong></td>
 </tr>
 <tr>
-<td>det NDS↑</td>
-<td>0.498</td>
-<td>0.525</td>
-<td><strong>0.588</strong></td>
+<td align="left">det NDS↑</td>
+<td align="left">0.498</td>
+<td align="left">0.525</td>
+<td align="left"><strong>0.588</strong></td>
 </tr>
 <tr>
-<td>AMOTA↑</td>
-<td>0.359</td>
-<td>0.386</td>
-<td><strong>0.501</strong></td>
+<td align="left">AMOTA↑</td>
+<td align="left">0.359</td>
+<td align="left">0.386</td>
+<td align="left"><strong>0.501</strong></td>
 </tr>
 <tr>
-<td>IDS↓</td>
-<td>906</td>
-<td>886</td>
-<td><strong>632</strong></td>
+<td align="left">IDS↓</td>
+<td align="left">906</td>
+<td align="left">886</td>
+<td align="left"><strong>632</strong></td>
 </tr>
 <tr>
-<td>map mAP↑</td>
-<td>—</td>
-<td>55.1</td>
-<td><strong>56.2</strong></td>
+<td align="left">map mAP↑</td>
+<td align="left">—</td>
+<td align="left">55.1</td>
+<td align="left"><strong>56.2</strong></td>
 </tr>
 <tr>
-<td>minADE↓</td>
-<td>0.71</td>
-<td>0.62</td>
-<td><strong>0.60</strong></td>
+<td align="left">minADE↓</td>
+<td align="left">0.71</td>
+<td align="left">0.62</td>
+<td align="left"><strong>0.60</strong></td>
 </tr>
 <tr>
-<td>minFDE↓</td>
-<td>1.02</td>
-<td>0.99</td>
-<td><strong>0.96</strong></td>
+<td align="left">minFDE↓</td>
+<td align="left">1.02</td>
+<td align="left">0.99</td>
+<td align="left"><strong>0.96</strong></td>
 </tr>
 </tbody></table>
 <h4 id="效率对比（Table-3）"><a href="#效率对比（Table-3）" class="headerlink" title="效率对比（Table 3）"></a>效率对比（Table 3）</h4><table>
 <thead>
 <tr>
-<th>方法</th>
-<th>训练显存</th>
-<th>训练时间</th>
-<th>FLOPs</th>
-<th>参数量</th>
-<th>FPS</th>
+<th align="left">方法</th>
+<th align="left">训练显存</th>
+<th align="left">训练时间</th>
+<th align="left">FLOPs</th>
+<th align="left">参数量</th>
+<th align="left">FPS</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>UniAD</td>
-<td>50.0G</td>
-<td>144h</td>
-<td>1709G</td>
-<td>125.0M</td>
-<td>1.8</td>
+<td align="left">UniAD</td>
+<td align="left">50.0G</td>
+<td align="left">144h</td>
+<td align="left">1709G</td>
+<td align="left">125.0M</td>
+<td align="left">1.8</td>
 </tr>
 <tr>
-<td><strong>SparseDrive-S</strong></td>
-<td><strong>15.2G</strong></td>
-<td><strong>20h</strong></td>
-<td><strong>192G</strong></td>
-<td><strong>85.9M</strong></td>
-<td><strong>9.0</strong></td>
+<td align="left"><strong>SparseDrive-S</strong></td>
+<td align="left"><strong>15.2G</strong></td>
+<td align="left"><strong>20h</strong></td>
+<td align="left"><strong>192G</strong></td>
+<td align="left"><strong>85.9M</strong></td>
+<td align="left"><strong>9.0</strong></td>
 </tr>
 <tr>
-<td>SparseDrive-B</td>
-<td>17.6G</td>
-<td>30h</td>
-<td>787G</td>
-<td>104.7M</td>
-<td>7.3</td>
+<td align="left">SparseDrive-B</td>
+<td align="left">17.6G</td>
+<td align="left">30h</td>
+<td align="left">787G</td>
+<td align="left">104.7M</td>
+<td align="left">7.3</td>
 </tr>
 </tbody></table>
 <h3 id="消融实验：验证三个洞察"><a href="#消融实验：验证三个洞察" class="headerlink" title="消融实验：验证三个洞察"></a>消融实验：验证三个洞察</h3><h4 id="运动规划器设计消融（Table-4）"><a href="#运动规划器设计消融（Table-4）" class="headerlink" title="运动规划器设计消融（Table 4）"></a>运动规划器设计消融（Table 4）</h4><table>
 <thead>
 <tr>
-<th>ID</th>
-<th>PAL</th>
-<th>EII</th>
-<th>MTM</th>
-<th>ATA</th>
-<th>CAR</th>
-<th>minADE↓</th>
-<th>avg L2↓</th>
-<th>avg Col↓</th>
+<th align="left">ID</th>
+<th align="left">PAL</th>
+<th align="left">EII</th>
+<th align="left">MTM</th>
+<th align="left">ATA</th>
+<th align="left">CAR</th>
+<th align="left">minADE↓</th>
+<th align="left">avg L2↓</th>
+<th align="left">avg Col↓</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>1</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td><strong>0.623</strong></td>
-<td><strong>0.61</strong></td>
-<td><strong>0.08</strong></td>
+<td align="left">1</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left"><strong>0.623</strong></td>
+<td align="left"><strong>0.61</strong></td>
+<td align="left"><strong>0.08</strong></td>
 </tr>
 <tr>
-<td>2</td>
-<td>—</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td>0.641</td>
-<td>0.61</td>
-<td>0.10</td>
+<td align="left">2</td>
+<td align="left">—</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">0.641</td>
+<td align="left">0.61</td>
+<td align="left">0.10</td>
 </tr>
 <tr>
-<td>3</td>
-<td>✓</td>
-<td>—</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td>0.621</td>
-<td>0.63</td>
-<td>0.11</td>
+<td align="left">3</td>
+<td align="left">✓</td>
+<td align="left">—</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">0.621</td>
+<td align="left">0.63</td>
+<td align="left">0.11</td>
 </tr>
 <tr>
-<td>4</td>
-<td>✓</td>
-<td>✓</td>
-<td>—</td>
-<td>✓</td>
-<td>✓</td>
-<td>0.626</td>
-<td>0.69</td>
-<td>0.25</td>
+<td align="left">4</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">—</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">0.626</td>
+<td align="left">0.69</td>
+<td align="left">0.25</td>
 </tr>
 <tr>
-<td>5</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td>—</td>
-<td>✓</td>
-<td>0.634</td>
-<td>0.77</td>
-<td>0.16</td>
+<td align="left">5</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">✓</td>
+<td align="left">—</td>
+<td align="left">✓</td>
+<td align="left">0.634</td>
+<td align="left">0.77</td>
+<td align="left">0.16</td>
 </tr>
 </tbody></table>
 <blockquote>
@@ -439,18 +398,18 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{map}} + \mathcal{L
 <li>碰撞感知重评分（ID-1 vs ID-6&#x3D;无 CAR）将碰撞率从 0.12% 降至 0.08%</li>
 </ol>
 <h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><ul>
-<li><strong>在线建图</strong>：单任务方法 MapTR 的 mAP（58.7）仍高于 SparseDrive-B（56.2），端到端优化未能充分释放建图性能</li>
-<li><strong>开环评估局限</strong>：nuScenes 开环评估无法全面衡量安全性和交互能力</li>
-<li><strong>数据规模</strong>：nuScenes 仅 1000 场景，不足以发挥端到端学习的全部潜力</li>
+<li>在线建图<br>：单任务方法 <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> 的 mAP（58.7）仍高于 SparseDrive-B（56.2），端到端优化未能充分释放建图性能</li>
+<li>开环评估局限<br>：nuScenes 开环评估无法全面衡量安全性和交互能力</li>
+<li>数据规模<br>：nuScenes 仅 1000 场景，不足以发挥端到端学习的全部潜力</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:       ResNet-50 (S) / ResNet-101 (B)</span><br><span class="line">Input:          256×704 (S) / 512×1408 (B), 6 cameras</span><br><span class="line">Training:</span><br><span class="line">  Stage-1:      100 epochs (S) / 80 epochs (B), 感知模块, bs=8(S)/4(B)</span><br><span class="line">  Stage-2:      10 epochs, 全模块端到端, bs=6(S)/4(B)</span><br><span class="line">Optimizer:      AdamW, Cosine Annealing</span><br><span class="line">GPUs:           8× RTX 4090 (24GB)</span><br><span class="line">Detection:      900 anchors, 6 decoder layers (1 non-temporal + 5 temporal)</span><br><span class="line">Online Map:     100 map anchors, 20 points/element</span><br><span class="line">Motion Memory:  3 stored frames, instance-level temporal attention</span><br><span class="line">Motion Modes:   K=6 (prediction &amp; planning)</span><br><span class="line">Prediction:     T_m=12 steps (6s)</span><br><span class="line">Planning:       T_p=6 steps (3s)</span><br><span class="line">Feature Dim:    256</span><br><span class="line">Flash Attention: 启用</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">Backbone:       ResNet-50 (S) / ResNet-101 (B)</span><br><span class="line">Input:          256×704 (S) / 512×1408 (B), 6 cameras</span><br><span class="line">Training:</span><br><span class="line">  Stage-1:      100 epochs (S) / 80 epochs (B), 感知模块, bs=8(S)/4(B)</span><br><span class="line">  Stage-2:      10 epochs, 全模块端到端, bs=6(S)/4(B)</span><br><span class="line">Optimizer:      AdamW, Cosine Annealing</span><br><span class="line">GPUs:           8× RTX 4090 (24GB)</span><br><span class="line">Detection:      900 anchors, 6 decoder layers (1 non-temporal + 5 temporal)</span><br><span class="line">Online Map:     100 map anchors, 20 points/element</span><br><span class="line">Motion Memory:  3 stored frames, instance-level temporal attention</span><br><span class="line">Motion Modes:   K=6 (prediction &amp; planning)</span><br><span class="line">Prediction:     T_m=12 steps (6s)</span><br><span class="line">Planning:       T_p=6 steps (3s)</span><br><span class="line">Feature Dim:    256</span><br><span class="line">Flash Attention: 启用</span><br></pre></td></tr></table></figure>
 
 <h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
-<li><strong>对称感知的关键是锚框初始化</strong>：检测和建图的锚框位置均由训练集 K-Means 聚类得到，直接影响收敛速度</li>
-<li><strong>Ego 速度不能用 GT</strong>：直接用 GT 速度初始化 ego 锚框会导致 ego status 信息泄露，需通过辅助任务预测速度并用上一帧预测值初始化</li>
-<li><strong>碰撞检测用 BBox 重叠</strong>：不同于 UniAD 用 0.5m 占用图（会产生假碰撞），SparseDrive 用 ego BBox 和障碍物 BBox 的实际重叠判断碰撞，并考虑 ego heading 变化</li>
-<li><strong>跟踪无需额外损失</strong>：Sparse4Dv3 式 ID 分配——检测置信度超过 0.2 即锁定 ID，时序传播自然保持身份一致性</li>
-<li><strong>Flash Attention 显存优化</strong>：在 self-attention 和 cross-attention 中使用 Flash Attention，显存从约 25G 降至 15.2G（SparseDrive-S）</li>
+<li>对称感知的关键是锚框初始化<br>  ：检测和建图的锚框位置均由训练集 K-Means 聚类得到，直接影响收敛速度</li>
+<li>Ego 速度不能用 GT<br>  ：直接用 GT 速度初始化 ego 锚框会导致 ego status 信息泄露，需通过辅助任务预测速度并用上一帧预测值初始化</li>
+<li>碰撞检测用 BBox 重叠<br>  ：不同于 UniAD 用 0.5m 占用图（会产生假碰撞），SparseDrive 用 ego BBox 和障碍物 BBox 的实际重叠判断碰撞，并考虑 ego heading 变化</li>
+<li>跟踪无需额外损失<br>  ：Sparse4Dv3 式 ID 分配——检测置信度超过 0.2 即锁定 ID，时序传播自然保持身份一致性</li>
+<li>Flash Attention 显存优化<br>  ：在 self-attention 和 cross-attention 中使用 Flash Attention，显存从约 25G 降至 15.2G（SparseDrive-S）</li>
 </ol>
 <h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
@@ -463,22 +422,21 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{map}} + \mathcal{L
 <li>去掉深度辅助损失可减少训练开销，但可能影响感知精度</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ul>
-<li><strong>稀疏表示替代 BEV</strong>：对于不需要稠密空间推理的任务，稀疏实例表示可大幅降低计算成本，适用于端到端机器人操控、无人机导航等资源受限场景</li>
-<li><strong>并行预测+规划</strong>：将自车视为”又一个智能体”参与联合预测，通过共享 Transformer 天然建模双向交互</li>
-<li><strong>碰撞感知重评分 &gt; 后处理优化</strong>：基于预测结果的碰撞检测比基于占用图的后处理优化更安全、更高效</li>
-<li><strong>对称模型设计</strong>：检测和建图用相同的解码器结构（仅锚框定义不同），简化了代码实现和调参</li>
+<li>稀疏表示替代 BEV<br>：对于不需要稠密空间推理的任务，稀疏实例表示可大幅降低计算成本，适用于端到端机器人操控、无人机导航等资源受限场景</li>
+<li>并行预测+规划<br>：将自车视为”又一个智能体”参与联合预测，通过共享 Transformer 天然建模双向交互</li>
+<li>碰撞感知重评分 &gt; 后处理优化<br>：基于预测结果的碰撞检测比基于占用图的后处理优化更安全、更高效</li>
+<li>对称模型设计<br>：检测和建图用相同的解码器结构（仅锚框定义不同），简化了代码实现和调参</li>
 </ul>
 <h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
 <li>开环评估（nuScenes）不足以证明闭环安全性</li>
-<li>无 BEV 特征意味着缺少稠密空间信息，对 OccFormer 式的占用预测不友好</li>
+<li>无 BEV 特征意味着缺少稠密空间信息，对 <a href="/posts/2023/papers/2023_ICCV_OccFormer_Dual_Path_Transformer_3D_Semantic_Occupancy/">OccFormer</a> 式的占用预测不友好</li>
 <li>碰撞重评分依赖运动预测精度——如果预测不准，碰撞检测也不可靠</li>
 </ul>
 <h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
 <li>SparseDrive 证明了 BEV 特征不是端到端自动驾驶的必需品，稀疏表示在性能和效率上均可超越 BEV-Centric 方案</li>
-<li>并行预测+规划的范式被后续 DiffusionDrive 等方法采纳，成为新的设计趋势</li>
+<li>并行预测+规划的范式被后续 <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 等方法采纳，成为新的设计趋势</li>
 <li>提出的碰撞率评估修正（考虑 ego heading + BBox 重叠）被社区采用为更公平的规划评估标准</li>
 </ul>
-<hr>
 <p>SparseDrive 解决了端到端自动驾驶的<strong>表示效率</strong>问题——证明稀疏表示足以替代 BEV。但自动驾驶的核心挑战还有另一面：<strong>规划质量</strong>。当 DiffusionDrive 等生成式方法将多模态规划推向新高度时，SparseDriveV2 从评分范式出发，给出了一个出人意料的回答。</p>
 <h2 id="SparseDriveV2：Scoring-is-All-You-Need"><a href="#SparseDriveV2：Scoring-is-All-You-Need" class="headerlink" title="SparseDriveV2：Scoring is All You Need"></a>SparseDriveV2：Scoring is All You Need</h2><p>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2603.29163">SparseDriveV2</a></p>
 <h2 id="摘要-1"><a href="#摘要-1" class="headerlink" title="摘要"></a>摘要</h2><p>SparseDriveV2 重新审视了端到端自动驾驶中”静态候选轨迹 vs 生成式轨迹”的路线之争。通过 Scaling Study 发现，Hydra-MDP 的静态轨迹锚点从 1024 增至 16384 时，EPDMS 从 85.02 持续上涨至 87.35，直到 32768 才因显存溢出停止——<strong>性能并未饱和，先撞墙的是算力</strong>。这说明过去对静态词表的不满，核心原因不是”打分派范式不行”，而是<strong>词表覆盖率不够</strong>。</p>
@@ -488,29 +446,29 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{map}} + \mathcal{L
 <table>
 <thead>
 <tr>
-<th>路线</th>
-<th>代表方法</th>
-<th>核心思路</th>
-<th>局限</th>
+<th align="left">路线</th>
+<th align="left">代表方法</th>
+<th align="left">核心思路</th>
+<th align="left">局限</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>Planning-Oriented 统一范式</td>
-<td>UniAD, SparseDrive</td>
-<td>全栈端到端，打通感知-预测-规划</td>
-<td>规划为单模态&#x2F;有限模态</td>
+<td align="left">Planning-Oriented 统一范式</td>
+<td align="left">UniAD, SparseDrive</td>
+<td align="left">全栈端到端，打通感知-预测-规划</td>
+<td align="left">规划为单模态&#x2F;有限模态</td>
 </tr>
 <tr>
-<td>多模态规划候选集之争</td>
-<td>VADv2, Hydra-MDP, DiffusionDrive, GoalFlow</td>
-<td>静态词表打分 &#x2F; 扩散生成 &#x2F; Flow Matching</td>
-<td>静态词表太稀 or 生成模型复杂</td>
+<td align="left">多模态规划候选集之争</td>
+<td align="left">VADv2, Hydra-MDP, DiffusionDrive, GoalFlow</td>
+<td align="left">静态词表打分 &#x2F; 扩散生成 &#x2F; Flow Matching</td>
+<td align="left">静态词表太稀 or 生成模型复杂</td>
 </tr>
 <tr>
-<td>VLA &#x2F; 世界模型</td>
-<td>DriveVLA-W0, Alpamayo-1, AutoVLA</td>
-<td>语义理解 + 未来想象 + 动作规划一体化</td>
-<td>实时性差，安全约束难满足</td>
+<td align="left">VLA &#x2F; 世界模型</td>
+<td align="left">DriveVLA-W0, Alpamayo-1, AutoVLA</td>
+<td align="left">语义理解 + 未来想象 + 动作规划一体化</td>
+<td align="left">实时性差，安全约束难满足</td>
 </tr>
 </tbody></table>
 <p>在第二条路线中，生成式方法（DiffusionDrive、DiffusionDriveV2、GoalFlow）日益强势，但伴随着额外的 proposal 生成、去噪过程、mode collapse 等复杂性。SparseDriveV2 反其道而行，回到评分范式，追问一个被大多数人放弃的问题：</p>
@@ -520,33 +478,33 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{map}} + \mathcal{L
 <table>
 <thead>
 <tr>
-<th>轨迹锚点数</th>
-<th>EPDMS</th>
+<th align="left">轨迹锚点数</th>
+<th align="left">EPDMS</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>1024</td>
-<td>85.02</td>
+<td align="left">1024</td>
+<td align="left">85.02</td>
 </tr>
 <tr>
-<td>4096</td>
-<td>86.58</td>
+<td align="left">4096</td>
+<td align="left">86.58</td>
 </tr>
 <tr>
-<td>8192</td>
-<td>86.83</td>
+<td align="left">8192</td>
+<td align="left">86.83</td>
 </tr>
 <tr>
-<td>16384</td>
-<td>87.35</td>
+<td align="left">16384</td>
+<td align="left">87.35</td>
 </tr>
 <tr>
-<td>32768</td>
-<td>显存溢出</td>
+<td align="left">32768</td>
+<td align="left">显存溢出</td>
 </tr>
 </tbody></table>
 <p><strong>关键结论</strong>：性能在 16384 anchors 时仍未饱和，先撞墙的是显存——说明”打分派天然不如生成派”的结论下得太早，覆盖率不够才是根本原因。</p>
-<h3 id="洞察-2：分解式轨迹词表——路径-×-速度-组合爆炸"><a href="#洞察-2：分解式轨迹词表——路径-×-速度-组合爆炸" class="headerlink" title="洞察 2：分解式轨迹词表——路径 × 速度 &#x3D; 组合爆炸"></a>洞察 2：分解式轨迹词表——路径 × 速度 &#x3D; 组合爆炸</h3><p><strong>传统做法</strong>：将完整轨迹 $\tau = \{(x_t, y_t)\}_{t=1}^T$ 作为不可分的整体聚类成锚点。想覆盖”左转半径 × 并线角度 × 加减速节奏 × 刹停时机”等组合，词表指数级膨胀。</p>
+<h3 id="洞察-2：分解式轨迹词表——路径-×-速度-组合爆炸"><a href="#洞察-2：分解式轨迹词表——路径-×-速度-组合爆炸" class="headerlink" title="洞察 2：分解式轨迹词表——路径 × 速度 &#x3D; 组合爆炸"></a>洞察 2：分解式轨迹词表——路径 × 速度 &#x3D; 组合爆炸</h3><p><strong>传统做法</strong>：将完整轨迹 $\tau &#x3D; {(x_t, y_t)}_{t&#x3D;1}^T$ 作为不可分的整体聚类成锚点。想覆盖”左转半径 × 并线角度 × 加减速节奏 × 刹停时机”等组合，词表指数级膨胀。</p>
 <p><strong>SparseDriveV2 做法</strong>：将轨迹分解为两个独立维度：</p>
 
 $$\tau = \text{Compose}(P, V)$$
@@ -557,7 +515,7 @@ $$\tau = \text{Compose}(P, V)$$
 $$v_t = \sqrt{(x_{t+1}-x_t)^2 + (y_{t+1}-y_t)^2} / \Delta t$$
 
 
-<p>累计路程 $s_t = \sum_{i=1}^{t} v_i \cdot \Delta t$ 定义了沿路径的行进距离，再通过插值即可将 path 和 velocity 重新组合为一条完整轨迹。</p>
+<p>累计路程 $s_t &#x3D; \sum_{i&#x3D;1}^{t} v_i \cdot \Delta t$ 定义了沿路径的行进距离，再通过插值即可将 path 和 velocity 重新组合为一条完整轨迹。</p>
 <p>词表规模从一维枚举变为<strong>组合式扩展</strong>：</p>
 
 $$|\text{Vocabulary}| = N_{\text{path}} \times N_{\text{velocity}}$$
@@ -565,11 +523,11 @@ $$|\text{Vocabulary}| = N_{\text{path}} \times N_{\text{velocity}}$$
 
 <p>最终设置 1024 path anchors × 256 velocity anchors &#x3D; <strong>262,144 候选轨迹</strong>，是此前常见 8192 anchors 的 <strong>32× 密度</strong>。</p>
 <p><strong>为什么更好</strong>：同样的存储和聚类成本下，词表密度指数级提升。”路线模板”和”速度节奏”的自由配对，让词表不再需要穷举所有时空组合。</p>
-<h3 id="洞察-3：粗到细的分解评分——层级筛选压缩计算量"><a href="#洞察-3：粗到细的分解评分——层级筛选压缩计算量" class="headerlink" title="洞察 3：粗到细的分解评分——层级筛选压缩计算量"></a>洞察 3：粗到细的分解评分——层级筛选压缩计算量</h3><p><strong>传统做法</strong>：给定场景特征，对每条候选轨迹逐一打分 $s_i = f(\tau_i, \mathbf{c})$。当词表涨到 26 万条时，逐条评分的计算量线性爆炸。</p>
+<h3 id="洞察-3：粗到细的分解评分——层级筛选压缩计算量"><a href="#洞察-3：粗到细的分解评分——层级筛选压缩计算量" class="headerlink" title="洞察 3：粗到细的分解评分——层级筛选压缩计算量"></a>洞察 3：粗到细的分解评分——层级筛选压缩计算量</h3><p><strong>传统做法</strong>：给定场景特征，对每条候选轨迹逐一打分 $s_i &#x3D; f(\tau_i, \mathbf{c})$。当词表涨到 26 万条时，逐条评分的计算量线性爆炸。</p>
 <p><strong>SparseDriveV2 做法</strong>：既然轨迹已被拆为 path 和 velocity，评分也可以分两阶段做：</p>
 <ol>
-<li><strong>Coarse Factorized Scoring</strong>：分别给 path anchors 和 velocity anchors 独立粗打分，保留 top-128 paths 和 top-64 velocities</li>
-<li><strong>Fine-Grained Trajectory Scoring</strong>：第二层进一步收缩至 20 paths × 20 velocities &#x3D; <strong>400 条</strong> composed trajectories，再做精细打分</li>
+<li>Coarse Factorized Scoring<br>  ：分别给 path anchors 和 velocity anchors 独立粗打分，保留 top-128 paths 和 top-64 velocities</li>
+<li>Fine-Grained Trajectory Scoring<br>  ：第二层进一步收缩至 20 paths × 20 velocities &#x3D;<br>  400 条<br>  composed trajectories，再做精细打分</li>
 </ol>
 <p>打分器不是单纯的 imitation learning，同时使用 path loss、velocity loss、trajectory-level soft classification loss，再叠加 rule-based metric supervision：</p>
 
@@ -579,226 +537,184 @@ $$\mathcal{L}_{\text{V2}} = \mathcal{L}_{\text{path}} + \mathcal{L}_{\text{veloc
 <p><strong>为什么更好</strong>：从 262,144 → top-128×64 → 20×20 &#x3D; 400，实际精细打分的轨迹数量压缩了 <strong>655×</strong>。层级筛选让超密词表不仅可行，而且高效。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>262,144</strong>：分解式词表覆盖的候选轨迹总数（1024 path × 256 velocity），是传统 8192 anchors 的 32×</li>
-<li><strong>400</strong>：最终进入精细打分的轨迹数量（20 paths × 20 velocities），仅占词表的 0.15%</li>
-<li><strong>90.1 EPDMS</strong>：NAVSIM 新 SOTA，纯评分范式超越 DiffusionDrive（88.1）等生成式方法</li>
+<li>262,144<br>：分解式词表覆盖的候选轨迹总数（1024 path × 256 velocity），是传统 8192 anchors 的 32×</li>
+<li>400<br>：最终进入精细打分的轨迹数量（20 paths × 20 velocities），仅占词表的 0.15%</li>
+<li>90.1 EPDMS<br>：NAVSIM 新 SOTA，纯评分范式超越 DiffusionDrive（88.1）等生成式方法</li>
 </ul>
 <h2 id="方法设计-1"><a href="#方法设计-1" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构-1"><a href="#整体架构-1" class="headerlink" title="整体架构"></a>整体架构</h3>
 $$\tau^* = \arg\max_{\tau \in \text{Top-}k(\mathcal{P}) \times \text{Top-}k(\mathcal{V})} \; f_{\text{fine}}(\text{Compose}(p, v), \mathbf{c})$$
 
 
-<div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-多视图 6 cam
-      │
-      ▼
-┌───────────────┐
-│ Backbone+FPN  │  多尺度特征 I
-└─────┬─────────┘
-      │
-      ▼
-┌─────────────────────────────────────┐
-│ SparseDrive V1 感知编码器             │
-│ (稀疏检测 + 建图 + Ego 初始化)         │
-│ → 场景特征 c                          │
-└─────┬───────────────────────────────┘
-      │
-      ▼
-┌─────────────────────────────────────────────────────┐
-│ 分解式轨迹词表 (Factorized Vocabulary)                │
-│                                                     │
-│   Path Anchors (1024)    Velocity Anchors (256)     │
-│   ┌─────────┐            ┌─────────┐                │
-│   │ 几何路径 │      ×     │ 速度轮廓 │ = 262,144 候选  │
-│   └─────────┘            └─────────┘                │
-└─────┬───────────────────────────────────────────────┘
-      │
-      ▼
-┌─────────────────────────────────────────────────────┐
-│ 粗到细评分 (Coarse-to-Fine Scoring)                   │
-│                                                     │
-│ Layer 1: Coarse Factorized Scoring                  │
-│   path: 1024 → top-128                              │
-│   velocity: 256 → top-64                            │
-│                                                     │
-│ Layer 2: Fine Factorized Scoring                    │
-│   path: 128 → top-20                                │
-│   velocity: 64 → top-20                             │
-│   compose: 20 × 20 = 400 trajectories               │
-│                                                     │
-│ Fine-Grained Scoring → τ*                           │
-└─────────────────────────────────────────────────────┘
-</pre>
-</div>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">多视图 6 cam</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">┌───────────────┐</span><br><span class="line">│ Backbone+FPN  │  多尺度特征 I</span><br><span class="line">└─────┬─────────┘</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">┌─────────────────────────────────────┐</span><br><span class="line">│ SparseDrive V1 感知编码器             │</span><br><span class="line">│ (稀疏检测 + 建图 + Ego 初始化)         │</span><br><span class="line">│ → 场景特征 c                          │</span><br><span class="line">└─────┬───────────────────────────────┘</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">┌─────────────────────────────────────────────────────┐</span><br><span class="line">│ 分解式轨迹词表 (Factorized Vocabulary)                │</span><br><span class="line">│                                                     │</span><br><span class="line">│   Path Anchors (1024)    Velocity Anchors (256)     │</span><br><span class="line">│   ┌─────────┐            ┌─────────┐                │</span><br><span class="line">│   │ 几何路径 │      ×     │ 速度轮廓 │ = 262,144 候选  │</span><br><span class="line">│   └─────────┘            └─────────┘                │</span><br><span class="line">└─────┬───────────────────────────────────────────────┘</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">┌─────────────────────────────────────────────────────┐</span><br><span class="line">│ 粗到细评分 (Coarse-to-Fine Scoring)                   │</span><br><span class="line">│                                                     │</span><br><span class="line">│ Layer 1: Coarse Factorized Scoring                  │</span><br><span class="line">│   path: 1024 → top-128                              │</span><br><span class="line">│   velocity: 256 → top-64                            │</span><br><span class="line">│                                                     │</span><br><span class="line">│ Layer 2: Fine Factorized Scoring                    │</span><br><span class="line">│   path: 128 → top-20                                │</span><br><span class="line">│   velocity: 64 → top-20                             │</span><br><span class="line">│   compose: 20 × 20 = 400 trajectories               │</span><br><span class="line">│                                                     │</span><br><span class="line">│ Fine-Grained Scoring → τ*                           │</span><br><span class="line">└─────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
 
 <h3 id="关键组件-1"><a href="#关键组件-1" class="headerlink" title="关键组件"></a>关键组件</h3><table>
 <thead>
 <tr>
-<th>模块</th>
-<th>输入</th>
-<th>输出</th>
-<th>核心设计</th>
+<th align="left">模块</th>
+<th align="left">输入</th>
+<th align="left">输出</th>
+<th align="left">核心设计</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>分解式词表</td>
-<td>训练集轨迹</td>
-<td>1024 paths + 256 velocities</td>
-<td>path 和 velocity 分别 K-Means 聚类</td>
+<td align="left">分解式词表</td>
+<td align="left">训练集轨迹</td>
+<td align="left">1024 paths + 256 velocities</td>
+<td align="left">path 和 velocity 分别 K-Means 聚类</td>
 </tr>
 <tr>
-<td>Path-Scene Interaction</td>
-<td>path anchors + 场景特征</td>
-<td>path 评分</td>
-<td>可变形聚合（Deformable Aggregation）</td>
+<td align="left">Path-Scene Interaction</td>
+<td align="left">path anchors + 场景特征</td>
+<td align="left">path 评分</td>
+<td align="left">可变形聚合（Deformable Aggregation）</td>
 </tr>
 <tr>
-<td>Coarse Scoring</td>
-<td>path&#x2F;velocity + 场景特征</td>
-<td>top-128 paths, top-64 velocities</td>
-<td>独立通道打分，淘汰低分候选</td>
+<td align="left">Coarse Scoring</td>
+<td align="left">path&#x2F;velocity + 场景特征</td>
+<td align="left">top-128 paths, top-64 velocities</td>
+<td align="left">独立通道打分，淘汰低分候选</td>
 </tr>
 <tr>
-<td>Trajectory Composition</td>
-<td>top-k paths × top-k velocities</td>
-<td>composed trajectories</td>
-<td>沿 path 按 velocity 距离插值重组</td>
+<td align="left">Trajectory Composition</td>
+<td align="left">top-k paths × top-k velocities</td>
+<td align="left">composed trajectories</td>
+<td align="left">沿 path 按 velocity 距离插值重组</td>
 </tr>
 <tr>
-<td>Trajectory Re-conditioning</td>
-<td>composed 轨迹 + 场景特征</td>
-<td>精调后轨迹</td>
-<td>条件注入增强场景一致性</td>
+<td align="left">Trajectory Re-conditioning</td>
+<td align="left">composed 轨迹 + 场景特征</td>
+<td align="left">精调后轨迹</td>
+<td align="left">条件注入增强场景一致性</td>
 </tr>
 <tr>
-<td>Fine-Grained Scoring</td>
-<td>400 条 composed 轨迹</td>
-<td>最终 $\tau^*$</td>
-<td>精细逐条打分，选最高分</td>
+<td align="left">Fine-Grained Scoring</td>
+<td align="left">400 条 composed 轨迹</td>
+<td align="left">最终 $\tau^*$</td>
+<td align="left">精细逐条打分，选最高分</td>
 </tr>
 </tbody></table>
 <h2 id="实验与分析-1"><a href="#实验与分析-1" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="NAVSIM-主要结果"><a href="#NAVSIM-主要结果" class="headerlink" title="NAVSIM 主要结果"></a>NAVSIM 主要结果</h3><table>
 <thead>
 <tr>
-<th>方法</th>
-<th>范式</th>
-<th>PDMS↑</th>
-<th>EPDMS↑</th>
+<th align="left">方法</th>
+<th align="left">范式</th>
+<th align="left">PDMS↑</th>
+<th align="left">EPDMS↑</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>Hydra-MDP (8192)</td>
-<td>静态词表打分</td>
-<td>—</td>
-<td>86.83</td>
+<td align="left">Hydra-MDP (8192)</td>
+<td align="left">静态词表打分</td>
+<td align="left">—</td>
+<td align="left">86.83</td>
 </tr>
 <tr>
-<td>DiffusionDrive</td>
-<td>截断扩散生成</td>
-<td>88.1</td>
-<td>—</td>
+<td align="left">DiffusionDrive</td>
+<td align="left">截断扩散生成</td>
+<td align="left">88.1</td>
+<td align="left">—</td>
 </tr>
 <tr>
-<td>GoalFlow</td>
-<td>Flow Matching</td>
-<td>—</td>
-<td>—</td>
+<td align="left">GoalFlow</td>
+<td align="left">Flow Matching</td>
+<td align="left">—</td>
+<td align="left">—</td>
 </tr>
 <tr>
-<td><strong>SparseDriveV2</strong></td>
-<td><strong>分解式词表打分</strong></td>
-<td><strong>92.0</strong></td>
-<td><strong>90.1</strong></td>
+<td align="left"><strong>SparseDriveV2</strong></td>
+<td align="left"><strong>分解式词表打分</strong></td>
+<td align="left"><strong>92.0</strong></td>
+<td align="left"><strong>90.1</strong></td>
 </tr>
 </tbody></table>
 <h3 id="消融实验"><a href="#消融实验" class="headerlink" title="消融实验"></a>消融实验</h3><h4 id="词表密度消融"><a href="#词表密度消融" class="headerlink" title="词表密度消融"></a>词表密度消融</h4><table>
 <thead>
 <tr>
-<th>Path × Velocity</th>
-<th>候选总数</th>
-<th>EPDMS</th>
+<th align="left">Path × Velocity</th>
+<th align="left">候选总数</th>
+<th align="left">EPDMS</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>512 × 128</td>
-<td>65,536</td>
-<td>88.7</td>
+<td align="left">512 × 128</td>
+<td align="left">65,536</td>
+<td align="left">88.7</td>
 </tr>
 <tr>
-<td>1024 × 256</td>
-<td>262,144</td>
-<td><strong>90.1</strong></td>
+<td align="left">1024 × 256</td>
+<td align="left">262,144</td>
+<td align="left"><strong>90.1</strong></td>
 </tr>
 </tbody></table>
 <p>词表从 512×128 提升至 1024×256，EPDMS 提升 <strong>+1.4</strong>，且未出现性能饱和，验证了更密词表持续有效的核心判断。</p>
 <h4 id="打分架构消融"><a href="#打分架构消融" class="headerlink" title="打分架构消融"></a>打分架构消融</h4><table>
 <thead>
 <tr>
-<th>组件</th>
-<th>效果</th>
+<th align="left">组件</th>
+<th align="left">效果</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>Path-Scene Interaction → Deformable Aggregation</td>
-<td>有效提升</td>
+<td align="left">Path-Scene Interaction → Deformable Aggregation</td>
+<td align="left">有效提升</td>
 </tr>
 <tr>
-<td>+ Trajectory Re-conditioning</td>
-<td>继续提升</td>
+<td align="left">+ Trajectory Re-conditioning</td>
+<td align="left">继续提升</td>
 </tr>
 <tr>
-<td>最强配置 &#x3D; 更密分解词表 + 更强 Coarse-to-Fine 打分</td>
-<td>90.1 EPDMS</td>
+<td align="left">最强配置 &#x3D; 更密分解词表 + 更强 Coarse-to-Fine 打分</td>
+<td align="left">90.1 EPDMS</td>
 </tr>
 </tbody></table>
 <h2 id="V1-→-V2-演进对比"><a href="#V1-→-V2-演进对比" class="headerlink" title="V1 → V2 演进对比"></a>V1 → V2 演进对比</h2><table>
 <thead>
 <tr>
-<th>维度</th>
-<th>SparseDrive V1</th>
-<th>SparseDriveV2</th>
+<th align="left">维度</th>
+<th align="left">SparseDrive V1</th>
+<th align="left">SparseDriveV2</th>
 </tr>
 </thead>
 <tbody><tr>
-<td><strong>核心问题</strong></td>
-<td>BEV 特征计算昂贵</td>
-<td>静态词表覆盖不足</td>
+<td align="left"><strong>核心问题</strong></td>
+<td align="left">BEV 特征计算昂贵</td>
+<td align="left">静态词表覆盖不足</td>
 </tr>
 <tr>
-<td><strong>解法</strong></td>
-<td>稀疏实例替代 BEV</td>
-<td>分解式词表 + 层级打分</td>
+<td align="left"><strong>解法</strong></td>
+<td align="left">稀疏实例替代 BEV</td>
+<td align="left">分解式词表 + 层级打分</td>
 </tr>
 <tr>
-<td><strong>轨迹表示</strong></td>
-<td>6 条多模态轨迹（回归）</td>
-<td>262,144 条候选（path×velocity 组合）</td>
+<td align="left"><strong>轨迹表示</strong></td>
+<td align="left">6 条多模态轨迹（回归）</td>
+<td align="left">262,144 条候选（path×velocity 组合）</td>
 </tr>
 <tr>
-<td><strong>规划范式</strong></td>
-<td>并行运动规划器 + 碰撞感知重评分</td>
-<td>Coarse-to-Fine Factorized Scoring</td>
+<td align="left"><strong>规划范式</strong></td>
+<td align="left">并行运动规划器 + 碰撞感知重评分</td>
+<td align="left">Coarse-to-Fine Factorized Scoring</td>
 </tr>
 <tr>
-<td><strong>评估基准</strong></td>
-<td>nuScenes 开环</td>
-<td>NAVSIM</td>
+<td align="left"><strong>评估基准</strong></td>
+<td align="left">nuScenes 开环</td>
+<td align="left">NAVSIM</td>
 </tr>
 <tr>
-<td><strong>PDMS</strong></td>
-<td>—</td>
-<td>92.0</td>
+<td align="left"><strong>PDMS</strong></td>
+<td align="left">—</td>
+<td align="left">92.0</td>
 </tr>
 <tr>
-<td><strong>关键洞察</strong></td>
-<td>BEV 不是必需品</td>
-<td>Scoring is All You Need</td>
+<td align="left"><strong>关键洞察</strong></td>
+<td align="left">BEV 不是必需品</td>
+<td align="left">Scoring is All You Need</td>
 </tr>
 </tbody></table>
 <h2 id="研究启示（V2）"><a href="#研究启示（V2）" class="headerlink" title="研究启示（V2）"></a>研究启示（V2）</h2><h3 id="V2-可迁移的思想"><a href="#V2-可迁移的思想" class="headerlink" title="V2 可迁移的思想"></a>V2 可迁移的思想</h3><ul>
-<li><strong>分解式表示</strong>：将高维搜索空间拆分为低维子空间的组合，适用于任何需要大规模候选集的决策问题（机器人抓取姿态、无人机路径规划等）</li>
-<li><strong>Coarse-to-Fine 层级筛选</strong>：在超大候选空间中，先粗筛再精选是平衡覆盖率与计算量的通用策略</li>
-<li><strong>Scaling Study 先行</strong>：在提出新方法前，先做 scaling 分析验证当前方法的真正瓶颈，避免”解决了一个不存在的问题”</li>
+<li>分解式表示<br>：将高维搜索空间拆分为低维子空间的组合，适用于任何需要大规模候选集的决策问题（机器人抓取姿态、无人机路径规划等）</li>
+<li>Coarse-to-Fine 层级筛选<br>：在超大候选空间中，先粗筛再精选是平衡覆盖率与计算量的通用策略</li>
+<li>Scaling Study 先行<br>：在提出新方法前，先做 scaling 分析验证当前方法的真正瓶颈，避免”解决了一个不存在的问题”</li>
 </ul>
 <h3 id="V2-技术定位"><a href="#V2-技术定位" class="headerlink" title="V2 技术定位"></a>V2 技术定位</h3><p>SparseDriveV2 选择了一条与主流生成式方法相反的路线。DiffusionDrive&#x2F;DiffusionDriveV2&#x2F;GoalFlow 等方法通过动态生成 proposal 解决多模态规划；VLA 路线（DriveVLA-W0、Alpamayo-1、AutoVLA）则将语言推理和世界模型引入驾驶。SparseDriveV2 证明了：只要词表足够密、打分足够强，纯评分范式的性能天花板远高于此前的认知。两条路线并非对立，而是对端到端自动驾驶不同维度的探索。</p>
 

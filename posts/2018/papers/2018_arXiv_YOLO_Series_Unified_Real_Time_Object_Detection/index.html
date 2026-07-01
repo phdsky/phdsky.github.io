@@ -55,14 +55,15 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 2D 目标检测<br>Method: 单阶段检测 &#x2F; 网格回归 &#x2F; 多尺度预测<br>Venue: CVPR 2016 &#x2F; CVPR 2017 &#x2F; arXiv 2018<br>Year: 2016 → 2017 → 2018<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1506.02640">YOLOv1</a> &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1612.08242">YOLOv2</a> &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1804.02767">YOLOv3</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/pjreddie/darknet">pjreddie&#x2F;darknet</a></p>
+                
+<p>Task: 2D 目标检测<br>Method: 单阶段检测 / 网格回归 / 多尺度预测<br>Venue: CVPR 2016 / CVPR 2017 / arXiv 2018<br>Year: 2016 → 2017 → 2018<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1506.02640">YOLOv1</a> / <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1612.08242">YOLOv2</a> / <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1804.02767">YOLOv3</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/pjreddie/darknet">pjreddie/darknet</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p><strong>YOLOv1</strong>（CVPR 2016）开创性地将目标检测重新定义为 <strong>单一回归问题</strong>：一个神经网络直接从完整图像预测边界框和类别概率，端到端优化。基础 YOLO 模型达到 45 FPS，Fast YOLO 达到 155 FPS，同时在泛化性上大幅超越 DPM 和 R-CNN（从自然图像迁移到艺术作品）。代价是定位精度不及两阶段检测器。</p>
-<p><strong>YOLOv2</strong>（CVPR 2017，又称 YOLO9000）系统性提升了 YOLO 的精度和速度：引入 Batch Normalization、锚框机制、维度聚类、多尺度训练等改进。使用全新的 Darknet-19 骨干网络，YOLOv2 在 VOC 2007 上达到 78.6 mAP（40 FPS），超越 Faster R-CNN 和 SSD 且速度更快。同时提出联合训练检测与分类的方法，使 YOLO9000 能检测超过 9000 个类别。</p>
-<p><strong>YOLOv3</strong>（arXiv 2018）引入残差网络 Darknet-53 和类 FPN 的多尺度预测：在 3 个不同分辨率上检测，配合 9 组锚框先验，大幅改善小目标检测。在 COCO test-dev 上，YOLOv3-608 达到 57.9 AP50（20 FPS），精度与 RetinaNet 相当但快 3.8 倍。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p><strong>YOLOv1</strong>（CVPR 2016）开创性地将目标检测重新定义为 <strong>单一回归问题</strong>：一个神经网络直接从完整图像预测边界框和类别概率，端到端优化。基础 YOLO 模型达到 45 FPS，Fast YOLO 达到 155 FPS，同时在泛化性上大幅超越 DPM 和 <a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">R-CNN</a>（从自然图像迁移到艺术作品）。代价是定位精度不及两阶段检测器。</p>
+<p><strong>YOLOv2</strong>（CVPR 2017，又称 YOLO9000）系统性提升了 YOLO 的精度和速度：引入 Batch Normalization、锚框机制、维度聚类、多尺度训练等改进。使用全新的 Darknet-19 骨干网络，YOLOv2 在 VOC 2007 上达到 78.6 mAP（40 FPS），超越 Faster R-CNN 和 <a href="/posts/2016/papers/2016_ECCV_SSD_Single_Shot_MultiBox_Detector/">SSD</a> 且速度更快。同时提出联合训练检测与分类的方法，使 YOLO9000 能检测超过 9000 个类别。</p>
+<p><strong>YOLOv3</strong>（arXiv 2018）引入残差网络 Darknet-53 和类 FPN 的多尺度预测：在 3 个不同分辨率上检测，配合 9 组锚框先验，大幅改善小目标检测。在 COCO test-dev 上，YOLOv3-608 达到 57.9 AP50（20 FPS），精度与 <a href="/posts/2017/papers/2017_ICCV_RetinaNet_Focal_Loss_Dense_Object_Detection/">RetinaNet</a> 相当但快 3.8 倍。</p>
 <p><strong>核心论点</strong>：目标检测可以被重构为”一次看完”的统一回归问题，通过骨干网络升级（GoogLeNet → Darknet-19 → Darknet-53）和多尺度检测机制的引入，单阶段检测器在保持实时速度的同时逼近两阶段检测器的精度。</p>
 <h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>传统目标检测的流程冗长且速度受限：</p>
 <table>
@@ -119,9 +120,9 @@ $$b_x = \sigma(t_x) + c_x, \quad b_y = \sigma(t_y) + c_y, \quad b_w = p_w e^{t_w
 
 
 <p>其中 $(c_x, c_y)$ 是网格单元左上角坐标，$(p_w, p_h)$ 是锚框的宽高。</p>
-<h3 id="洞察-3：多尺度预测-残差骨干——解锁小目标检测"><a href="#洞察-3：多尺度预测-残差骨干——解锁小目标检测" class="headerlink" title="洞察 3：多尺度预测 + 残差骨干——解锁小目标检测"></a>洞察 3：多尺度预测 + 残差骨干——解锁小目标检测</h3><p>YOLOv1&#x2F;v2 只在单一特征图上检测，对小目标效果差。YOLOv3 引入类 FPN 的多尺度机制：</p>
+<h3 id="洞察-3：多尺度预测-残差骨干——解锁小目标检测"><a href="#洞察-3：多尺度预测-残差骨干——解锁小目标检测" class="headerlink" title="洞察 3：多尺度预测 + 残差骨干——解锁小目标检测"></a>洞察 3：多尺度预测 + 残差骨干——解锁小目标检测</h3><p>YOLOv1/v2 只在单一特征图上检测，对小目标效果差。YOLOv3 引入类 FPN 的多尺度机制：</p>
 <ol>
-<li><strong>Darknet-53 骨干</strong>：53 层卷积 + 残差连接（参考 ResNet），精度接近 ResNet-152 但速度快 2 倍</li>
+<li><strong>Darknet-53 骨干</strong>：53 层卷积 + 残差连接（参考 <a href="/posts/2016/papers/2016_CVPR_ResNet_Deep_Residual_Learning/">ResNet</a>），精度接近 ResNet-152 但速度快 2 倍</li>
 <li><strong>3 尺度预测</strong>：在 $13 \times 13$、$26 \times 26$、$52 \times 52$ 三个分辨率上分别预测（以 416×416 输入为例），每个尺度分配 3 个锚框，共 9 个锚框</li>
 <li><strong>多标签分类</strong>：用 binary cross-entropy 替代 softmax，支持多标签（一个物体可属于多个类别）</li>
 </ol>
@@ -134,7 +135,7 @@ $$b_x = \sigma(t_x) + c_x, \quad b_y = \sigma(t_y) + c_y, \quad b_w = p_w e^{t_w
 <p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>57.9 AP50</strong>：YOLOv3-608 在 COCO test-dev 上的精度，与 RetinaNet 相当但快 3.8 倍</li>
-<li><strong>45 FPS → 40 FPS → 20 FPS</strong>：YOLOv1&#x2F;v2&#x2F;v3 在 Titan X 上的实时帧率（精度逐代提升）</li>
+<li><strong>45 FPS → 40 FPS → 20 FPS</strong>：YOLOv1/v2/v3 在 Titan X 上的实时帧率（精度逐代提升）</li>
 <li><strong>78.6 mAP</strong>：YOLOv2 在 VOC 2007 上的精度（40 FPS），超越当时所有实时检测器</li>
 </ul>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>YOLO 系列的核心流程：</p>
@@ -143,8 +144,7 @@ $$\text{Image} \xrightarrow{\text{Backbone}} \text{Feature Maps} \xrightarrow{\t
 
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-┌──────────────────────────────────────────────────────────────────┐
+<pre>┌──────────────────────────────────────────────────────────────────┐
 │                    YOLOv3 架构（416×416 输入）                     │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
@@ -243,7 +243,7 @@ $$+ \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbb{1}_{ij}^{\text{obj}} (C_i - \hat{C}_
 </tr>
 <tr>
 <td>锚框 + 维度聚类</td>
-<td>k-means 聚类 k&#x3D;5 个先验框</td>
+<td>k-means 聚类 k=5 个先验框</td>
 <td>召回率提升（81% → 88%）</td>
 </tr>
 <tr>
@@ -275,22 +275,22 @@ $$+ \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbb{1}_{ij}^{\text{obj}} (C_i - \hat{C}_
 </tr>
 <tr>
 <td><code>src/yolo_layer.c</code></td>
-<td>YOLO 检测层前向&#x2F;反向传播</td>
+<td>YOLO 检测层前向/反向传播</td>
 </tr>
 </tbody></table>
 <details>
 <summary>📄 点击展开 YOLOv3 Darknet-53 骨干配置（关键片段）</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/pjreddie/darknet/blob/master/cfg/yolov3.cfg">cfg&#x2F;yolov3.cfg</a>）</p>
-<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="section">[net]</span></span><br><span class="line"><span class="attr">batch</span>=<span class="number">64</span></span><br><span class="line"><span class="attr">subdivisions</span>=<span class="number">16</span></span><br><span class="line"><span class="attr">width</span>=<span class="number">416</span></span><br><span class="line"><span class="attr">height</span>=<span class="number">416</span></span><br><span class="line"><span class="attr">channels</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">momentum</span>=<span class="number">0.9</span></span><br><span class="line"><span class="attr">decay</span>=<span class="number">0.0005</span></span><br><span class="line"><span class="attr">learning_rate</span>=<span class="number">0.001</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Darknet-53 骨干（前 75 层）</span></span><br><span class="line"><span class="comment"># 第一个残差组：1× residual block</span></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">32</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">64</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">2</span>      <span class="comment"># 下采样</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">32</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">64</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[shortcut]</span>     <span class="comment"># 残差连接</span></span><br><span class="line"><span class="attr">from</span>=-<span class="number">3</span></span><br><span class="line"><span class="attr">activation</span>=linear</span><br><span class="line"></span><br><span class="line"><span class="comment"># ... 后续 2×, 8×, 8×, 4× 残差块 ...</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 第一个检测头（13×13，检测大目标）</span></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">255</span>   <span class="comment"># 3 × (4 + 1 + 80) = 255</span></span><br><span class="line"></span><br><span class="line"><span class="section">[yolo]</span></span><br><span class="line"><span class="attr">mask</span> = <span class="number">6</span>,<span class="number">7</span>,<span class="number">8</span>  <span class="comment"># 使用第 6/7/8 号锚框（大锚框）</span></span><br><span class="line"><span class="attr">anchors</span> = <span class="number">10</span>,<span class="number">13</span>,  <span class="number">16</span>,<span class="number">30</span>,  <span class="number">33</span>,<span class="number">23</span>,  <span class="number">30</span>,<span class="number">61</span>,  <span class="number">62</span>,<span class="number">45</span>,  <span class="number">59</span>,<span class="number">119</span>,  <span class="number">116</span>,<span class="number">90</span>,  <span class="number">156</span>,<span class="number">198</span>,  <span class="number">373</span>,<span class="number">326</span></span><br><span class="line"><span class="attr">classes</span>=<span class="number">80</span></span><br><span class="line"><span class="attr">num</span>=<span class="number">9</span>          <span class="comment"># 共 9 个锚框，每个尺度用 3 个</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 上采样 + 拼接 → 第二个检测头（26×26，检测中目标）</span></span><br><span class="line"><span class="section">[route]</span></span><br><span class="line"><span class="attr">layers</span> = -<span class="number">4</span></span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">256</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[upsample]</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">2</span></span><br><span class="line"></span><br><span class="line"><span class="section">[route]</span></span><br><span class="line"><span class="attr">layers</span> = -<span class="number">1</span>, <span class="number">61</span>  <span class="comment"># 拼接上采样特征与骨干浅层特征</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ... 第二个 [yolo] 层，mask = 3,4,5 ...</span></span><br><span class="line"><span class="comment"># ... 第三个 [yolo] 层（52×52），mask = 0,1,2 ...</span></span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/pjreddie/darknet/blob/master/cfg/yolov3.cfg">cfg/yolov3.cfg</a>）</p>
+<figure class="highlight ini"><table><tbody><tr><td class="code"><pre><span class="line"><span class="section">[net]</span></span><br><span class="line"><span class="attr">batch</span>=<span class="number">64</span></span><br><span class="line"><span class="attr">subdivisions</span>=<span class="number">16</span></span><br><span class="line"><span class="attr">width</span>=<span class="number">416</span></span><br><span class="line"><span class="attr">height</span>=<span class="number">416</span></span><br><span class="line"><span class="attr">channels</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">momentum</span>=<span class="number">0.9</span></span><br><span class="line"><span class="attr">decay</span>=<span class="number">0.0005</span></span><br><span class="line"><span class="attr">learning_rate</span>=<span class="number">0.001</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Darknet-53 骨干（前 75 层）</span></span><br><span class="line"><span class="comment"># 第一个残差组：1× residual block</span></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">32</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">64</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">2</span>      <span class="comment"># 下采样</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">32</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">64</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">3</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[shortcut]</span>     <span class="comment"># 残差连接</span></span><br><span class="line"><span class="attr">from</span>=-<span class="number">3</span></span><br><span class="line"><span class="attr">activation</span>=linear</span><br><span class="line"></span><br><span class="line"><span class="comment"># ... 后续 2×, 8×, 8×, 4× 残差块 ...</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 第一个检测头（13×13，检测大目标）</span></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">255</span>   <span class="comment"># 3 × (4 + 1 + 80) = 255</span></span><br><span class="line"></span><br><span class="line"><span class="section">[yolo]</span></span><br><span class="line"><span class="attr">mask</span> = <span class="number">6</span>,<span class="number">7</span>,<span class="number">8</span>  <span class="comment"># 使用第 6/7/8 号锚框（大锚框）</span></span><br><span class="line"><span class="attr">anchors</span> = <span class="number">10</span>,<span class="number">13</span>,  <span class="number">16</span>,<span class="number">30</span>,  <span class="number">33</span>,<span class="number">23</span>,  <span class="number">30</span>,<span class="number">61</span>,  <span class="number">62</span>,<span class="number">45</span>,  <span class="number">59</span>,<span class="number">119</span>,  <span class="number">116</span>,<span class="number">90</span>,  <span class="number">156</span>,<span class="number">198</span>,  <span class="number">373</span>,<span class="number">326</span></span><br><span class="line"><span class="attr">classes</span>=<span class="number">80</span></span><br><span class="line"><span class="attr">num</span>=<span class="number">9</span>          <span class="comment"># 共 9 个锚框，每个尺度用 3 个</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 上采样 + 拼接 → 第二个检测头（26×26，检测中目标）</span></span><br><span class="line"><span class="section">[route]</span></span><br><span class="line"><span class="attr">layers</span> = -<span class="number">4</span></span><br><span class="line"></span><br><span class="line"><span class="section">[convolutional]</span></span><br><span class="line"><span class="attr">batch_normalize</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">filters</span>=<span class="number">256</span></span><br><span class="line"><span class="attr">size</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">pad</span>=<span class="number">1</span></span><br><span class="line"><span class="attr">activation</span>=leaky</span><br><span class="line"></span><br><span class="line"><span class="section">[upsample]</span></span><br><span class="line"><span class="attr">stride</span>=<span class="number">2</span></span><br><span class="line"></span><br><span class="line"><span class="section">[route]</span></span><br><span class="line"><span class="attr">layers</span> = -<span class="number">1</span>, <span class="number">61</span>  <span class="comment"># 拼接上采样特征与骨干浅层特征</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ... 第二个 [yolo] 层，mask = 3,4,5 ...</span></span><br><span class="line"><span class="comment"># ... 第三个 [yolo] 层（52×52），mask = 0,1,2 ...</span></span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <details>
 <summary>📄 点击展开 YOLOv3 的 9 组锚框先验（COCO）</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/pjreddie/darknet/blob/master/cfg/yolov3.cfg">cfg&#x2F;yolov3.cfg</a>）</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 通过 k-means 聚类在 COCO 训练集上得到的 9 组锚框（宽,高）</span><br><span class="line"># 按面积从小到大排列：</span><br><span class="line"></span><br><span class="line"># 小目标锚框（52×52 特征图使用，mask=0,1,2）：</span><br><span class="line">#   (10, 13)    (16, 30)    (33, 23)</span><br><span class="line"></span><br><span class="line"># 中目标锚框（26×26 特征图使用，mask=3,4,5）：</span><br><span class="line">#   (30, 61)    (62, 45)    (59, 119)</span><br><span class="line"></span><br><span class="line"># 大目标锚框（13×13 特征图使用，mask=6,7,8）：</span><br><span class="line">#   (116, 90)   (156, 198)  (373, 326)</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/pjreddie/darknet/blob/master/cfg/yolov3.cfg">cfg/yolov3.cfg</a>）</p>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line"># 通过 k-means 聚类在 COCO 训练集上得到的 9 组锚框（宽,高）</span><br><span class="line"># 按面积从小到大排列：</span><br><span class="line"></span><br><span class="line"># 小目标锚框（52×52 特征图使用，mask=0,1,2）：</span><br><span class="line">#   (10, 13)    (16, 30)    (33, 23)</span><br><span class="line"></span><br><span class="line"># 中目标锚框（26×26 特征图使用，mask=3,4,5）：</span><br><span class="line">#   (30, 61)    (62, 45)    (59, 119)</span><br><span class="line"></span><br><span class="line"># 大目标锚框（13×13 特征图使用，mask=6,7,8）：</span><br><span class="line">#   (116, 90)   (156, 198)  (373, 326)</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -478,14 +478,14 @@ $$+ \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbb{1}_{ij}^{\text{obj}} (C_i - \hat{C}_
 <blockquote>
 <p>注：部分中间步骤的具体独立 mAP 未在论文中完整给出，以上标注 ✓ 表示该改进被验证为有正面贡献。</p>
 </blockquote>
-<p><strong>Darknet-53 vs 其他骨干（洞察 3）</strong>——ImageNet Top-1 &#x2F; FPS 对比：</p>
+<p><strong>Darknet-53 vs 其他骨干（洞察 3）</strong>——ImageNet Top-1 / FPS 对比：</p>
 <table>
 <thead>
 <tr>
 <th>Backbone</th>
 <th>Top-1</th>
 <th>Top-5</th>
-<th>BFLOP&#x2F;s</th>
+<th>BFLOP/s</th>
 <th>FPS</th>
 </tr>
 </thead>
@@ -521,19 +521,19 @@ $$+ \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbb{1}_{ij}^{\text{obj}} (C_i - \hat{C}_
 <h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
 <li><strong>COCO AP（严格 IOU 指标）较低</strong>：YOLOv3 的 AP@[.5:.95] 仅约 33.0，远低于 AP50 的 57.9，说明边界框回归精度在高 IOU 阈值下不足</li>
 <li><strong>定位误差仍是主要来源</strong>：相比两阶段检测器，YOLO 的定位误差占总误差比例更高（YOLOv1 论文 Fig.4 对比分析）</li>
-<li><strong>每个网格单元的检测容量有限</strong>：YOLOv1 每格仅 B&#x3D;2 个框，YOLOv3 每格 3 个锚框，对密集重叠场景不利</li>
+<li><strong>每个网格单元的检测容量有限</strong>：YOLOv1 每格仅 B=2 个框，YOLOv3 每格 3 个锚框，对密集重叠场景不利</li>
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
 <li><strong>密集小目标群</strong>：一个网格单元只能负责一个目标（v1）或有限锚框（v3），成群出现的小目标容易漏检</li>
 <li><strong>极端宽高比物体</strong>：锚框聚类覆盖的宽高比有限，细长物体（如栏杆、电线）预测不准</li>
 <li><strong>高 IOU 精度要求场景</strong>：YOLO 的粗粒度网格限制了像素级精确定位能力</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:       Darknet-53（ImageNet 预训练，top-1 77.2%）</span><br><span class="line">Input:          416×416（多尺度训练随机切换 320~608，步长 32）</span><br><span class="line">Batch:          64（subdivisions=16）</span><br><span class="line">Optimizer:      SGD, lr=0.001, momentum=0.9, weight_decay=0.0005</span><br><span class="line">Augmentation:   随机裁剪、颜色扰动、水平翻转</span><br><span class="line">Training:       VOC: ~80 epochs; COCO: ~500k iterations</span><br><span class="line">Hardware:       Titan X GPU</span><br></pre></td></tr></table></figure>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:       Darknet-53（ImageNet 预训练，top-1 77.2%）</span><br><span class="line">Input:          416×416（多尺度训练随机切换 320~608，步长 32）</span><br><span class="line">Batch:          64（subdivisions=16）</span><br><span class="line">Optimizer:      SGD, lr=0.001, momentum=0.9, weight_decay=0.0005</span><br><span class="line">Augmentation:   随机裁剪、颜色扰动、水平翻转</span><br><span class="line">Training:       VOC: ~80 epochs; COCO: ~500k iterations</span><br><span class="line">Hardware:       Titan X GPU</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>多尺度训练不可省略</strong>：每 10 个 batch 随机调整输入分辨率（320&#x2F;352&#x2F;384&#x2F;…&#x2F;608），使同一模型适应不同尺度的目标</li>
+<li><strong>多尺度训练不可省略</strong>：每 10 个 batch 随机调整输入分辨率（320/352/384/…/608），使同一模型适应不同尺度的目标</li>
 <li><strong>锚框聚类必须在目标数据集上执行</strong>：COCO 和 VOC 的最优锚框尺寸不同，直接套用会损失精度</li>
-<li><strong>sigmoid 约束位置预测</strong>：YOLOv2&#x2F;v3 对 $(t_x, t_y)$ 用 sigmoid，将偏移约束在 [0,1] 内（相对于网格单元），是训练稳定的关键</li>
+<li><strong>sigmoid 约束位置预测</strong>：YOLOv2/v3 对 $(t_x, t_y)$ 用 sigmoid，将偏移约束在 [0,1] 内（相对于网格单元），是训练稳定的关键</li>
 <li><strong>损失权重平衡</strong>：坐标损失权重（$\lambda_{\text{coord}}=5$）需远大于无目标置信度损失权重（$\lambda_{\text{noobj}}=0.5$），否则大量负样本梯度会主导训练</li>
 <li><strong>NMS 阈值调优</strong>：默认 IOU 阈值 0.45，对密集场景可适当降低</li>
 </ol>
@@ -544,26 +544,27 @@ $$+ \sum_{i=0}^{S^2} \sum_{j=0}^{B} \mathbb{1}_{ij}^{\text{obj}} (C_i - \hat{C}_
 </ul>
 <p><strong>速度优化</strong>：</p>
 <ul>
-<li>Tiny YOLO（9 层卷积）在 COCO 上达 33.1 AP50 &#x2F; 220 FPS，适合嵌入式部署</li>
+<li>Tiny YOLO（9 层卷积）在 COCO 上达 33.1 AP50 / 220 FPS，适合嵌入式部署</li>
 <li>模型量化（INT8）和剪枝可进一步加速推理</li>
 </ul>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li><strong>“检测即回归”的范式统一</strong>：YOLO 证明复杂的多阶段检测流程可被单网络回归替代，这一思想影响了后续所有 anchor-free 检测器（CenterNet、FCOS 等）</li>
+<li><strong>“检测即回归”的范式统一</strong>：YOLO 证明复杂的多阶段检测流程可被单网络回归替代，这一思想影响了后续所有 anchor-free 检测器（<a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a>、FCOS 等）</li>
 <li><strong>维度聚类替代手工先验</strong>：用 k-means 从数据中学习锚框尺寸，比手动设定更优，这一方法在 3D 检测中同样适用</li>
 <li><strong>多尺度训练的灵活性</strong>：单一模型通过调整输入分辨率即可在不同速度-精度点间切换，无需重训练</li>
 <li><strong>骨干网络与检测器的松耦合</strong>：YOLO 系列通过独立升级骨干（GoogLeNet→Darknet-19→Darknet-53）持续提升性能，是模块化设计的典范</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
-<li>定位精度（尤其高 IOU 阈值下）始终弱于两阶段检测器（如 Faster R-CNN &#x2F; Cascade R-CNN）</li>
+<li>定位精度（尤其高 IOU 阈值下）始终弱于两阶段检测器（如 Faster R-CNN / Cascade R-CNN）</li>
 <li>网格机制限制了密集场景检测能力，每个位置的检测容量有限</li>
 <li>作者 Joseph Redmon 于 2020 年退出 CV 研究，官方 YOLO 系列止步于 v3</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li><strong>开创单阶段检测器浪潮</strong>：YOLO 与 SSD 共同证明单阶段检测可行，催生了 RetinaNet、CornerNet、CenterNet、FCOS 等大量后续工作</li>
 <li><strong>工业部署的首选框架</strong>：YOLO 系列因速度优势成为自动驾驶、视频监控、移动端检测等实时场景的主流方案</li>
-<li><strong>社区传承</strong>：YOLOv4（Bochkovskiy）、YOLOv5&#x2F;v8（Ultralytics）、YOLOX（旷视）等延续了 YOLO 的设计哲学，持续刷新速度-精度权衡的帕累托前沿</li>
+<li><strong>社区传承</strong>：YOLOv4（Bochkovskiy）、YOLOv5/v8（Ultralytics）、YOLOX（旷视）等延续了 YOLO 的设计哲学，持续刷新速度-精度权衡的帕累托前沿</li>
 <li><strong>Darknet 框架</strong>：YOLO 催生的轻量级 C 语言深度学习框架，成为嵌入式视觉算法部署的重要工具</li>
 </ul>
+
 
             </div>
 

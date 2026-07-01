@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: End-to-End Autonomous Driving (Perception → Planning)<br>Method: Vectorized Scene Representation + Probabilistic Planning (Trajectory Vocabulary)<br>Venue: ICCV 2023 (VAD) &#x2F; arXiv 2024 (VADv2)<br>Year: 2023–2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2303.12077">https://arxiv.org/abs/2303.12077</a> (VAD) &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.13243">https://arxiv.org/abs/2402.13243</a> (VADv2)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/VAD">https://github.com/hustvl/VAD</a></p>
+                
+<p>Task: End-to-End Autonomous Driving (Perception → Planning)<br>Method: Vectorized Scene Representation + Probabilistic Planning (Trajectory Vocabulary)<br>Venue: ICCV 2023 (VAD) / arXiv 2024 (VADv2)<br>Year: 2023–2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2303.12077">https://arxiv.org/abs/2303.12077</a> (VAD) / <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.13243">https://arxiv.org/abs/2402.13243</a> (VADv2)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/VAD">https://github.com/hustvl/VAD</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -78,21 +79,21 @@
 <td align="left">信息瓶颈、误差累积、模块耦合复杂</td>
 </tr>
 <tr>
-<td align="left"><a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a></td>
-<td align="left">多任务全栈级联（含 tracking &#x2F; occupancy），栅格 BEV 重，planning 仍是单轨迹回归（avg L2 1.03 m）</td>
+<td align="left">UniAD</td>
+<td align="left">多任务全栈级联（含 tracking / occupancy），栅格 BEV 重，planning 仍是单轨迹回归（avg L2 1.03 m）</td>
 </tr>
 <tr>
 <td align="left">VAD 自身（v1）</td>
-<td align="left">仍是确定性回归——非凸可行解空间下倾向输出”中间解”或最频繁模式（停车 &#x2F; 直行），歧义场景失败</td>
+<td align="left">仍是确定性回归——非凸可行解空间下倾向输出”中间解”或最频繁模式（停车 / 直行），歧义场景失败</td>
 </tr>
 </tbody></table>
 <p><strong>核心痛点</strong>（VAD → VADv2 两步走）：</p>
 <ol>
 <li><strong>表示太重</strong>：dense BEV + tracking + occupancy 让端到端方案推理慢且工程复杂；</li>
 <li><strong>决策太窄</strong>：单轨迹回归无法表达”直行 or 变道”这类多模态合理动作；</li>
-<li><strong>约束太隐式</strong>：纯模仿学习缺少显式安全约束（碰撞 &#x2F; 边界 &#x2F; 车道方向）。</li>
+<li><strong>约束太隐式</strong>：纯模仿学习缺少显式安全约束（碰撞 / 边界 / 车道方向）。</li>
 </ol>
-<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1（VAD）：向量化场景-轻量化-显式约束"><a href="#洞察-1（VAD）：向量化场景-轻量化-显式约束" class="headerlink" title="洞察 1（VAD）：向量化场景 &#x3D; 轻量化 + 显式约束"></a>洞察 1（VAD）：向量化场景 &#x3D; 轻量化 + 显式约束</h3><p>UniAD 的 dense BEV + occupancy 既贵又难直接表达”自车 vs 第 i 个 agent 的距离”这类几何约束。VAD 把场景全部 vector 化：</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1（VAD）：向量化场景-轻量化-显式约束"><a href="#洞察-1（VAD）：向量化场景-轻量化-显式约束" class="headerlink" title="洞察 1（VAD）：向量化场景 = 轻量化 + 显式约束"></a>洞察 1（VAD）：向量化场景 = 轻量化 + 显式约束</h3><p>UniAD 的 dense BEV + occupancy 既贵又难直接表达”自车 vs 第 i 个 agent 的距离”这类几何约束。VAD 把场景全部 vector 化：</p>
 <ul>
 <li><strong>map vector</strong>：100 个 map query × 20 个点（沿用 <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> 的分层查询设计）；</li>
 <li><strong>agent vector</strong>：300 个 agent query → 多模态未来轨迹；</li>
@@ -100,12 +101,12 @@
 </ul>
 <p>显式约束直接写成 loss：</p>
 
-$$\mathcal{L}_{col}^{i,t} = \begin{cases} \delta_i - d^i_{a,t}, & d^i_{a,t} < \delta_i \\ 0, & \text{otherwise} \end{cases}$$
+$$\mathcal{L}_{col}^{i,t} = \begin{cases} \delta_i - d^i_{a,t}, &amp; d^i_{a,t} &lt; \delta_i \\ 0, &amp; \text{otherwise} \end{cases}$$
 
 $$\mathcal{L}_{dir} = \frac{1}{T_f}\sum_{t=1}^{T_f} F_{\text{ang}}(\hat{v}^m_t,\ \hat{v}^{ego}_t)$$
 
 
-<p>三项约束（碰撞 &#x2F; 越界 &#x2F; 车道方向）累加，让规划在训练时就被几何”硬”约束推开危险区。<strong>消融</strong>：栅格化 map 0.74 m &#x2F; 0.39% Col → 向量化 map 0.72 m &#x2F; <strong>0.22% Col</strong>，碰撞率近半。</p>
+<p>三项约束（碰撞 / 越界 / 车道方向）累加，让规划在训练时就被几何”硬”约束推开危险区。<strong>消融</strong>：栅格化 map 0.74 m / 0.39% Col → 向量化 map 0.72 m / <strong>0.22% Col</strong>，碰撞率近半。</p>
 <h3 id="洞察-2（VAD）：ego-query-通过-Transformer-隐式吸收场景"><a href="#洞察-2（VAD）：ego-query-通过-Transformer-隐式吸收场景" class="headerlink" title="洞察 2（VAD）：ego query 通过 Transformer 隐式吸收场景"></a>洞察 2（VAD）：ego query 通过 Transformer 隐式吸收场景</h3><p>Planning Head 只是一个 MLP，但其输入 ego query 经过两步 Transformer 交互：</p>
 
 $$Q'_{ego} = \text{Cross-Attn}(Q_{ego},\ \{Q_{agent}\})$$
@@ -116,7 +117,7 @@ $$Q''_{ego} = \text{Cross-Attn}(Q'_{ego},\ \{Q_{map}\})$$
 <p>最终轨迹由 $[Q'_{ego}, Q''_{ego}, s_{ego}, \text{cmd}]$ 通过 MLP 输出。这里”隐式（attention 学习）+ 显式（vector loss）”是 VAD 最优雅的设计——前者管”理解”、后者管”安全”。</p>
 <h3 id="洞察-3（VADv2）：把规划建模为-p-a-o-概率分布，不再回归"><a href="#洞察-3（VADv2）：把规划建模为-p-a-o-概率分布，不再回归" class="headerlink" title="洞察 3（VADv2）：把规划建模为 $p(a|o)$ 概率分布，不再回归"></a>洞察 3（VADv2）：把规划建模为 $p(a|o)$ 概率分布，不再回归</h3><p>VADv2 的论点直接而尖锐：环境到动作根本不存在确定性映射，强行回归会输出”平均解”。把规划改造为概率分布：</p>
 <ol>
-<li><strong>Trajectory Vocabulary</strong>：从演示数据用 furthest-trajectory sampling 离线采样 $N &#x3D; 4096$ 条代表性轨迹，每条 $a = (x_1, y_1, \ldots, x_T, y_T)$；</li>
+<li><strong>Trajectory Vocabulary</strong>：从演示数据用 furthest-trajectory sampling 离线采样 $N = 4096$ 条代表性轨迹，每条 $a = (x_1, y_1, \ldots, x_T, y_T)$；</li>
 <li><strong>Probabilistic Field</strong>：用 NeRF 式位置编码 $\Gamma$ 把每条轨迹映射到 embedding 空间</li>
 </ol>
 
@@ -135,12 +136,12 @@ $$p(a) = \text{MLP}\big(\text{Transformer}(E(a),\ E_{env}) + E_{navi} + E_{state
 <p>训练用 KL 散度把预测分布与”GT 为正、其余按距离加权”的目标分布对齐。<strong>消融</strong>最有冲击力：去掉 Distribution Loss 时 1 s L2 从 0.082 m 暴涨到 1.415 m（<strong>17×</strong>），证明概率建模是 v2 的本质，而不是装饰。</p>
 <h4 id="三个洞察的递进关系"><a href="#三个洞察的递进关系" class="headerlink" title="三个洞察的递进关系"></a>三个洞察的递进关系</h4><ol>
 <li><strong>表示</strong>（VAD）：向量化让场景轻量化、约束可显式书写；</li>
-<li><strong>交互</strong>（VAD）：ego query 通过 attention 隐式吸收 agent &#x2F; map 信息；</li>
+<li><strong>交互</strong>（VAD）：ego query 通过 attention 隐式吸收 agent / map 信息；</li>
 <li><strong>决策</strong>（VADv2）：把”回归一条”换成”在词汇表上分布建模”，捕捉真实驾驶的多模态。</li>
 </ol>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>avg L2 0.72 m &#x2F; Col 0.22% &#x2F; 4.5 FPS（VAD-Base）</strong>：vs UniAD 1.03 &#x2F; 0.31% &#x2F; 1.8 FPS，<strong>−30% L2 + 2.5× speed</strong>；</li>
+<li><strong>avg L2 0.72 m / Col 0.22% / 4.5 FPS（VAD-Base）</strong>：vs UniAD 1.03 / 0.31% / 1.8 FPS，<strong>−30% L2 + 2.5× speed</strong>；</li>
 <li><strong>DS 85.1 vs 76.1（VADv2 vs DriveMLM, CARLA Town05 Long）</strong>：概率规划在闭环上的纯增益；</li>
 <li><strong>去掉 Distribution Loss → L2 ↑ 17×</strong>：概率分布而非词汇表是 VADv2 的真正灵魂。</li>
 </ul>
@@ -164,10 +165,9 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
   <p style="font-size:0.9em; color:#888; margin-top:8px;">图 2：VADv2 概率规划架构（来源：论文 Figure 2）</p>
 </div>
 
-<p>v1&#x2F;v2 架构对比：</p>
+<p>v1/v2 架构对比：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-                    ┌─────────────────────┐
+<pre>                    ┌─────────────────────┐
 6 cams ──► R50 ──►  │ BEV Encoder         │
                     │ (200×200 BEV query) │
                     └──────────┬──────────┘
@@ -223,12 +223,12 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 <tr>
 <td align="left">BEV</td>
 <td align="left">200×200 BEV query</td>
-<td align="left">scene token（map &#x2F; agent &#x2F; traffic &#x2F; image &#x2F; navi &#x2F; state）</td>
+<td align="left">scene token（map / agent / traffic / image / navi / state）</td>
 </tr>
 <tr>
 <td align="left">Map Head</td>
 <td align="left">100 map query × 20 pt（MapTR-style）</td>
-<td align="left">map token（centerline &#x2F; divider &#x2F; boundary &#x2F; crossing）</td>
+<td align="left">map token（centerline / divider / boundary / crossing）</td>
 </tr>
 <tr>
 <td align="left">Agent Head</td>
@@ -251,13 +251,13 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 <td align="left">CARLA 闭环 + nuScenes 开环</td>
 </tr>
 </tbody></table>
-<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>VAD Planning Head 的 ego-agent &#x2F; ego-map 双交互（基于官方 <code>vad_head.py</code> 整理）：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：projects/mmdet3d_plugin/VAD/dense_heads/VAD_head.py</span></span><br><span class="line"><span class="comment"># https://github.com/hustvl/VAD</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 1) Ego 与 agent 交互（吸收周围交通参与者信息）</span></span><br><span class="line">ego_agent_query = <span class="variable language_">self</span>.ego_agent_decoder(</span><br><span class="line">    query     = ego_query,                  <span class="comment"># (B, 1, D)</span></span><br><span class="line">    key/value = agent_query.flatten(<span class="number">0</span>,<span class="number">1</span>),   <span class="comment"># (B, A, D)</span></span><br><span class="line">    pos_emb   = agent_pos_emb,</span><br><span class="line">)                                            <span class="comment"># → Q&#x27;_ego (B, 1, D)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) Ego 与 map 交互（吸收车道 / 边界 / 人行横道）</span></span><br><span class="line">ego_map_query = <span class="variable language_">self</span>.ego_map_decoder(</span><br><span class="line">    query     = ego_agent_query,            <span class="comment"># 已含 agent 信息</span></span><br><span class="line">    key/value = map_query.flatten(<span class="number">0</span>,<span class="number">1</span>),     <span class="comment"># (B, M*Nv, D)</span></span><br><span class="line">    pos_emb   = map_pos_emb,</span><br><span class="line">)                                            <span class="comment"># → Q&#x27;&#x27;_ego</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) Planning Head：拼 ego 状态 + 高层指令 → 未来 Tf 步轨迹</span></span><br><span class="line">plan_input = torch.cat([</span><br><span class="line">    ego_agent_query, ego_map_query, ego_status, command_emb</span><br><span class="line">], dim=-<span class="number">1</span>)</span><br><span class="line">plan_traj = <span class="variable language_">self</span>.plan_head(plan_input)      <span class="comment"># (B, Tf, 2)</span></span><br></pre></td></tr></table></figure>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>VAD Planning Head 的 ego-agent / ego-map 双交互（基于官方 <code>vad_head.py</code> 整理）：</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：projects/mmdet3d_plugin/VAD/dense_heads/VAD_head.py</span></span><br><span class="line"><span class="comment"># https://github.com/hustvl/VAD</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 1) Ego 与 agent 交互（吸收周围交通参与者信息）</span></span><br><span class="line">ego_agent_query = <span class="variable language_">self</span>.ego_agent_decoder(</span><br><span class="line">    query     = ego_query,                  <span class="comment"># (B, 1, D)</span></span><br><span class="line">    key/value = agent_query.flatten(<span class="number">0</span>,<span class="number">1</span>),   <span class="comment"># (B, A, D)</span></span><br><span class="line">    pos_emb   = agent_pos_emb,</span><br><span class="line">)                                            <span class="comment"># → Q'_ego (B, 1, D)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) Ego 与 map 交互（吸收车道 / 边界 / 人行横道）</span></span><br><span class="line">ego_map_query = <span class="variable language_">self</span>.ego_map_decoder(</span><br><span class="line">    query     = ego_agent_query,            <span class="comment"># 已含 agent 信息</span></span><br><span class="line">    key/value = map_query.flatten(<span class="number">0</span>,<span class="number">1</span>),     <span class="comment"># (B, M*Nv, D)</span></span><br><span class="line">    pos_emb   = map_pos_emb,</span><br><span class="line">)                                            <span class="comment"># → Q''_ego</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) Planning Head：拼 ego 状态 + 高层指令 → 未来 Tf 步轨迹</span></span><br><span class="line">plan_input = torch.cat([</span><br><span class="line">    ego_agent_query, ego_map_query, ego_status, command_emb</span><br><span class="line">], dim=-<span class="number">1</span>)</span><br><span class="line">plan_traj = <span class="variable language_">self</span>.plan_head(plan_input)      <span class="comment"># (B, Tf, 2)</span></span><br></pre></td></tr></tbody></table></figure>
 
 <details>
 <summary>📄 点击展开：VADv2 概率规划评分头核心伪代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 来源（基于论文 Eq. 1 与官方实现整理）</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 1) 预先离线采样的轨迹词汇表</span></span><br><span class="line">vocab_actions = sample_furthest_trajectories(demos, N=<span class="number">4096</span>)   <span class="comment"># (4096, T, 2)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) 训练 / 推理 forward</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">scene_tokens, vocab_actions, navi_emb, state_emb</span>):</span><br><span class="line">    <span class="comment"># scene_tokens = cat(map_tok, agent_tok, traffic_tok, image_tok)</span></span><br><span class="line">    <span class="comment"># 2.1 NeRF 位置编码</span></span><br><span class="line">    <span class="comment"># E(a_i) = cat(Γ(x_1), Γ(y_1), ..., Γ(x_T), Γ(y_T))</span></span><br><span class="line">    E_actions = positional_encode(vocab_actions)              <span class="comment"># (4096, D_a)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2.2 与场景 token cross-attention</span></span><br><span class="line">    fused = transformer(</span><br><span class="line">        query     = E_actions.unsqueeze(<span class="number">0</span>).expand(B, -<span class="number">1</span>, -<span class="number">1</span>), <span class="comment"># (B, 4096, D)</span></span><br><span class="line">        key/value = scene_tokens,                             <span class="comment"># (B, S, D)</span></span><br><span class="line">    )                                                          <span class="comment"># (B, 4096, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2.3 与 navi / ego state 融合后打分</span></span><br><span class="line">    fused = fused + navi_emb[:, <span class="literal">None</span>] + state_emb[:, <span class="literal">None</span>]</span><br><span class="line">    logits = mlp_score(fused).squeeze(-<span class="number">1</span>)                     <span class="comment"># (B, 4096)</span></span><br><span class="line"></span><br><span class="line">    p_pred = logits.softmax(dim=-<span class="number">1</span>)                           <span class="comment"># 分布</span></span><br><span class="line">    <span class="keyword">return</span> p_pred</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) 训练损失：KL(p_data ‖ p_pred) + 冲突项 + scene token 监督</span></span><br><span class="line">loss_dist  = kl_divergence(p_data, p_pred)</span><br><span class="line">loss_conf  = (p_pred * conflict_mask).<span class="built_in">sum</span>(dim=-<span class="number">1</span>).mean()</span><br><span class="line">loss_total = loss_dist + λ_c * loss_conf + λ_t * loss_scene_tokens</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4) 推理：argmax 或 top-K 采样后接 PID</span></span><br><span class="line">best_a = vocab_actions[p_pred.argmax(dim=-<span class="number">1</span>)]</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># 来源（基于论文 Eq. 1 与官方实现整理）</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 1) 预先离线采样的轨迹词汇表</span></span><br><span class="line">vocab_actions = sample_furthest_trajectories(demos, N=<span class="number">4096</span>)   <span class="comment"># (4096, T, 2)</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) 训练 / 推理 forward</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">scene_tokens, vocab_actions, navi_emb, state_emb</span>):</span><br><span class="line">    <span class="comment"># scene_tokens = cat(map_tok, agent_tok, traffic_tok, image_tok)</span></span><br><span class="line">    <span class="comment"># 2.1 NeRF 位置编码</span></span><br><span class="line">    <span class="comment"># E(a_i) = cat(Γ(x_1), Γ(y_1), ..., Γ(x_T), Γ(y_T))</span></span><br><span class="line">    E_actions = positional_encode(vocab_actions)              <span class="comment"># (4096, D_a)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2.2 与场景 token cross-attention</span></span><br><span class="line">    fused = transformer(</span><br><span class="line">        query     = E_actions.unsqueeze(<span class="number">0</span>).expand(B, -<span class="number">1</span>, -<span class="number">1</span>), <span class="comment"># (B, 4096, D)</span></span><br><span class="line">        key/value = scene_tokens,                             <span class="comment"># (B, S, D)</span></span><br><span class="line">    )                                                          <span class="comment"># (B, 4096, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2.3 与 navi / ego state 融合后打分</span></span><br><span class="line">    fused = fused + navi_emb[:, <span class="literal">None</span>] + state_emb[:, <span class="literal">None</span>]</span><br><span class="line">    logits = mlp_score(fused).squeeze(-<span class="number">1</span>)                     <span class="comment"># (B, 4096)</span></span><br><span class="line"></span><br><span class="line">    p_pred = logits.softmax(dim=-<span class="number">1</span>)                           <span class="comment"># 分布</span></span><br><span class="line">    <span class="keyword">return</span> p_pred</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) 训练损失：KL(p_data ‖ p_pred) + 冲突项 + scene token 监督</span></span><br><span class="line">loss_dist  = kl_divergence(p_data, p_pred)</span><br><span class="line">loss_conf  = (p_pred * conflict_mask).<span class="built_in">sum</span>(dim=-<span class="number">1</span>).mean()</span><br><span class="line">loss_total = loss_dist + λ_c * loss_conf + λ_t * loss_scene_tokens</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4) 推理：argmax 或 top-K 采样后接 PID</span></span><br><span class="line">best_a = vocab_actions[p_pred.argmax(dim=-<span class="number">1</span>)]</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -357,9 +357,9 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 <ol>
 <li>VAD 在开环上首次让端到端方法的 avg Col 进入 0.2% 区间，且 4.5 FPS 接近实时；</li>
 <li>VADv2 在 CARLA Long benchmark 上以纯相机超越多传感器 SOTA（DriveMLM）9.0 DS；</li>
-<li>Tiny 配置（59.5 ms &#x2F; 16.8 FPS）证明向量化范式的工程友好性。</li>
+<li>Tiny 配置（59.5 ms / 16.8 FPS）证明向量化范式的工程友好性。</li>
 </ol>
-<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><h4 id="VAD（论文-Tab-2-Tab-3）"><a href="#VAD（论文-Tab-2-Tab-3）" class="headerlink" title="VAD（论文 Tab. 2 &#x2F; Tab. 3）"></a>VAD（论文 Tab. 2 &#x2F; Tab. 3）</h4><table>
+<h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><h4 id="VAD（论文-Tab-2-Tab-3）"><a href="#VAD（论文-Tab-2-Tab-3）" class="headerlink" title="VAD（论文 Tab. 2 / Tab. 3）"></a>VAD（论文 Tab. 2 / Tab. 3）</h4><table>
 <thead>
 <tr>
 <th align="left">配置</th>
@@ -396,7 +396,7 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 <td align="left">三项显式约束都开</td>
 <td align="center"><strong>0.72</strong></td>
 <td align="center"><strong>0.22</strong></td>
-<td align="center">洞察 1 &#x2F; 2 联合</td>
+<td align="center">洞察 1 / 2 联合</td>
 </tr>
 </tbody></table>
 <h4 id="VADv2（论文-Tab-3）"><a href="#VADv2（论文-Tab-3）" class="headerlink" title="VADv2（论文 Tab. 3）"></a>VADv2（论文 Tab. 3）</h4><table>
@@ -405,7 +405,7 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 <th align="center">ID</th>
 <th align="center">Dist. Loss</th>
 <th align="center">Conf. Loss</th>
-<th align="center">Map &#x2F; Agent &#x2F; Traf</th>
+<th align="center">Map / Agent / Traf</th>
 <th align="center">1 s L2</th>
 <th align="center">1 s Col</th>
 </tr>
@@ -473,18 +473,18 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 <td align="center"><strong>5.7%</strong></td>
 </tr>
 </tbody></table>
-<p>Backbone + BEV Encoder 占 60%，与 MapTR &#x2F; BEVFormer 同构；Planning 仅 5.7%，证明”重感知 + 轻规划”的工程取向。</p>
+<p>Backbone + BEV Encoder 占 60%，与 MapTR / <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 同构；Planning 仅 5.7%，证明”重感知 + 轻规划”的工程取向。</p>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
 <li><strong>VAD</strong>：碰撞约束只用最高置信度 agent motion，多模态预测被浪费；缺少高层信息（lane graph 拓扑、信号灯、停车标志）；依赖外部 driving command 给方向；</li>
 <li><strong>VADv2</strong>：仅在 CARLA 验证，<strong>真实路况未充分检验</strong>；轨迹词汇表大小 4096 是固定的，无在线扩充机制；KL 损失对长尾驾驶行为依赖良好分布的演示数据。</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">VAD:</span><br><span class="line">  Backbone:        ResNet-50</span><br><span class="line">  BEV:             200 × 200 BEV query</span><br><span class="line">  Map queries:     100 inst × 20 pt（MapTR-style 分层查询）</span><br><span class="line">  Agent queries:   300（多模态 K 条未来轨迹）</span><br><span class="line">  Loss weights:    map / mot / col / bd / dir / imi 共 6 项加权</span><br><span class="line">  Optimizer:       AdamW, lr 2e-4, cosine</span><br><span class="line">  Schedule:        ~60 epochs on nuScenes</span><br><span class="line">  Eval:            nuScenes open-loop (avg L2, avg Col)</span><br><span class="line"></span><br><span class="line">VADv2:</span><br><span class="line">  Vocabulary:      N = 4096 trajectories（furthest sampling from demos）</span><br><span class="line">  Pos encoding:    NeRF-style Γ, frequency bands 2L</span><br><span class="line">  Scoring head:    Transformer + MLP</span><br><span class="line">  Loss:            L_dist (KL) + L_conflict + L_token</span><br><span class="line">  Train data:      ~3M frames from CARLA Town03/04/06/07/10 @ 2 Hz</span><br><span class="line">  Eval:            CARLA Town05 Long &amp; Short closed-loop (DS / RC / IS)</span><br><span class="line">  Inference:       argmax 或 top-K 采样 + PID</span><br></pre></td></tr></table></figure>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">VAD:</span><br><span class="line">  Backbone:        ResNet-50</span><br><span class="line">  BEV:             200 × 200 BEV query</span><br><span class="line">  Map queries:     100 inst × 20 pt（MapTR-style 分层查询）</span><br><span class="line">  Agent queries:   300（多模态 K 条未来轨迹）</span><br><span class="line">  Loss weights:    map / mot / col / bd / dir / imi 共 6 项加权</span><br><span class="line">  Optimizer:       AdamW, lr 2e-4, cosine</span><br><span class="line">  Schedule:        ~60 epochs on nuScenes</span><br><span class="line">  Eval:            nuScenes open-loop (avg L2, avg Col)</span><br><span class="line"></span><br><span class="line">VADv2:</span><br><span class="line">  Vocabulary:      N = 4096 trajectories（furthest sampling from demos）</span><br><span class="line">  Pos encoding:    NeRF-style Γ, frequency bands 2L</span><br><span class="line">  Scoring head:    Transformer + MLP</span><br><span class="line">  Loss:            L_dist (KL) + L_conflict + L_token</span><br><span class="line">  Train data:      ~3M frames from CARLA Town03/04/06/07/10 @ 2 Hz</span><br><span class="line">  Eval:            CARLA Town05 Long &amp; Short closed-loop (DS / RC / IS)</span><br><span class="line">  Inference:       argmax 或 top-K 采样 + PID</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>VAD 的 collision loss 阈值 $\delta_i$ 与 agent 类别绑定</strong>——对车 &#x2F; 人 &#x2F; 自行车要分别设置，过大会让规划畏首畏尾；</li>
+<li><strong>VAD 的 collision loss 阈值 $\delta_i$ 与 agent 类别绑定</strong>——对车 / 人 / 自行车要分别设置，过大会让规划畏首畏尾；</li>
 <li><strong>map vector 必须用 MapTR-style 分层查询</strong>：把所有点拼成长 query 会让 ego-map cross-attn 退化为均值池化；</li>
-<li><strong>VADv2 的 trajectory vocabulary 必须用 furthest sampling</strong>——随机采样会丢失低频但关键的”急停 &#x2F; 变道”模式；</li>
-<li><strong>NeRF 位置编码的频段 $L$ 是关键超参</strong>：太小（&lt; 4）轨迹差异被抹平，太大（&gt; 10）训练不稳定；论文用 $2L &#x3D; 10$；</li>
+<li><strong>VADv2 的 trajectory vocabulary 必须用 furthest sampling</strong>——随机采样会丢失低频但关键的”急停 / 变道”模式；</li>
+<li><strong>NeRF 位置编码的频段 $L$ 是关键超参</strong>：太小（&lt; 4）轨迹差异被抹平，太大（&gt; 10）训练不稳定；论文用 $2L = 10$；</li>
 <li><strong>VADv2 的 KL 目标分布需要给 GT 之外的”次优”轨迹合理权重</strong>（通常按几何距离衰减），否则 Distribution Loss 退化为 one-hot 分类。</li>
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong></p>
@@ -492,11 +492,11 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 <li>把 agent 多模态预测全部进入 collision 约束（VAD 的明确遗留问题）；</li>
 <li>引入 lane graph 拓扑、信号灯、限速等高级语义；</li>
 <li>VADv2 的词汇表换成动态生成（在线扩充罕见场景轨迹）；</li>
-<li>用 <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 的截断扩散替代固定词汇表，是评分 → 生成的天然延伸。</li>
+<li>用 DiffusionDrive 的截断扩散替代固定词汇表，是评分 → 生成的天然延伸。</li>
 </ul>
 <p><strong>速度优化</strong></p>
 <ul>
-<li>VAD-Tiny 已达 16.8 FPS，可用蒸馏 &#x2F; 更小 backbone 进一步压缩；</li>
+<li>VAD-Tiny 已达 16.8 FPS，可用蒸馏 / 更小 backbone 进一步压缩；</li>
 <li>VADv2 的 4096 条评分可在 GPU 上批量并行，瓶颈在 backbone；</li>
 <li>2 stage 推理（先在词汇表上选 top-32，再细化）可降评分头计算量 100×。</li>
 </ul>
@@ -536,12 +536,13 @@ $$\{\text{Map / Agent / Traffic / Image / Navi / State tokens}\} + \{a_i\}_{i=1}
 </tr>
 </tbody></table>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
-<li><strong>VAD 直接定义了”评分派”端到端规划范式</strong>：把规划简化为”在多模态 vector 场景上输出一条轨迹”，被后续 SparseDrive &#x2F; Hydra-MDP &#x2F; GoalFlow 等大量复用；</li>
-<li><strong>VADv2 把 LLM 范式 $p(a|o)$ 引入端到端规划</strong>，与 <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 的”生成派”形成 2024–2025 端到端规划两条主线（评分 vs 生成）；</li>
-<li><strong>MapTR + Planning &#x3D; VAD</strong> 的工程公式直接催生 <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a>（去 BEV）、SparseDriveV2（分解词表 + 层级评分）等后续工作；</li>
+<li><strong>VAD 直接定义了”评分派”端到端规划范式</strong>：把规划简化为”在多模态 vector 场景上输出一条轨迹”，被后续 <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a> / Hydra-MDP / GoalFlow 等大量复用；</li>
+<li><strong>VADv2 把 LLM 范式 $p(a|o)$ 引入端到端规划</strong>，与 DiffusionDrive 的”生成派”形成 2024–2025 端到端规划两条主线（评分 vs 生成）；</li>
+<li><strong>MapTR + Planning = VAD</strong> 的工程公式直接催生 SparseDrive（去 BEV）、SparseDriveV2（分解词表 + 层级评分）等后续工作；</li>
 <li><strong>VADv2 的 Trajectory Vocabulary 设计成为多模态规划的事实基线</strong>：DiffusionDrive 的 20 个锚点、Hydra-MDP 的 8192 条、SparseDriveV2 的 26 万分解组合都在与之对照；</li>
-<li>端到端范式的下一站（<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.04390">DriveWorld</a> &#x2F; DiffAD &#x2F; VLA 等）几乎都把 VAD 的”vector scene”或 VADv2 的”action vocabulary”当作起点。</li>
+<li>端到端范式的下一站（<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.04390">DriveWorld</a> / DiffAD / VLA 等）几乎都把 VAD 的”vector scene”或 VADv2 的”action vocabulary”当作起点。</li>
 </ul>
+
 
             </div>
 

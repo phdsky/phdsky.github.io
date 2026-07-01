@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Image Classification &#x2F; Feature Backbone<br>Method: Vision Transformer, Patch Embedding<br>Venue: ICLR<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2010.11929">https://arxiv.org/abs/2010.11929</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer">https://github.com/google-research/vision_transformer</a></p>
+                
+<p>Task: Image Classification / Feature Backbone<br>Method: Vision Transformer, Patch Embedding<br>Venue: ICLR<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2010.11929">https://arxiv.org/abs/2010.11929</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer">https://github.com/google-research/vision_transformer</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Transformer 架构已成为自然语言处理的事实标准，但在计算机视觉中仍受限于与卷积网络结合或替换卷积的局部组件。本文表明这种对 CNN 的依赖并非必要：将纯 Transformer 直接应用于图像 patch 序列即可在分类任务上取得优异性能。在大规模数据上预训练后迁移到多个中小规模基准（ImageNet, CIFAR-100, VTAB 等），Vision Transformer (ViT) 达到了与 SOTA 卷积网络相当甚至更好的结果，同时所需预训练计算资源大幅减少。最佳模型 ViT-H&#x2F;14 在 ImageNet 上达到 88.55% top-1 准确率，CIFAR-100 上达到 94.55%。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Transformer 架构已成为自然语言处理的事实标准，但在计算机视觉中仍受限于与卷积网络结合或替换卷积的局部组件。本文表明这种对 CNN 的依赖并非必要：将纯 Transformer 直接应用于图像 patch 序列即可在分类任务上取得优异性能。在大规模数据上预训练后迁移到多个中小规模基准（ImageNet, CIFAR-100, VTAB 等），Vision Transformer (ViT) 达到了与 SOTA 卷积网络相当甚至更好的结果，同时所需预训练计算资源大幅减少。最佳模型 ViT-H/14 在 ImageNet 上达到 88.55% top-1 准确率，CIFAR-100 上达到 94.55%。</p>
 <p><strong>核心论点</strong>：视觉识别不需要卷积——将图像切割为 16×16 的 patch 序列，直接输入标准 NLP Transformer，在足够大的数据集（14M-300M 图像）预训练下即可超越 CNN，证明了”大数据 + 大模型”的 scaling law 在视觉领域同样成立。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2020 年前，计算机视觉中 Transformer 的应用面临根本性矛盾：</p>
 <table>
@@ -83,7 +84,7 @@
 </tr>
 <tr>
 <td>CNN + Self-Attention</td>
-<td>Non-local Nets &#x2F; DETR</td>
+<td>Non-local Nets / <a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a></td>
 <td>仍依赖 CNN 特征提取，Transformer 仅做后处理</td>
 </tr>
 <tr>
@@ -94,23 +95,23 @@
 </tbody></table>
 <p>当时的认知是：视觉任务需要 CNN 的<strong>归纳偏置</strong>（locality、translation equivariance、2D 结构），纯 Transformer 在视觉上无法工作。</p>
 <p><strong>核心痛点</strong>：能否像 NLP 一样，用最简单的标准 Transformer 直接处理视觉数据？CNN 的归纳偏置在大规模预训练下是否真的必要？</p>
-<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：图像-Patch-序列，无需卷积"><a href="#洞察-1：图像-Patch-序列，无需卷积" class="headerlink" title="洞察 1：图像 &#x3D; Patch 序列，无需卷积"></a>洞察 1：图像 &#x3D; Patch 序列，无需卷积</h3><p>传统做法：图像 → CNN 提取特征 → 可能用 Transformer 做后处理。</p>
-<p>本文做法：将图像 $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ 切割为 $N$ 个固定大小的 patch $\mathbf{x}_p \in \mathbb{R}^{N \times (P^2 \cdot C)}$，其中 $N &#x3D; HW&#x2F;P^2$，每个 patch 通过一个线性投影映射为 token embedding：</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：图像-Patch-序列，无需卷积"><a href="#洞察-1：图像-Patch-序列，无需卷积" class="headerlink" title="洞察 1：图像 = Patch 序列，无需卷积"></a>洞察 1：图像 = Patch 序列，无需卷积</h3><p>传统做法：图像 → CNN 提取特征 → 可能用 Transformer 做后处理。</p>
+<p>本文做法：将图像 $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ 切割为 $N$ 个固定大小的 patch $\mathbf{x}_p \in \mathbb{R}^{N \times (P^2 \cdot C)}$，其中 $N = HW/P^2$，每个 patch 通过一个线性投影映射为 token embedding：</p>
 
 $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mathbf{x}_p^2 \mathbf{E};\, \cdots;\, \mathbf{x}_p^N \mathbf{E}] + \mathbf{E}_{pos}$$
 
 
-<p>其中 $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$ 是可学习的线性投影，$\mathbf{E}_{pos} \in \mathbb{R}^{(N+1) \times D}$ 是可学习的 1D 位置嵌入。对于 $P&#x3D;16$, $224 \times 224$ 图像仅产生 $14 \times 14 &#x3D; 196$ 个 token，计算完全可行。</p>
+<p>其中 $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$ 是可学习的线性投影，$\mathbf{E}_{pos} \in \mathbb{R}^{(N+1) \times D}$ 是可学习的 1D 位置嵌入。对于 $P=16$, $224 \times 224$ 图像仅产生 $14 \times 14 = 196$ 个 token，计算完全可行。</p>
 <h3 id="洞察-2：大数据弥补归纳偏置缺失"><a href="#洞察-2：大数据弥补归纳偏置缺失" class="headerlink" title="洞察 2：大数据弥补归纳偏置缺失"></a>洞察 2：大数据弥补归纳偏置缺失</h3><p>传统认知：CNN 的局部性（locality）和平移等变性（translation equivariance）是视觉任务不可或缺的归纳偏置。</p>
-<p>本文发现：ViT 几乎不含视觉归纳偏置——仅在 patch 切割时使用了 2D 结构信息。在小数据集（ImageNet-1k）上，ViT 确实不如同等规模的 ResNet。但在大数据集上预训练后，情况逆转：</p>
+<p>本文发现：ViT 几乎不含视觉归纳偏置——仅在 patch 切割时使用了 2D 结构信息。在小数据集（ImageNet-1k）上，ViT 确实不如同等规模的 <a href="/posts/2016/papers/2016_CVPR_ResNet_Deep_Residual_Learning/">ResNet</a>。但在大数据集上预训练后，情况逆转：</p>
 <ul>
-<li>ImageNet-1k 预训练：ViT-B&#x2F;16 仅 77.91%，不如 ResNet</li>
-<li>ImageNet-21k 预训练（14M）：ViT-L&#x2F;16 达到 85.15%</li>
-<li>JFT-300M 预训练（303M）：ViT-H&#x2F;14 达到 88.55%，超越所有 CNN</li>
+<li>ImageNet-1k 预训练：ViT-B/16 仅 77.91%，不如 ResNet</li>
+<li>ImageNet-21k 预训练（14M）：ViT-L/16 达到 85.15%</li>
+<li>JFT-300M 预训练（303M）：ViT-H/14 达到 88.55%，超越所有 CNN</li>
 </ul>
-<p>数据量越大，ViT 的优势越明显。论文在 JFT 子集实验（9M&#x2F;30M&#x2F;90M）中证明：CNN 在小数据集上更好但很快饱和，ViT 随数据量增长持续提升。</p>
+<p>数据量越大，ViT 的优势越明显。论文在 JFT 子集实验（9M/30M/90M）中证明：CNN 在小数据集上更好但很快饱和，ViT 随数据量增长持续提升。</p>
 <h3 id="洞察-3：Transformer-在视觉上的-Scaling-更高效"><a href="#洞察-3：Transformer-在视觉上的-Scaling-更高效" class="headerlink" title="洞察 3：Transformer 在视觉上的 Scaling 更高效"></a>洞察 3：Transformer 在视觉上的 Scaling 更高效</h3><p>传统做法：增大 CNN（ResNet-200x3 等）可以提升性能，但计算代价急剧增长。</p>
-<p>本文做法：ViT 在 performance&#x2F;compute trade-off 上显著优于 ResNet。相同精度下，ViT 使用约 2-4× 更少的计算：</p>
+<p>本文做法：ViT 在 performance/compute trade-off 上显著优于 ResNet。相同精度下，ViT 使用约 2-4× 更少的计算：</p>
 <table>
 <thead>
 <tr>
@@ -125,7 +126,7 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <td>85.56%</td>
 </tr>
 <tr>
-<td>ViT-L&#x2F;16 (14ep)</td>
+<td>ViT-L/16 (14ep)</td>
 <td>1567</td>
 <td>87.12%</td>
 </tr>
@@ -135,15 +136,15 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <td>87.22%</td>
 </tr>
 <tr>
-<td>ViT-H&#x2F;14 (14ep)</td>
+<td>ViT-H/14 (14ep)</td>
 <td>4262</td>
 <td>88.08%</td>
 </tr>
 </tbody></table>
-<p>ViT-L&#x2F;16 用不到 ResNet200x3 一半的计算就接近其精度。且 ViT 在测试范围内未出现饱和趋势，暗示继续 scaling 还能获益。</p>
+<p>ViT-L/16 用不到 ResNet200x3 一半的计算就接近其精度。且 ViT 在测试范围内未出现饱和趋势，暗示继续 scaling 还能获益。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li>**88.55%**：ViT-H&#x2F;14 在 ImageNet 上的 top-1 准确率（JFT-300M 预训练），刷新 SOTA</li>
+<li>**88.55%**：ViT-H/14 在 ImageNet 上的 top-1 准确率（JFT-300M 预训练），刷新 SOTA</li>
 <li><strong>16×16</strong>：标准 patch 大小，将 224×224 图像转化为 196 个 token</li>
 <li><strong>2-4×</strong>：ViT 相比 ResNet 达到相同精度所需的更少计算量</li>
 </ul>
@@ -153,8 +154,7 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-  输入 (224×224×3)
+<pre>  输入 (224×224×3)
        │
   ┌────┴─────────┐
   │  Patch 切割   │  P=16 → 14×14 = 196 个 patch
@@ -246,21 +246,21 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <tr>
 <td>[CLS] token</td>
 <td>聚合全局信息用于分类</td>
-<td>$\mathbf{y} &#x3D; \text{LN}(\mathbf{z}_L^0)$</td>
+<td>$\mathbf{y} = \text{LN}(\mathbf{z}_L^0)$</td>
 </tr>
 </tbody></table>
-<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>以下为 Google 官方 JAX&#x2F;Flax 实现中的核心组件。</p>
-<p><strong>Transformer Encoder Block</strong>（来源：<a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_vit.py">vit_jax&#x2F;models_vit.py</a>）</p>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>以下为 Google 官方 JAX/Flax 实现中的核心组件。</p>
+<p><strong>Transformer Encoder Block</strong>（来源：<a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_vit.py">vit_jax/models_vit.py</a>）</p>
 <details><summary>📄 点击展开 Encoder1DBlock 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Encoder1DBlock</span>(nn.Module):</span><br><span class="line">  <span class="string">&quot;&quot;&quot;Transformer encoder layer.&quot;&quot;&quot;</span></span><br><span class="line">  mlp_dim: <span class="built_in">int</span></span><br><span class="line">  num_heads: <span class="built_in">int</span></span><br><span class="line">  dtype: Dtype = jnp.float32</span><br><span class="line">  dropout_rate: <span class="built_in">float</span> = <span class="number">0.1</span></span><br><span class="line">  attention_dropout_rate: <span class="built_in">float</span> = <span class="number">0.1</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  @nn.compact</span></span><br><span class="line">  <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, inputs, *, deterministic</span>):</span><br><span class="line">    <span class="comment"># inputs.shape = (batch, seq_len, hidden_dim)</span></span><br><span class="line">    <span class="keyword">assert</span> inputs.ndim == <span class="number">3</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 注意力子层：LN → MSA → Dropout → 残差</span></span><br><span class="line">    x = nn.LayerNorm(dtype=<span class="variable language_">self</span>.dtype)(inputs)</span><br><span class="line">    x = nn.MultiHeadDotProductAttention(</span><br><span class="line">        dtype=<span class="variable language_">self</span>.dtype,</span><br><span class="line">        kernel_init=nn.initializers.xavier_uniform(),</span><br><span class="line">        broadcast_dropout=<span class="literal">False</span>,</span><br><span class="line">        deterministic=deterministic,</span><br><span class="line">        dropout_rate=<span class="variable language_">self</span>.attention_dropout_rate,</span><br><span class="line">        num_heads=<span class="variable language_">self</span>.num_heads)(x, x)</span><br><span class="line">    x = nn.Dropout(rate=<span class="variable language_">self</span>.dropout_rate)(x, deterministic=deterministic)</span><br><span class="line">    x = x + inputs  <span class="comment"># 残差连接</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># MLP 子层：LN → MLP(GELU) → Dropout → 残差</span></span><br><span class="line">    y = nn.LayerNorm(dtype=<span class="variable language_">self</span>.dtype)(x)</span><br><span class="line">    y = MlpBlock(</span><br><span class="line">        mlp_dim=<span class="variable language_">self</span>.mlp_dim,</span><br><span class="line">        dtype=<span class="variable language_">self</span>.dtype,</span><br><span class="line">        dropout_rate=<span class="variable language_">self</span>.dropout_rate)(y, deterministic=deterministic)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> x + y  <span class="comment"># 残差连接</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Encoder1DBlock</span>(nn.Module):</span><br><span class="line">  <span class="string">"""Transformer encoder layer."""</span></span><br><span class="line">  mlp_dim: <span class="built_in">int</span></span><br><span class="line">  num_heads: <span class="built_in">int</span></span><br><span class="line">  dtype: Dtype = jnp.float32</span><br><span class="line">  dropout_rate: <span class="built_in">float</span> = <span class="number">0.1</span></span><br><span class="line">  attention_dropout_rate: <span class="built_in">float</span> = <span class="number">0.1</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  @nn.compact</span></span><br><span class="line">  <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, inputs, *, deterministic</span>):</span><br><span class="line">    <span class="comment"># inputs.shape = (batch, seq_len, hidden_dim)</span></span><br><span class="line">    <span class="keyword">assert</span> inputs.ndim == <span class="number">3</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 注意力子层：LN → MSA → Dropout → 残差</span></span><br><span class="line">    x = nn.LayerNorm(dtype=<span class="variable language_">self</span>.dtype)(inputs)</span><br><span class="line">    x = nn.MultiHeadDotProductAttention(</span><br><span class="line">        dtype=<span class="variable language_">self</span>.dtype,</span><br><span class="line">        kernel_init=nn.initializers.xavier_uniform(),</span><br><span class="line">        broadcast_dropout=<span class="literal">False</span>,</span><br><span class="line">        deterministic=deterministic,</span><br><span class="line">        dropout_rate=<span class="variable language_">self</span>.attention_dropout_rate,</span><br><span class="line">        num_heads=<span class="variable language_">self</span>.num_heads)(x, x)</span><br><span class="line">    x = nn.Dropout(rate=<span class="variable language_">self</span>.dropout_rate)(x, deterministic=deterministic)</span><br><span class="line">    x = x + inputs  <span class="comment"># 残差连接</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># MLP 子层：LN → MLP(GELU) → Dropout → 残差</span></span><br><span class="line">    y = nn.LayerNorm(dtype=<span class="variable language_">self</span>.dtype)(x)</span><br><span class="line">    y = MlpBlock(</span><br><span class="line">        mlp_dim=<span class="variable language_">self</span>.mlp_dim,</span><br><span class="line">        dtype=<span class="variable language_">self</span>.dtype,</span><br><span class="line">        dropout_rate=<span class="variable language_">self</span>.dropout_rate)(y, deterministic=deterministic)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> x + y  <span class="comment"># 残差连接</span></span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
-<p><strong>VisionTransformer 主体</strong>（来源：<a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_vit.py">vit_jax&#x2F;models_vit.py</a>）</p>
+<p><strong>VisionTransformer 主体</strong>（来源：<a target="_blank" rel="noopener" href="https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_vit.py">vit_jax/models_vit.py</a>）</p>
 <details><summary>📄 点击展开 VisionTransformer 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">VisionTransformer</span>(nn.Module):</span><br><span class="line">  <span class="string">&quot;&quot;&quot;VisionTransformer.&quot;&quot;&quot;</span></span><br><span class="line">  num_classes: <span class="built_in">int</span></span><br><span class="line">  patches: <span class="type">Any</span>          <span class="comment"># patch 大小配置</span></span><br><span class="line">  transformer: <span class="type">Any</span>      <span class="comment"># Transformer 超参数</span></span><br><span class="line">  hidden_size: <span class="built_in">int</span></span><br><span class="line">  representation_size: <span class="type">Optional</span>[<span class="built_in">int</span>] = <span class="literal">None</span></span><br><span class="line">  classifier: <span class="built_in">str</span> = <span class="string">&#x27;token&#x27;</span>  <span class="comment"># &#x27;token&#x27; 使用 [CLS]，&#x27;gap&#x27; 使用全局平均池化</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  @nn.compact</span></span><br><span class="line">  <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, inputs, *, train</span>):</span><br><span class="line">    x = inputs</span><br><span class="line">    n, h, w, c = x.shape</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Patch Embedding：等价于一个大 kernel 的卷积</span></span><br><span class="line">    <span class="comment"># kernel_size = stride = patch_size，将每个 patch 线性投影到 D 维</span></span><br><span class="line">    x = nn.Conv(</span><br><span class="line">        features=<span class="variable language_">self</span>.hidden_size,</span><br><span class="line">        kernel_size=<span class="variable language_">self</span>.patches.size,     <span class="comment"># (16, 16)</span></span><br><span class="line">        strides=<span class="variable language_">self</span>.patches.size,         <span class="comment"># (16, 16)</span></span><br><span class="line">        padding=<span class="string">&#x27;VALID&#x27;</span>,</span><br><span class="line">        name=<span class="string">&#x27;embedding&#x27;</span>)(x)</span><br><span class="line"></span><br><span class="line">    n, h, w, c = x.shape</span><br><span class="line">    x = jnp.reshape(x, [n, h * w, c])  <span class="comment"># (B, N, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 前置 [CLS] token</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.classifier <span class="keyword">in</span> [<span class="string">&#x27;token&#x27;</span>, <span class="string">&#x27;token_unpooled&#x27;</span>]:</span><br><span class="line">      cls = <span class="variable language_">self</span>.param(<span class="string">&#x27;cls&#x27;</span>, nn.initializers.zeros, (<span class="number">1</span>, <span class="number">1</span>, c))</span><br><span class="line">      cls = jnp.tile(cls, [n, <span class="number">1</span>, <span class="number">1</span>])</span><br><span class="line">      x = jnp.concatenate([cls, x], axis=<span class="number">1</span>)  <span class="comment"># (B, N+1, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Transformer Encoder（内含位置嵌入添加）</span></span><br><span class="line">    x = <span class="variable language_">self</span>.encoder(name=<span class="string">&#x27;Transformer&#x27;</span>, **<span class="variable language_">self</span>.transformer)(</span><br><span class="line">        x, train=train)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 分类：取 [CLS] token</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.classifier == <span class="string">&#x27;token&#x27;</span>:</span><br><span class="line">      x = x[:, <span class="number">0</span>]</span><br><span class="line">    <span class="keyword">elif</span> <span class="variable language_">self</span>.classifier == <span class="string">&#x27;gap&#x27;</span>:</span><br><span class="line">      x = jnp.mean(x, axis=<span class="built_in">list</span>(<span class="built_in">range</span>(<span class="number">1</span>, x.ndim - <span class="number">1</span>)))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 分类头</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.representation_size <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">      x = nn.Dense(features=<span class="variable language_">self</span>.representation_size,</span><br><span class="line">                   name=<span class="string">&#x27;pre_logits&#x27;</span>)(x)</span><br><span class="line">      x = nn.tanh(x)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.num_classes:</span><br><span class="line">      x = nn.Dense(</span><br><span class="line">          features=<span class="variable language_">self</span>.num_classes,</span><br><span class="line">          name=<span class="string">&#x27;head&#x27;</span>,</span><br><span class="line">          kernel_init=nn.initializers.zeros)(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">VisionTransformer</span>(nn.Module):</span><br><span class="line">  <span class="string">"""VisionTransformer."""</span></span><br><span class="line">  num_classes: <span class="built_in">int</span></span><br><span class="line">  patches: <span class="type">Any</span>          <span class="comment"># patch 大小配置</span></span><br><span class="line">  transformer: <span class="type">Any</span>      <span class="comment"># Transformer 超参数</span></span><br><span class="line">  hidden_size: <span class="built_in">int</span></span><br><span class="line">  representation_size: <span class="type">Optional</span>[<span class="built_in">int</span>] = <span class="literal">None</span></span><br><span class="line">  classifier: <span class="built_in">str</span> = <span class="string">'token'</span>  <span class="comment"># 'token' 使用 [CLS]，'gap' 使用全局平均池化</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  @nn.compact</span></span><br><span class="line">  <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, inputs, *, train</span>):</span><br><span class="line">    x = inputs</span><br><span class="line">    n, h, w, c = x.shape</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Patch Embedding：等价于一个大 kernel 的卷积</span></span><br><span class="line">    <span class="comment"># kernel_size = stride = patch_size，将每个 patch 线性投影到 D 维</span></span><br><span class="line">    x = nn.Conv(</span><br><span class="line">        features=<span class="variable language_">self</span>.hidden_size,</span><br><span class="line">        kernel_size=<span class="variable language_">self</span>.patches.size,     <span class="comment"># (16, 16)</span></span><br><span class="line">        strides=<span class="variable language_">self</span>.patches.size,         <span class="comment"># (16, 16)</span></span><br><span class="line">        padding=<span class="string">'VALID'</span>,</span><br><span class="line">        name=<span class="string">'embedding'</span>)(x)</span><br><span class="line"></span><br><span class="line">    n, h, w, c = x.shape</span><br><span class="line">    x = jnp.reshape(x, [n, h * w, c])  <span class="comment"># (B, N, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 前置 [CLS] token</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.classifier <span class="keyword">in</span> [<span class="string">'token'</span>, <span class="string">'token_unpooled'</span>]:</span><br><span class="line">      cls = <span class="variable language_">self</span>.param(<span class="string">'cls'</span>, nn.initializers.zeros, (<span class="number">1</span>, <span class="number">1</span>, c))</span><br><span class="line">      cls = jnp.tile(cls, [n, <span class="number">1</span>, <span class="number">1</span>])</span><br><span class="line">      x = jnp.concatenate([cls, x], axis=<span class="number">1</span>)  <span class="comment"># (B, N+1, D)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Transformer Encoder（内含位置嵌入添加）</span></span><br><span class="line">    x = <span class="variable language_">self</span>.encoder(name=<span class="string">'Transformer'</span>, **<span class="variable language_">self</span>.transformer)(</span><br><span class="line">        x, train=train)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 分类：取 [CLS] token</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.classifier == <span class="string">'token'</span>:</span><br><span class="line">      x = x[:, <span class="number">0</span>]</span><br><span class="line">    <span class="keyword">elif</span> <span class="variable language_">self</span>.classifier == <span class="string">'gap'</span>:</span><br><span class="line">      x = jnp.mean(x, axis=<span class="built_in">list</span>(<span class="built_in">range</span>(<span class="number">1</span>, x.ndim - <span class="number">1</span>)))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 分类头</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.representation_size <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">      x = nn.Dense(features=<span class="variable language_">self</span>.representation_size,</span><br><span class="line">                   name=<span class="string">'pre_logits'</span>)(x)</span><br><span class="line">      x = nn.tanh(x)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.num_classes:</span><br><span class="line">      x = nn.Dense(</span><br><span class="line">          features=<span class="variable language_">self</span>.num_classes,</span><br><span class="line">          name=<span class="string">'head'</span>,</span><br><span class="line">          kernel_init=nn.initializers.zeros)(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -293,7 +293,7 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <td>12.3k</td>
 </tr>
 <tr>
-<td>ViT-L&#x2F;16</td>
+<td>ViT-L/16</td>
 <td>87.76</td>
 <td>90.54</td>
 <td>93.90</td>
@@ -301,7 +301,7 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <td>0.68k</td>
 </tr>
 <tr>
-<td>ViT-H&#x2F;14</td>
+<td>ViT-H/14</td>
 <td>88.55</td>
 <td>90.72</td>
 <td>94.55</td>
@@ -311,8 +311,8 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 </tbody></table>
 <p><strong>关键发现</strong>：</p>
 <ol>
-<li>ViT-H&#x2F;14 以 2.5k TPUv3-core-days 的预训练成本超越了 BiT-L 的 9.9k 和 Noisy Student 的 12.3k，计算效率优势显著</li>
-<li>即使用开源 ImageNet-21k 预训练的 ViT-L&#x2F;16 也表现出色，仅需 8 个 TPU 核约 30 天即可训练</li>
+<li>ViT-H/14 以 2.5k TPUv3-core-days 的预训练成本超越了 BiT-L 的 9.9k 和 Noisy Student 的 12.3k，计算效率优势显著</li>
+<li>即使用开源 ImageNet-21k 预训练的 ViT-L/16 也表现出色，仅需 8 个 TPU 核约 30 天即可训练</li>
 <li>ViT 在 VTAB 的 Natural 和 Structured 任务组上优于 BiT，在 Specialized 上持平</li>
 </ol>
 <h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>数据规模实验</strong>（验证洞察 2：大数据弥补归纳偏置）：</p>
@@ -320,8 +320,8 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <thead>
 <tr>
 <th>预训练数据</th>
-<th>ViT-B&#x2F;16</th>
-<th>ViT-L&#x2F;16</th>
+<th>ViT-B/16</th>
+<th>ViT-L/16</th>
 <th>趋势</th>
 <th>验证洞察</th>
 </tr>
@@ -374,7 +374,7 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 </tr>
 </tbody></table>
 <blockquote>
-<p>注：有无位置嵌入差距大，但 1D&#x2F;2D&#x2F;相对之间差异极小，说明 patch 级别输入的空间分辨率已经足够低（14×14），不同编码方式同样容易学习。</p>
+<p>注：有无位置嵌入差距大，但 1D/2D/相对之间差异极小，说明 patch 级别输入的空间分辨率已经足够低（14×14），不同编码方式同样容易学习。</p>
 </blockquote>
 <p><strong>Scaling 实验</strong>（验证洞察 3：计算效率优势）：</p>
 <table>
@@ -393,7 +393,7 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <td>洞察 3</td>
 </tr>
 <tr>
-<td>ViT-B&#x2F;32</td>
+<td>ViT-B/32</td>
 <td>55</td>
 <td>80.73</td>
 <td>洞察 3</td>
@@ -405,13 +405,13 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <td>洞察 3</td>
 </tr>
 <tr>
-<td>ViT-L&#x2F;16</td>
+<td>ViT-L/16</td>
 <td>783</td>
 <td>86.30</td>
 <td>洞察 3</td>
 </tr>
 <tr>
-<td>R50+ViT-B&#x2F;16 (混合)</td>
+<td>R50+ViT-B/16 (混合)</td>
 <td>274</td>
 <td>85.58</td>
 <td>洞察 3</td>
@@ -423,8 +423,8 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <li><strong>洞察 3 验证</strong>：相同 exaFLOPs 预算下，ViT 系统性地优于 ResNet；混合模型在小规模时有优势，大规模时差距消失</li>
 </ul>
 <h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
-<li>在 ImageNet-1k（无额外数据）上训练 ViT-B&#x2F;16，即使加入 dropout 和 label smoothing，也不如 ResNet-50（归纳偏置在小数据下仍重要）</li>
-<li>自监督预训练（masked patch prediction）的 ViT-B&#x2F;16 达到 79.9%，虽然比从头训练好 2%，但仍落后有监督预训练 4%</li>
+<li>在 ImageNet-1k（无额外数据）上训练 ViT-B/16，即使加入 dropout 和 label smoothing，也不如 ResNet-50（归纳偏置在小数据下仍重要）</li>
+<li>自监督预训练（masked patch prediction）的 ViT-B/16 达到 79.9%，虽然比从头训练好 2%，但仍落后有监督预训练 4%</li>
 <li>注意力距离分析表明：低层部分 head 已有全局注意力（替代了 CNN 早期的局部接收域），但也有 head 保持局部关注，说明网络自适应地学习了局部和全局模式</li>
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
@@ -432,7 +432,7 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 <li><strong>小 patch 计算爆炸</strong>：patch 从 16 减小到 8 时，序列长度增长 4 倍，计算量显著上升</li>
 <li><strong>自监督预训练差距</strong>：masked patch prediction 仍比有监督预训练落后 4%（当时 MAE 等方案尚未提出）</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:      ViT-B/16, ViT-L/16, ViT-H/14</span><br><span class="line">Input:         224×224 预训练, 384/512 微调</span><br><span class="line">Batch Size:    4096 (预训练), 512 (微调)</span><br><span class="line">Optimizer:     Adam (β1=0.9, β2=0.999) 预训练; SGD+momentum 微调</span><br><span class="line">LR Schedule:   线性 warmup (10k steps) + 线性/cosine 衰减</span><br><span class="line">Weight Decay:  0.1 (预训练)</span><br><span class="line">Augmentation:  无特殊增强 (仅标准裁剪翻转)</span><br><span class="line">Dropout:       仅 ImageNet-from-scratch 使用 (rate=0.1)</span><br><span class="line">Training Time: ViT-L/16 ImageNet-21k 约 30 天 (8 TPUv3 cores)</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:      ViT-B/16, ViT-L/16, ViT-H/14</span><br><span class="line">Input:         224×224 预训练, 384/512 微调</span><br><span class="line">Batch Size:    4096 (预训练), 512 (微调)</span><br><span class="line">Optimizer:     Adam (β1=0.9, β2=0.999) 预训练; SGD+momentum 微调</span><br><span class="line">LR Schedule:   线性 warmup (10k steps) + 线性/cosine 衰减</span><br><span class="line">Weight Decay:  0.1 (预训练)</span><br><span class="line">Augmentation:  无特殊增强 (仅标准裁剪翻转)</span><br><span class="line">Dropout:       仅 ImageNet-from-scratch 使用 (rate=0.1)</span><br><span class="line">Training Time: ViT-L/16 ImageNet-21k 约 30 天 (8 TPUv3 cores)</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
 <li><strong>预训练数据必须足够大</strong>：ViT 在 ImageNet-1k 上从头训练效果差，至少需 ImageNet-21k（14M）预训练才能发挥优势</li>
@@ -449,27 +449,28 @@ $$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\, \mathbf{x}_p^1 \mathbf{E};\, \mat
 </ul>
 <p><strong>速度优化</strong>：</p>
 <ul>
-<li>使用窗口注意力（Swin Transformer）将 $O(n^2)$ 降为 $O(n)$，适配高分辨率密集预测任务</li>
+<li>使用窗口注意力（<a href="/posts/2022/papers/2022_CVPR_Swin_Transformer_Series_Hierarchical_Vision_Transformer/">Swin Transformer</a>）将 $O(n^2)$ 降为 $O(n)$，适配高分辨率密集预测任务</li>
 <li>FlashAttention 等硬件友好的注意力实现可在不改变模型的前提下加速 2-3 倍</li>
 <li>轻量级变体（MobileViT 等）面向移动端部署</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li><strong>“图像 &#x3D; 序列”的统一表示</strong>：这一洞察使视觉模型可以直接复用 NLP Transformer 的架构、训练技巧和工程基础设施，催生了多模态统一模型（CLIP, GPT-4V 等）</li>
+<li><strong>“图像 = 序列”的统一表示</strong>：这一洞察使视觉模型可以直接复用 NLP Transformer 的架构、训练技巧和工程基础设施，催生了多模态统一模型（CLIP, GPT-4V 等）</li>
 <li><strong>Scaling Law 从 NLP 到 Vision 的验证</strong>：证明了”大数据 + 大模型”在视觉中同样适用，归纳偏置并非不可替代，而是数据不足时的一种补偿</li>
 <li><strong>Patch Embedding 是一种通用序列化手段</strong>：不仅适用于图像，也被扩展到视频（ViViT）、点云（PCT）、音频（AST）等模态</li>
 <li><strong>预训练-微调范式的视觉扩展</strong>：借鉴 BERT 的训练范式，大模型预训练 + 下游任务微调成为视觉领域的标准流程</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
 <li>在小数据集上需要大量正则化才能避免过拟合，丧失了 CNN 天然的局部归纳偏置优势</li>
-<li>标准 ViT 无法高效处理高分辨率图像（$O(n^2)$ 注意力），不适合密集预测任务（检测&#x2F;分割）</li>
+<li>标准 ViT 无法高效处理高分辨率图像（$O(n^2)$ 注意力），不适合密集预测任务（检测/分割）</li>
 <li>依赖大规模私有数据集（JFT-300M）预训练，公开可用数据下的复现存在差距</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li><strong>开启了 Vision Transformer 时代</strong>：直接催生了 DeiT、Swin Transformer、BEiT、MAE 等一系列后续工作，Transformer 迅速取代 CNN 成为视觉主流架构</li>
 <li><strong>统一了 NLP 和 Vision 的技术栈</strong>：使得 CLIP、Flamingo、GPT-4V 等多模态大模型成为可能</li>
-<li><strong>推动了自动驾驶感知架构变革</strong>：BEVFormer、PETR 等 BEV 感知方法的 backbone 从 ResNet 切换为 Swin&#x2F;ViT，获得显著性能提升</li>
+<li><strong>推动了自动驾驶感知架构变革</strong>：<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>、<a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a> 等 BEV 感知方法的 backbone 从 ResNet 切换为 Swin/ViT，获得显著性能提升</li>
 <li><strong>改变了学术界对归纳偏置的认知</strong>：从”必须精心设计任务特定的归纳偏置”转向”让模型从数据中学习”，推动了 foundation model 范式</li>
 </ul>
+
 
             </div>
 

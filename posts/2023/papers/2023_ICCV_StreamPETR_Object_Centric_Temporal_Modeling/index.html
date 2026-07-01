@@ -55,17 +55,18 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Multi-View 3D Object Detection with Temporal Modeling<br>Method: Object-Centric Temporal Modeling, Memory Queue, Motion-Aware Layer Normalization<br>Venue: ICCV<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2303.11926">https://arxiv.org/abs/2303.11926</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/exiawsh/StreamPETR">https://github.com/exiawsh/StreamPETR</a></p>
+                
+<p>Task: Multi-View 3D Object Detection with Temporal Modeling<br>Method: Object-Centric Temporal Modeling, Memory Queue, Motion-Aware Layer Normalization<br>Venue: ICCV<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2303.11926">https://arxiv.org/abs/2303.11926</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/exiawsh/StreamPETR">https://github.com/exiawsh/StreamPETR</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文提出了 StreamPETR，一个用于多视图 3D 物体检测的长序列建模框架。该方法基于 PETR 系列的稀疏查询设计，系统性地开发了<strong>以物体为中心的时间机制</strong>（object-centric temporal modeling）。与现有基于 BEV 或透视图的时序融合方法不同，StreamPETR 使用稀疏物体查询作为时序传播的隐状态，以在线方式运行，通过物体查询逐帧传播长期历史信息。此外，该方法引入了<strong>运动感知层归一化</strong>（Motion-Aware Layer Normalization, MLN）来显式建模物体的运动，解耦自车运动与周围物体运动的影响。在仅增加可忽略计算成本的前提下，StreamPETR 实现了显著的性能提升。在 nuScenes 基准上，该方法成为首个达到与激光雷达方法相当性能的在线多视图方法。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文提出了 StreamPETR，一个用于多视图 3D 物体检测的长序列建模框架。该方法基于 <a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a> 系列的稀疏查询设计，系统性地开发了<strong>以物体为中心的时间机制</strong>（object-centric temporal modeling）。与现有基于 BEV 或透视图的时序融合方法不同，StreamPETR 使用稀疏物体查询作为时序传播的隐状态，以在线方式运行，通过物体查询逐帧传播长期历史信息。此外，该方法引入了<strong>运动感知层归一化</strong>（Motion-Aware Layer Normalization, MLN）来显式建模物体的运动，解耦自车运动与周围物体运动的影响。在仅增加可忽略计算成本的前提下，StreamPETR 实现了显著的性能提升。在 nuScenes 基准上，该方法成为首个达到与激光雷达方法相当性能的在线多视图方法。</p>
 <p><strong>核心论点</strong>：多视图 3D 检测的时序建模应从”特征级融合”转向”物体级传播”——StreamPETR 通过将历史物体查询作为隐状态递归传播，实现了高效的长序列建模，同时通过运动感知层归一化解耦自车与物体运动，在几乎不增加计算成本的情况下达到激光雷达级别的性能。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>多视图 3D 目标检测的时序建模旨在利用多帧信息提升检测性能，尤其对于运动物体和被遮挡物体。现有时序融合方案可分为三类：</p>
 <ul>
 <li><strong>BEV 时序融合</strong>（代表作：<a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet4D</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>）：受 BEV 高度结构化限制，需要很大感受野建模运动目标；仅考虑静态 BEV 特征，忽视物体运动</li>
-<li><strong>透视图时序融合</strong>（代表作：PETRv2）：基于 DETR，将稀疏查询与多视图多帧图像交互，计算代价高；需进行多帧重复的特征聚合</li>
+<li><strong>透视图时序融合</strong>（代表作：PETRv2）：基于 <a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a>，将稀疏查询与多视图多帧图像交互，计算代价高；需进行多帧重复的特征聚合</li>
 <li><strong>查询融合</strong>（代表作：<a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a>）：查询交互复杂，时序传播机制不够系统化</li>
 </ul>
 <p>现有方法存在两个核心痛点：</p>
@@ -92,7 +93,7 @@
 <li>速度 $v$ </li>
 <li>自车姿态矩阵 $E$ </li>
 </ul>
-<p>由于物体查询已经是压缩表示，即使使用很小的队列（N&#x3D;2，约 1 秒）性能就基本饱和——这正是”低秩近似”视角的直接预测。</p>
+<p>由于物体查询已经是压缩表示，即使使用很小的队列（N=2，约 1 秒）性能就基本饱和——这正是”低秩近似”视角的直接预测。</p>
 <h3 id="洞察-3：用条件归一化隐式编码运动，比显式补偿更鲁棒"><a href="#洞察-3：用条件归一化隐式编码运动，比显式补偿更鲁棒" class="headerlink" title="洞察 3：用条件归一化隐式编码运动，比显式补偿更鲁棒"></a>洞察 3：用条件归一化隐式编码运动，比显式补偿更鲁棒</h3><p>传统方法在进行时序对齐时，通常使用显式的运动补偿（如坐标变换），但这在训练早期容易导致错误传播——位置预测不准时，运动补偿反而引入更大的对齐误差。</p>
 <p>MLN 的设计灵感来自 GAN 中的条件归一化（Conditional Normalization）。在生成模型领域，SPADE、AdaIN 等方法已广泛使用”将条件信息注入归一化层的仿射参数”这一技巧。StreamPETR 将同样的思路迁移到运动建模：**不直接对坐标做刚体变换，而是将运动信息（自车姿态、物体速度、时间间隔）编码为归一化层的 $\gamma$  和 $\beta$ **，让网络自己学习如何利用这些运动线索。</p>
 <p>MLN 的计算过程如下：</p>
@@ -117,8 +118,7 @@ $$\tilde{Q}_c^t = \gamma \cdot LN(\tilde{Q}_c^t) + \beta$$ </li>
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-   多视图图像 (6 视角)
+<pre>   多视图图像 (6 视角)
            │
            ▼
   ┌─────────────────┐
@@ -170,8 +170,8 @@ $$\tilde{Q}_c^t = \gamma \cdot LN(\tilde{Q}_c^t) + \beta$$ </li>
 <p>架构关键参数：</p>
 <ul>
 <li><strong>输入</strong>：6 视角图像，分辨率根据配置（如 256×704、512×1408 或 640×1600）</li>
-<li><strong>Backbone</strong>：ResNet-50 &#x2F; ResNet-101 &#x2F; V2-99 &#x2F; ViT-Large</li>
-<li><strong>物体查询数量</strong>：900（标准版，其中 644 个随机初始化 + 256 个上一帧传播查询）&#x2F; 428（轻量版，其中 300 个随机初始化 + 128 个传播查询）</li>
+<li><strong>Backbone</strong>：ResNet-50 / ResNet-101 / V2-99 / ViT-Large</li>
+<li><strong>物体查询数量</strong>：900（标准版，其中 644 个随机初始化 + 256 个上一帧传播查询）/ 428（轻量版，其中 300 个随机初始化 + 128 个传播查询）</li>
 <li><strong>记忆队列容量</strong>：$N \times K$ ，默认 $N=4$ （帧数），$K=256$ （每帧物体数）</li>
 <li><strong>输出</strong>：3D 边界框（8 自由度：x, y, z, w, l, h, yaw, velocity）</li>
 </ul>
@@ -181,26 +181,26 @@ $$\tilde{Q}_c^t = \gamma \cdot LN(\tilde{Q}_c^t) + \beta$$ </li>
 <thead>
 <tr>
 <th>组件</th>
-<th>输入 Q &#x2F; K,V</th>
+<th>输入 Q / K,V</th>
 <th>输出</th>
 <th>计算量占比</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>MLN</td>
-<td>当前帧查询 &#x2F; N&#x2F;A</td>
+<td>当前帧查询 / N/A</td>
 <td>运动感知嵌入 $\tilde{Q}_{pe}^t, \tilde{Q}_c^t$ </td>
 <td>可忽略</td>
 </tr>
 <tr>
 <td>Hybrid Attention</td>
-<td>当前帧查询 &#x2F; 记忆队列 + 当前帧拼接（约 $2K$ tokens）</td>
+<td>当前帧查询 / 记忆队列 + 当前帧拼接（约 $2K$ tokens）</td>
 <td>时序增强的物体查询</td>
 <td>可忽略（远小于 cross-attn）</td>
 </tr>
 <tr>
 <td>Cross Attention</td>
-<td>物体查询 &#x2F; 图像特征</td>
+<td>物体查询 / 图像特征</td>
 <td>融合图像信息的物体查询</td>
 <td><strong>主要计算量</strong></td>
 </tr>
@@ -219,7 +219,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <thead>
 <tr>
 <th>文件</th>
-<th>类&#x2F;函数</th>
+<th>类/函数</th>
 <th>功能</th>
 </tr>
 </thead>
@@ -243,7 +243,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <summary>📄 点击展开 MLN (Motion-Aware Layer Normalization) 代码</summary>
 
 <p>（来源：<a target="_blank" rel="noopener" href="https://github.com/exiawsh/StreamPETR/blob/main/projects/mmdet3d_plugin/models/utils/misc.py">misc.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">MLN</span>(nn.Module):</span><br><span class="line">    <span class="string">&#x27;&#x27;&#x27; Motion-Aware Layer Normalization</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        c_dim (int): dimension of motion attributes (经 NeRF PE 后的维度)</span></span><br><span class="line"><span class="string">        f_dim (int): feature dimension</span></span><br><span class="line"><span class="string">    &#x27;&#x27;&#x27;</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, c_dim, f_dim=<span class="number">256</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.c_dim = c_dim</span><br><span class="line">        <span class="variable language_">self</span>.f_dim = f_dim</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.reduce = nn.Sequential(</span><br><span class="line">            nn.Linear(c_dim, f_dim),</span><br><span class="line">            nn.ReLU(),</span><br><span class="line">        )</span><br><span class="line">        <span class="variable language_">self</span>.gamma = nn.Linear(f_dim, f_dim)</span><br><span class="line">        <span class="variable language_">self</span>.beta = nn.Linear(f_dim, f_dim)</span><br><span class="line">        <span class="comment"># 关键：关闭默认仿射变换，由运动属性控制</span></span><br><span class="line">        <span class="variable language_">self</span>.ln = nn.LayerNorm(f_dim, elementwise_affine=<span class="literal">False</span>)</span><br><span class="line">        <span class="variable language_">self</span>.reset_parameters()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">reset_parameters</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="comment"># 初始化为恒等变换：gamma=1, beta=0</span></span><br><span class="line">        nn.init.zeros_(<span class="variable language_">self</span>.gamma.weight)</span><br><span class="line">        nn.init.zeros_(<span class="variable language_">self</span>.beta.weight)</span><br><span class="line">        nn.init.ones_(<span class="variable language_">self</span>.gamma.bias)</span><br><span class="line">        nn.init.zeros_(<span class="variable language_">self</span>.beta.bias)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x, c</span>):</span><br><span class="line">        x = <span class="variable language_">self</span>.ln(x)                    <span class="comment"># 无仿射的 LayerNorm</span></span><br><span class="line">        c = <span class="variable language_">self</span>.reduce(c)                <span class="comment"># 运动属性降维</span></span><br><span class="line">        gamma = <span class="variable language_">self</span>.gamma(c)             <span class="comment"># 条件 scale</span></span><br><span class="line">        beta = <span class="variable language_">self</span>.beta(c)               <span class="comment"># 条件 shift</span></span><br><span class="line">        out = gamma * x + beta            <span class="comment"># 条件仿射变换</span></span><br><span class="line">        <span class="keyword">return</span> out</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">MLN</span>(nn.Module):</span><br><span class="line">    <span class="string">''' Motion-Aware Layer Normalization</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        c_dim (int): dimension of motion attributes (经 NeRF PE 后的维度)</span></span><br><span class="line"><span class="string">        f_dim (int): feature dimension</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, c_dim, f_dim=<span class="number">256</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.c_dim = c_dim</span><br><span class="line">        <span class="variable language_">self</span>.f_dim = f_dim</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.reduce = nn.Sequential(</span><br><span class="line">            nn.Linear(c_dim, f_dim),</span><br><span class="line">            nn.ReLU(),</span><br><span class="line">        )</span><br><span class="line">        <span class="variable language_">self</span>.gamma = nn.Linear(f_dim, f_dim)</span><br><span class="line">        <span class="variable language_">self</span>.beta = nn.Linear(f_dim, f_dim)</span><br><span class="line">        <span class="comment"># 关键：关闭默认仿射变换，由运动属性控制</span></span><br><span class="line">        <span class="variable language_">self</span>.ln = nn.LayerNorm(f_dim, elementwise_affine=<span class="literal">False</span>)</span><br><span class="line">        <span class="variable language_">self</span>.reset_parameters()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">reset_parameters</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="comment"># 初始化为恒等变换：gamma=1, beta=0</span></span><br><span class="line">        nn.init.zeros_(<span class="variable language_">self</span>.gamma.weight)</span><br><span class="line">        nn.init.zeros_(<span class="variable language_">self</span>.beta.weight)</span><br><span class="line">        nn.init.ones_(<span class="variable language_">self</span>.gamma.bias)</span><br><span class="line">        nn.init.zeros_(<span class="variable language_">self</span>.beta.bias)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x, c</span>):</span><br><span class="line">        x = <span class="variable language_">self</span>.ln(x)                    <span class="comment"># 无仿射的 LayerNorm</span></span><br><span class="line">        c = <span class="variable language_">self</span>.reduce(c)                <span class="comment"># 运动属性降维</span></span><br><span class="line">        gamma = <span class="variable language_">self</span>.gamma(c)             <span class="comment"># 条件 scale</span></span><br><span class="line">        beta = <span class="variable language_">self</span>.beta(c)               <span class="comment"># 条件 shift</span></span><br><span class="line">        out = gamma * x + beta            <span class="comment"># 条件仿射变换</span></span><br><span class="line">        <span class="keyword">return</span> out</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -251,7 +251,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <summary>📄 点击展开 temporal_alignment 代码</summary>
 
 <p>（来源：<a target="_blank" rel="noopener" href="https://github.com/exiawsh/StreamPETR/blob/main/projects/mmdet3d_plugin/models/dense_heads/streampetr_head.py">streampetr_head.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">temporal_alignment</span>(<span class="params">self, query_pos, tgt, reference_points</span>):</span><br><span class="line">    B = query_pos.size(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 历史 query 的 3D 中心归一化到 [0,1]</span></span><br><span class="line">    temp_reference_point = (<span class="variable language_">self</span>.memory_reference_point - <span class="variable language_">self</span>.pc_range[:<span class="number">3</span>]) / \</span><br><span class="line">                           (<span class="variable language_">self</span>.pc_range[<span class="number">3</span>:<span class="number">6</span>] - <span class="variable language_">self</span>.pc_range[<span class="number">0</span>:<span class="number">3</span>])</span><br><span class="line">    temp_pos = <span class="variable language_">self</span>.query_embedding(pos2posemb3d(temp_reference_point))</span><br><span class="line">    temp_memory = <span class="variable language_">self</span>.memory_embedding</span><br><span class="line"></span><br><span class="line">    rec_ego_pose = torch.eye(<span class="number">4</span>, device=query_pos.device).unsqueeze(<span class="number">0</span>) \</span><br><span class="line">                   .unsqueeze(<span class="number">0</span>).repeat(B, query_pos.size(<span class="number">1</span>), <span class="number">1</span>, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.with_ego_pos:</span><br><span class="line">        <span class="comment"># 当前帧 queries：用单位自车运动编码（无历史运动）</span></span><br><span class="line">        rec_ego_motion = torch.cat(</span><br><span class="line">            [torch.zeros_like(reference_points[..., :<span class="number">3</span>]),</span><br><span class="line">             rec_ego_pose[..., :<span class="number">3</span>, :].flatten(-<span class="number">2</span>)], dim=-<span class="number">1</span>)</span><br><span class="line">        rec_ego_motion = nerf_positional_encoding(rec_ego_motion)</span><br><span class="line">        <span class="comment"># MLN 编码当前帧 query</span></span><br><span class="line">        tgt = <span class="variable language_">self</span>.ego_pose_memory(tgt, rec_ego_motion)</span><br><span class="line">        query_pos = <span class="variable language_">self</span>.ego_pose_pe(query_pos, rec_ego_motion)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 历史 queries：用实际运动属性编码（速度 + 时间 + 自车位姿）</span></span><br><span class="line">        memory_ego_motion = torch.cat(</span><br><span class="line">            [<span class="variable language_">self</span>.memory_velo, <span class="variable language_">self</span>.memory_timestamp,</span><br><span class="line">             <span class="variable language_">self</span>.memory_egopose[..., :<span class="number">3</span>, :].flatten(-<span class="number">2</span>)], dim=-<span class="number">1</span>).<span class="built_in">float</span>()</span><br><span class="line">        memory_ego_motion = nerf_positional_encoding(memory_ego_motion)</span><br><span class="line">        <span class="comment"># MLN 编码历史 queries</span></span><br><span class="line">        temp_pos = <span class="variable language_">self</span>.ego_pose_pe(temp_pos, memory_ego_motion)</span><br><span class="line">        temp_memory = <span class="variable language_">self</span>.ego_pose_memory(temp_memory, memory_ego_motion)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 时间编码：当前帧 Δt=0，历史帧为实际时间间隔</span></span><br><span class="line">    query_pos += <span class="variable language_">self</span>.time_embedding(</span><br><span class="line">        pos2posemb1d(torch.zeros_like(reference_points[..., :<span class="number">1</span>])))</span><br><span class="line">    temp_pos += <span class="variable language_">self</span>.time_embedding(</span><br><span class="line">        pos2posemb1d(<span class="variable language_">self</span>.memory_timestamp).<span class="built_in">float</span>())</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 拼接传播 queries（上一帧 top-256）到当前帧</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.num_propagated &gt; <span class="number">0</span>:</span><br><span class="line">        tgt = torch.cat([tgt, temp_memory[:, :<span class="variable language_">self</span>.num_propagated]], dim=<span class="number">1</span>)</span><br><span class="line">        query_pos = torch.cat([query_pos, temp_pos[:, :<span class="variable language_">self</span>.num_propagated]], dim=<span class="number">1</span>)</span><br><span class="line">        reference_points = torch.cat(</span><br><span class="line">            [reference_points, temp_reference_point[:, :<span class="variable language_">self</span>.num_propagated]], dim=<span class="number">1</span>)</span><br><span class="line">        <span class="comment"># 剩余历史 queries 进入 Hybrid Attention 的 key/value</span></span><br><span class="line">        temp_memory = temp_memory[:, <span class="variable language_">self</span>.num_propagated:]</span><br><span class="line">        temp_pos = temp_pos[:, <span class="variable language_">self</span>.num_propagated:]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> tgt, query_pos, reference_points, temp_memory, temp_pos, rec_ego_pose</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">temporal_alignment</span>(<span class="params">self, query_pos, tgt, reference_points</span>):</span><br><span class="line">    B = query_pos.size(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 历史 query 的 3D 中心归一化到 [0,1]</span></span><br><span class="line">    temp_reference_point = (<span class="variable language_">self</span>.memory_reference_point - <span class="variable language_">self</span>.pc_range[:<span class="number">3</span>]) / \</span><br><span class="line">                           (<span class="variable language_">self</span>.pc_range[<span class="number">3</span>:<span class="number">6</span>] - <span class="variable language_">self</span>.pc_range[<span class="number">0</span>:<span class="number">3</span>])</span><br><span class="line">    temp_pos = <span class="variable language_">self</span>.query_embedding(pos2posemb3d(temp_reference_point))</span><br><span class="line">    temp_memory = <span class="variable language_">self</span>.memory_embedding</span><br><span class="line"></span><br><span class="line">    rec_ego_pose = torch.eye(<span class="number">4</span>, device=query_pos.device).unsqueeze(<span class="number">0</span>) \</span><br><span class="line">                   .unsqueeze(<span class="number">0</span>).repeat(B, query_pos.size(<span class="number">1</span>), <span class="number">1</span>, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.with_ego_pos:</span><br><span class="line">        <span class="comment"># 当前帧 queries：用单位自车运动编码（无历史运动）</span></span><br><span class="line">        rec_ego_motion = torch.cat(</span><br><span class="line">            [torch.zeros_like(reference_points[..., :<span class="number">3</span>]),</span><br><span class="line">             rec_ego_pose[..., :<span class="number">3</span>, :].flatten(-<span class="number">2</span>)], dim=-<span class="number">1</span>)</span><br><span class="line">        rec_ego_motion = nerf_positional_encoding(rec_ego_motion)</span><br><span class="line">        <span class="comment"># MLN 编码当前帧 query</span></span><br><span class="line">        tgt = <span class="variable language_">self</span>.ego_pose_memory(tgt, rec_ego_motion)</span><br><span class="line">        query_pos = <span class="variable language_">self</span>.ego_pose_pe(query_pos, rec_ego_motion)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 历史 queries：用实际运动属性编码（速度 + 时间 + 自车位姿）</span></span><br><span class="line">        memory_ego_motion = torch.cat(</span><br><span class="line">            [<span class="variable language_">self</span>.memory_velo, <span class="variable language_">self</span>.memory_timestamp,</span><br><span class="line">             <span class="variable language_">self</span>.memory_egopose[..., :<span class="number">3</span>, :].flatten(-<span class="number">2</span>)], dim=-<span class="number">1</span>).<span class="built_in">float</span>()</span><br><span class="line">        memory_ego_motion = nerf_positional_encoding(memory_ego_motion)</span><br><span class="line">        <span class="comment"># MLN 编码历史 queries</span></span><br><span class="line">        temp_pos = <span class="variable language_">self</span>.ego_pose_pe(temp_pos, memory_ego_motion)</span><br><span class="line">        temp_memory = <span class="variable language_">self</span>.ego_pose_memory(temp_memory, memory_ego_motion)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 时间编码：当前帧 Δt=0，历史帧为实际时间间隔</span></span><br><span class="line">    query_pos += <span class="variable language_">self</span>.time_embedding(</span><br><span class="line">        pos2posemb1d(torch.zeros_like(reference_points[..., :<span class="number">1</span>])))</span><br><span class="line">    temp_pos += <span class="variable language_">self</span>.time_embedding(</span><br><span class="line">        pos2posemb1d(<span class="variable language_">self</span>.memory_timestamp).<span class="built_in">float</span>())</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 拼接传播 queries（上一帧 top-256）到当前帧</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.num_propagated &gt; <span class="number">0</span>:</span><br><span class="line">        tgt = torch.cat([tgt, temp_memory[:, :<span class="variable language_">self</span>.num_propagated]], dim=<span class="number">1</span>)</span><br><span class="line">        query_pos = torch.cat([query_pos, temp_pos[:, :<span class="variable language_">self</span>.num_propagated]], dim=<span class="number">1</span>)</span><br><span class="line">        reference_points = torch.cat(</span><br><span class="line">            [reference_points, temp_reference_point[:, :<span class="variable language_">self</span>.num_propagated]], dim=<span class="number">1</span>)</span><br><span class="line">        <span class="comment"># 剩余历史 queries 进入 Hybrid Attention 的 key/value</span></span><br><span class="line">        temp_memory = temp_memory[:, <span class="variable language_">self</span>.num_propagated:]</span><br><span class="line">        temp_pos = temp_pos[:, <span class="variable language_">self</span>.num_propagated:]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> tgt, query_pos, reference_points, temp_memory, temp_pos, rec_ego_pose</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -259,7 +259,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <summary>📄 点击展开 post_update_memory 代码</summary>
 
 <p>（来源：<a target="_blank" rel="noopener" href="https://github.com/exiawsh/StreamPETR/blob/main/projects/mmdet3d_plugin/models/dense_heads/streampetr_head.py">streampetr_head.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">post_update_memory</span>(<span class="params">self, data, rec_ego_pose, all_cls_scores,</span></span><br><span class="line"><span class="params">                       all_bbox_preds, outs_dec, mask_dict</span>):</span><br><span class="line">    <span class="comment"># 取最后一层 decoder 的输出</span></span><br><span class="line">    rec_reference_points = all_bbox_preds[..., :<span class="number">3</span>][-<span class="number">1</span>]</span><br><span class="line">    rec_velo = all_bbox_preds[..., -<span class="number">2</span>:][-<span class="number">1</span>]</span><br><span class="line">    rec_memory = outs_dec[-<span class="number">1</span>]</span><br><span class="line">    rec_score = all_cls_scores[-<span class="number">1</span>].sigmoid().topk(<span class="number">1</span>, dim=-<span class="number">1</span>).values[..., <span class="number">0</span>:<span class="number">1</span>]</span><br><span class="line">    rec_timestamp = torch.zeros_like(rec_score, dtype=torch.float64)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 选取 top-K (256) 前景 queries</span></span><br><span class="line">    _, topk_indexes = torch.topk(rec_score, <span class="variable language_">self</span>.topk_proposals, dim=<span class="number">1</span>)</span><br><span class="line">    rec_reference_points = topk_gather(rec_reference_points, topk_indexes).detach()</span><br><span class="line">    rec_memory = topk_gather(rec_memory, topk_indexes).detach()</span><br><span class="line">    rec_velo = topk_gather(rec_velo, topk_indexes).detach()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># FIFO 入队：新 queries 拼接到队列头部</span></span><br><span class="line">    <span class="variable language_">self</span>.memory_embedding = torch.cat([rec_memory, <span class="variable language_">self</span>.memory_embedding], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_timestamp = torch.cat([rec_timestamp, <span class="variable language_">self</span>.memory_timestamp], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_egopose = torch.cat([rec_ego_pose, <span class="variable language_">self</span>.memory_egopose], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_reference_point = torch.cat(</span><br><span class="line">        [rec_reference_points, <span class="variable language_">self</span>.memory_reference_point], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_velo = torch.cat([rec_velo, <span class="variable language_">self</span>.memory_velo], dim=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 变换到世界坐标系存储（下一帧再变换到新的自车坐标系）</span></span><br><span class="line">    <span class="variable language_">self</span>.memory_reference_point = transform_reference_points(</span><br><span class="line">        <span class="variable language_">self</span>.memory_reference_point, data[<span class="string">&#x27;ego_pose&#x27;</span>], reverse=<span class="literal">False</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_timestamp -= data[<span class="string">&#x27;timestamp&#x27;</span>].unsqueeze(-<span class="number">1</span>).unsqueeze(-<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_egopose = data[<span class="string">&#x27;ego_pose&#x27;</span>].unsqueeze(<span class="number">1</span>) @ <span class="variable language_">self</span>.memory_egopose</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">post_update_memory</span>(<span class="params">self, data, rec_ego_pose, all_cls_scores,</span></span><br><span class="line"><span class="params">                       all_bbox_preds, outs_dec, mask_dict</span>):</span><br><span class="line">    <span class="comment"># 取最后一层 decoder 的输出</span></span><br><span class="line">    rec_reference_points = all_bbox_preds[..., :<span class="number">3</span>][-<span class="number">1</span>]</span><br><span class="line">    rec_velo = all_bbox_preds[..., -<span class="number">2</span>:][-<span class="number">1</span>]</span><br><span class="line">    rec_memory = outs_dec[-<span class="number">1</span>]</span><br><span class="line">    rec_score = all_cls_scores[-<span class="number">1</span>].sigmoid().topk(<span class="number">1</span>, dim=-<span class="number">1</span>).values[..., <span class="number">0</span>:<span class="number">1</span>]</span><br><span class="line">    rec_timestamp = torch.zeros_like(rec_score, dtype=torch.float64)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 选取 top-K (256) 前景 queries</span></span><br><span class="line">    _, topk_indexes = torch.topk(rec_score, <span class="variable language_">self</span>.topk_proposals, dim=<span class="number">1</span>)</span><br><span class="line">    rec_reference_points = topk_gather(rec_reference_points, topk_indexes).detach()</span><br><span class="line">    rec_memory = topk_gather(rec_memory, topk_indexes).detach()</span><br><span class="line">    rec_velo = topk_gather(rec_velo, topk_indexes).detach()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># FIFO 入队：新 queries 拼接到队列头部</span></span><br><span class="line">    <span class="variable language_">self</span>.memory_embedding = torch.cat([rec_memory, <span class="variable language_">self</span>.memory_embedding], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_timestamp = torch.cat([rec_timestamp, <span class="variable language_">self</span>.memory_timestamp], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_egopose = torch.cat([rec_ego_pose, <span class="variable language_">self</span>.memory_egopose], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_reference_point = torch.cat(</span><br><span class="line">        [rec_reference_points, <span class="variable language_">self</span>.memory_reference_point], dim=<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_velo = torch.cat([rec_velo, <span class="variable language_">self</span>.memory_velo], dim=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 变换到世界坐标系存储（下一帧再变换到新的自车坐标系）</span></span><br><span class="line">    <span class="variable language_">self</span>.memory_reference_point = transform_reference_points(</span><br><span class="line">        <span class="variable language_">self</span>.memory_reference_point, data[<span class="string">'ego_pose'</span>], reverse=<span class="literal">False</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_timestamp -= data[<span class="string">'timestamp'</span>].unsqueeze(-<span class="number">1</span>).unsqueeze(-<span class="number">1</span>)</span><br><span class="line">    <span class="variable language_">self</span>.memory_egopose = data[<span class="string">'ego_pose'</span>].unsqueeze(<span class="number">1</span>) @ <span class="variable language_">self</span>.memory_egopose</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -324,7 +324,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <td>-</td>
 </tr>
 <tr>
-<td>CenterPoint（test）</td>
+<td><a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a>（test）</td>
 <td>激光雷达</td>
 <td>-</td>
 <td>67.3</td>
@@ -340,7 +340,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <td>-</td>
 </tr>
 </tbody></table>
-<p>完整的 TP 指标（mATE, mASE, mAOE, mAVE, mAAE）和各 backbone 配置详情见论文 Table 1-2。FPS 测试环境：RTX 3090，batch&#x3D;1（6 视角），FP32，无 flash attention。</p>
+<p>完整的 TP 指标（mATE, mASE, mAOE, mAVE, mAAE）和各 backbone 配置详情见论文 Table 1-2。FPS 测试环境：RTX 3090，batch=1（6 视角），FP32，无 flash attention。</p>
 <p><strong>跟踪结果</strong>：</p>
 <table>
 <thead>
@@ -469,7 +469,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <td><strong>洞察 2</strong></td>
 </tr>
 </tbody></table>
-<p>性能在 N&#x3D;2（约 1 秒）时已基本饱和。<strong>为什么这么快就饱和？</strong> 作者在 rebuttal 中对 nuScenes 的 tracking 数据做了遮挡帧数统计——绝大部分物体的遮挡持续时间在 10 帧（约 2 秒）以内，N&#x3D;2-4 已经覆盖了大多数需要时序补偿的遮挡场景。此外，由于物体查询本身是递归传播的（洞察 2 中的”低秩近似”视角），即使 N&#x3D;1 时也已包含了更早帧的信息残留。增大记忆队列带来的计算成本可忽略（27.7 → 27.1 FPS），论文默认使用 N&#x3D;4。</p>
+<p>性能在 N=2（约 1 秒）时已基本饱和。<strong>为什么这么快就饱和？</strong> 作者在 rebuttal 中对 nuScenes 的 tracking 数据做了遮挡帧数统计——绝大部分物体的遮挡持续时间在 10 帧（约 2 秒）以内，N=2-4 已经覆盖了大多数需要时序补偿的遮挡场景。此外，由于物体查询本身是递归传播的（洞察 2 中的”低秩近似”视角），即使 N=1 时也已包含了更早帧的信息残留。增大记忆队列带来的计算成本可忽略（27.7 → 27.1 FPS），论文默认使用 N=4。</p>
 <p><strong>验证洞察 3：运动感知层归一化（Table 6）</strong></p>
 <table>
 <thead>
@@ -572,42 +572,42 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 </tr>
 </tbody></table>
 <p>上表中有一个关键的反直觉结果：<strong>显式运动补偿（MC）不仅没帮忙，NDS 反而略降</strong>（48.1 vs 48.3）。原因在于 vanilla attention 本身就具备一定的动态建模能力——attention 权重会自动关注位置最相关的历史 query，即使没有显式补偿也能完成粗糙对齐。而显式 MC 在训练早期（位置预测不准时）反而引入系统性误差。</p>
-<p>MLN 通过条件归一化隐式编码自车姿态后，mAP 提升 2.0%（39.8 vs 37.8），NDS 提升 1.8%（50.1 vs 48.3）——这是整个消融实验中最大的单项提升，验证了洞察 3 中”隐式优于显式”的核心判断。进一步编码 $\Delta t$ 和 $v$ 后，mAP&#x2F;NDS 分别再提升 0.4%。</p>
+<p>MLN 通过条件归一化隐式编码自车姿态后，mAP 提升 2.0%（39.8 vs 37.8），NDS 提升 1.8%（50.1 vs 48.3）——这是整个消融实验中最大的单项提升，验证了洞察 3 中”隐式优于显式”的核心判断。进一步编码 $\Delta t$ 和 $v$ 后，mAP/NDS 分别再提升 0.4%。</p>
 <p><strong>训练帧数的影响（Table 5）</strong></p>
 <p>以下对比 sliding window（W）和 streaming video（V）两种测试方式在不同训练帧数下的表现。</p>
 <table>
 <thead>
 <tr>
 <th>训练帧数</th>
-<th>Sliding Window mAP&#x2F;NDS</th>
-<th>Streaming Video mAP&#x2F;NDS</th>
+<th>Sliding Window mAP/NDS</th>
+<th>Streaming Video mAP/NDS</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>1</td>
 <td>—</td>
-<td>31.7 &#x2F; 37.2</td>
+<td>31.7 / 37.2</td>
 </tr>
 <tr>
 <td>4</td>
-<td>37.7 &#x2F; 48.3</td>
-<td>36.6 &#x2F; 47.5</td>
+<td>37.7 / 48.3</td>
+<td>36.6 / 47.5</td>
 </tr>
 <tr>
 <td>8</td>
-<td>39.6 &#x2F; 50.1</td>
-<td><strong>40.2 &#x2F; 50.5</strong></td>
+<td>39.6 / 50.1</td>
+<td><strong>40.2 / 50.5</strong></td>
 </tr>
 <tr>
 <td>12</td>
-<td>40.3 &#x2F; 50.7</td>
-<td>40.2 &#x2F; 50.9</td>
+<td>40.3 / 50.7</td>
+<td>40.2 / 50.9</td>
 </tr>
 </tbody></table>
 <p>8 帧时 streaming video 反超 sliding window（50.5 vs 50.1 NDS），说明递归传播在充分训练后能有效建立长期时序依赖。12 帧提升有限，论文默认使用 8 帧。</p>
 <h3 id="5-3-失效场景与性能瓶颈"><a href="#5-3-失效场景与性能瓶颈" class="headerlink" title="5.3 失效场景与性能瓶颈"></a>5.3 失效场景与性能瓶颈</h3><p>根据论文 Sec 5.5 分析，StreamPETR 仍存在以下挑战：</p>
 <ol>
-<li><strong>运动物体仍是短板</strong>：即使有时序建模，运动物体（速度 &gt; 1m&#x2F;s）的检测性能仍明显低于静止物体（论文 Figure 5），但 StreamPETR 对两者的提升均远超 BEV 方法</li>
+<li><strong>运动物体仍是短板</strong>：即使有时序建模，运动物体（速度 &gt; 1m/s）的检测性能仍明显低于静止物体（论文 Figure 5），但 StreamPETR 对两者的提升均远超 BEV 方法</li>
 <li><strong>远距离物体的误检</strong>：30m 以外存在大量 False Positives（重复预测），这是基于相机方法的通病</li>
 <li><strong>训练测试帧率不一致</strong>：部署时使用非关键帧（10-25Hz）导致时间 PE 外推失效，性能显著下降（详见 6.4 FAQ Q1）</li>
 </ol>
@@ -646,7 +646,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <td><strong>预训练</strong></td>
 <td>ImageNet</td>
 <td>NuImg</td>
-<td>FCOS3D &#x2F; DD3D</td>
+<td>FCOS3D / DD3D</td>
 <td>Objects365+COCO</td>
 </tr>
 <tr>
@@ -665,7 +665,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 </tr>
 <tr>
 <td><strong>优化器</strong></td>
-<td>AdamW, lr&#x3D;4e-4, cosine annealing</td>
+<td>AdamW, lr=4e-4, cosine annealing</td>
 <td>同左</td>
 <td>同左</td>
 <td>同左</td>
@@ -697,7 +697,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <li><strong>梯度分离策略</strong>：训练时分离前 6 帧的梯度，仅计算最后 2 帧的梯度和损失，加速收敛</li>
 <li><strong>Flash Attention</strong>：可用 Flash Attention 节省显存（V2-99 640×1600 配置下，显存从 61G 降至 27G），但测速时需关闭</li>
 <li><strong>Query Denoising</strong>：沿用 PETRv2 的查询去噪策略</li>
-<li><strong>存储时间间隔 τ</strong>：需要根据数据集帧率调整；Waymo 测试时 τ&#x3D;5，调整为 τ&#x3D;1 时性能仅有微小下降</li>
+<li><strong>存储时间间隔 τ</strong>：需要根据数据集帧率调整；Waymo 测试时 τ=5，调整为 τ=1 时性能仅有微小下降</li>
 <li><strong>时序数据增广</strong>：训练序列中随机跳过 1 帧，增强模型对帧率变化的鲁棒性</li>
 <li><strong>前景物体选择</strong>：仅存储分类分数最高的前 K（256）个前景物体查询，记忆队列遵循 FIFO 规则</li>
 </ol>
@@ -715,7 +715,7 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 <li><strong>降低输入分辨率</strong>：256×704 相比 512×1408 速度显著提升（27.1 vs 6.4 FPS）</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ol>
-<li><strong>以物体为中心的时序传播</strong>：将时序建模从特征级转向物体级，可应用于其他时序检测&#x2F;跟踪任务，如视频目标检测、多目标跟踪</li>
+<li><strong>以物体为中心的时序传播</strong>：将时序建模从特征级转向物体级，可应用于其他时序检测/跟踪任务，如视频目标检测、多目标跟踪</li>
 <li><strong>记忆队列递归更新</strong>：战略性存储历史信息而非简单滑动窗口，可应用于需要长期依赖的序列建模任务</li>
 <li><strong>运动感知层归一化</strong>：通过隐式编码运动信息而非显式补偿，可应用于其他涉及运动建模的任务，如光流估计、视频预测</li>
 <li><strong>解耦自车与物体运动</strong>：在自动驾驶场景中，显式区分自车运动和周围物体运动是通用设计原则</li>
@@ -727,9 +727,10 @@ $$\mathcal{L} = \lambda_{cls}\mathcal{L}_{cls} + \lambda_{reg}\mathcal{L}_{reg} 
 </ol>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ol>
 <li><strong>首个激光雷达级别的在线多视图方法</strong>：在 nuScenes 上首次证明纯视觉方法可以达到激光雷达方法的性能（67.6% NDS, 65.3% AMOTA）</li>
-<li><strong>开创 object-centric 时序建模路线</strong>：与 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 的 BEV 时序、PETRv2 的透视图时序并列，形成多视图 3D 检测的三大时序范式</li>
-<li><strong>推动 query-based 检测器的时序扩展</strong>：StreamPETR 的 object-centric 设计可直接应用于 DETR3D（Stream-DETR3D +4.9% mAP），后续 <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4Dv2</a>、SparseBEV 等均借鉴了 query 传播的思路</li>
+<li><strong>开创 object-centric 时序建模路线</strong>：与 BEVFormer 的 BEV 时序、PETRv2 的透视图时序并列，形成多视图 3D 检测的三大时序范式</li>
+<li><strong>推动 query-based 检测器的时序扩展</strong>：StreamPETR 的 object-centric 设计可直接应用于 <a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a>（Stream-DETR3D +4.9% mAP），后续 Sparse4Dv2、SparseBEV 等均借鉴了 query 传播的思路</li>
 </ol>
+
 
             </div>
 

@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Generative Driving World Model<br>Method: Video-Text-Action Conditioned Sequence Modeling, Discrete Tokens<br>Venue: Technical Report<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2309.17080">https://arxiv.org/abs/2309.17080</a><br>Code: N&#x2F;A</p>
+                
+<p>Task: Generative Driving World Model<br>Method: Video-Text-Action Conditioned Sequence Modeling, Discrete Tokens<br>Venue: Technical Report<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2309.17080">https://arxiv.org/abs/2309.17080</a><br>Code: N/A</p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -94,7 +95,7 @@
 <p>因此，GAIA-1 的问题不是“能不能生成视频”，而是：<strong>能不能学习一个可控的驾驶世界分布，让模型在想象中展开未来。</strong></p>
 <h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：驾驶-world-model-可以从-token-sequence-学习"><a href="#洞察-1：驾驶-world-model-可以从-token-sequence-学习" class="headerlink" title="洞察 1：驾驶 world model 可以从 token sequence 学习"></a>洞察 1：驾驶 world model 可以从 token sequence 学习</h3><p>GAIA-1 的第一步，是把连续驾驶世界离散化。视频帧、文本条件和动作信号都被映射到 token 空间，然后用序列模型学习 token 之间的条件依赖。</p>
 <p>这样做的意义在于，模型不再需要为“视觉生成”“动作控制”“语义条件”分别设计完全不同的模块，而是统一成一个问题：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">past tokens + condition tokens -&gt; future tokens</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">past tokens + condition tokens -&gt; future tokens</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这条思路让驾驶 world model 接上了语言模型和视频生成模型的共同范式：只要能把世界状态表示成 token，未来预测就可以被看作条件序列建模。</p>
 <h3 id="洞察-2：text-和-action-让生成具备可控性"><a href="#洞察-2：text-和-action-让生成具备可控性" class="headerlink" title="洞察 2：text 和 action 让生成具备可控性"></a>洞察 2：text 和 action 让生成具备可控性</h3><p>只会延续视频的模型，更像预测器；能被 text 和 action 控制的模型，才接近可交互的 world model。</p>
@@ -106,7 +107,7 @@ $$
 
 
 <p>GAIA-1 仍然以视频生成形式呈现，但其条件控制能力已经触及这个世界模型核心问题。</p>
-<h3 id="洞察-3：生成模型可以承担仿真和评估角色"><a href="#洞察-3：生成模型可以承担仿真和评估角色" class="headerlink" title="洞察 3：生成模型可以承担仿真和评估角色"></a>洞察 3：生成模型可以承担仿真和评估角色</h3><p>GAIA-1 的价值不只是视觉真实感，还在于它可以生成多种 plausible futures。对自动驾驶来说，这意味着模型可能成为一种 learned simulator &#x2F; generative prior：</p>
+<h3 id="洞察-3：生成模型可以承担仿真和评估角色"><a href="#洞察-3：生成模型可以承担仿真和评估角色" class="headerlink" title="洞察 3：生成模型可以承担仿真和评估角色"></a>洞察 3：生成模型可以承担仿真和评估角色</h3><p>GAIA-1 的价值不只是视觉真实感，还在于它可以生成多种 plausible futures。对自动驾驶来说，这意味着模型可能成为一种 learned simulator / generative prior：</p>
 <ul>
 <li>用于扩展真实数据中稀缺的场景变体；</li>
 <li>用于测试策略在不同未来分支下的鲁棒性；</li>
@@ -119,8 +120,7 @@ $$
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-video frames + text + action
+<pre>video frames + text + action
         │
         ▼
 multi-modal tokenization
@@ -138,10 +138,9 @@ realistic controllable driving scenes
 
 <p>这张粗图可以进一步拆成“编码当前世界、注入控制条件、生成未来 token、解码回视频”四个阶段：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-GAIA-1 detailed pipeline
+<pre>GAIA-1 detailed pipeline
 
-<p>History:<br>  past driving video frames<br>  optional text prompt<br>  optional action &#x2F; route condition</p>
+<p>History:<br>  past driving video frames<br>  optional text prompt<br>  optional action / route condition</p>
 <pre><code>    ┌──────────────────────────────────────────┐
     │  1. Video Tokenizer                      │
     │  frames -&gt; discrete / latent video tokens│
@@ -170,7 +169,7 @@ GAIA-1 detailed pipeline
     │  supports branch sampling / editing      │
     └──────────────────────────────────────────┘
 </code></pre>
-<p></pre></p>
+<p></p></pre><p></p>
 </div>
 
 <p>这里最关键的不是“视频是否足够清晰”，而是生成过程是否保留三类可控信息：历史场景给出当前世界状态，action condition 改变 ego 未来，text condition 改变语义事件。三类条件共同决定了 GAIA-1 更像可控世界模拟器，而不是普通视频预测器。</p>
@@ -212,21 +211,21 @@ GAIA-1 detailed pipeline
 </thead>
 <tbody><tr>
 <td align="left">GAIA-1</td>
-<td align="left">视频 &#x2F; 文本 &#x2F; 动作 tokens</td>
+<td align="left">视频 / 文本 / 动作 tokens</td>
 <td align="left">“未来驾驶视频会怎样生成？”</td>
 </tr>
 <tr>
-<td align="left">OccWorld</td>
+<td align="left"><a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a></td>
 <td align="left">3D occupancy tokens</td>
 <td align="left">“未来哪些空间会被占用？”</td>
 </tr>
 <tr>
-<td align="left">Drive-OccWorld</td>
-<td align="left">4D occupancy &#x2F; flow</td>
+<td align="left"><a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a></td>
+<td align="left">4D occupancy / flow</td>
 <td align="left">“不同动作下未来占用如何变化，并如何转成规划代价？”</td>
 </tr>
 <tr>
-<td align="left">DriveWorld</td>
+<td align="left"><a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a></td>
 <td align="left">4D latent state</td>
 <td align="left">“如何用世界演化作为预训练目标？”</td>
 </tr>
@@ -264,7 +263,7 @@ GAIA-1 detailed pipeline
 </tbody></table>
 <p>如果没有 text condition，GAIA-1 更像普通驾驶视频预测；如果没有 action condition，它很难回答“自车这样开会发生什么”；如果没有 autoregressive token context，未来视频又容易变成单帧质量高但时序不稳定的生成结果。三类条件组合起来，才构成“可控未来世界”的雏形。</p>
 <h3 id="4-5-训练和推理的信息流"><a href="#4-5-训练和推理的信息流" class="headerlink" title="4.5 训练和推理的信息流"></a>4.5 训练和推理的信息流</h3><p>GAIA-1 的训练目标很像语言模型，但 token 来自驾驶视频。训练时，模型看到历史视频 token、文本条件和动作条件，学习预测后续视频 token；推理时，给定同样的条件，它按自回归方式展开未来。</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">training:</span><br><span class="line">  past video tokens + text + action + future prefix</span><br><span class="line">        -&gt; predict next video token</span><br><span class="line"></span><br><span class="line">inference:</span><br><span class="line">  past video tokens + text + action</span><br><span class="line">        -&gt; sample future tokens</span><br><span class="line">        -&gt; decode future driving video</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">training:</span><br><span class="line">  past video tokens + text + action + future prefix</span><br><span class="line">        -&gt; predict next video token</span><br><span class="line"></span><br><span class="line">inference:</span><br><span class="line">  past video tokens + text + action</span><br><span class="line">        -&gt; sample future tokens</span><br><span class="line">        -&gt; decode future driving video</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这条信息流决定了 GAIA-1 的优势和边界：它天然适合生成多种可能未来，但输出仍在像素空间，需要额外模块把视频未来翻译成规划器可用的 geometry、occupancy 或 risk。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>arXiv 报告和 Wayve 博客展示了 GAIA-1 的多种生成能力：长时未来生成、多未来分支、文本控制和动作控制。论文重点是证明 generative world model 的可能性，而不是在标准规划 benchmark 上给出一个可直接比较的 L2 或 collision rate。</p>
@@ -320,7 +319,7 @@ GAIA-1 detailed pipeline
 <tr>
 <td align="left">场景真实感</td>
 <td align="left">生成视频保持道路外观</td>
-<td align="left">是否能转成可量化 occupancy &#x2F; cost</td>
+<td align="left">是否能转成可量化 occupancy / cost</td>
 </tr>
 </tbody></table>
 <p>这也是读 GAIA-1 时最容易误判的地方：视频越真实，并不自动代表模型越适合规划。它真正打开的是“用数据学习未来世界先验”的方向，后续方法还需要把这个先验接到可评估、可约束、可规划的状态空间上。</p>
@@ -331,18 +330,19 @@ GAIA-1 detailed pipeline
 <li><strong>1 个序列建模目标</strong>：预测 next token。</li>
 <li><strong>数分钟级未来</strong>：Wayve 博客展示模型可以生成长时间 driving futures。</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>GAIA-1 更接近 learned simulator &#x2F; generative prior，而不是直接规划器。若把它放进工程系统，需要重点关注四个问题：</p>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>GAIA-1 更接近 learned simulator / generative prior，而不是直接规划器。若把它放进工程系统，需要重点关注四个问题：</p>
 <ul>
 <li><strong>物理一致性</strong>：视频连续不等于车辆动力学一致，生成轨迹和物体运动仍需约束。</li>
 <li><strong>可评估性</strong>：生成视频需要转成可量化指标，才能服务安全评估。</li>
-<li><strong>条件覆盖度</strong>：text &#x2F; action 条件是否足够覆盖真实驾驶决策空间。</li>
+<li><strong>条件覆盖度</strong>：text / action 条件是否足够覆盖真实驾驶决策空间。</li>
 <li><strong>接口形式</strong>：规划器通常需要 occupancy、cost、trajectory 或 risk，而不是只需要像素视频。</li>
 </ul>
-<p>这解释了为什么后续 <a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a> 和 <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 会把世界模型推进到 occupancy 状态空间：它们试图让 world model 的输出更接近规划输入。</p>
+<p>这解释了为什么后续 OccWorld 和 Drive-OccWorld 会把世界模型推进到 occupancy 状态空间：它们试图让 world model 的输出更接近规划输入。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>GAIA-1 把自动驾驶 world model 推向生成式路线：它不只预测 object motion，而是试图生成整个未来驾驶世界。它的历史位置可以这样理解：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">object motion prediction</span><br><span class="line">        ↓</span><br><span class="line">future scene / video generation</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned world simulation</span><br><span class="line">        ↓</span><br><span class="line">planning-aware world model</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">object motion prediction</span><br><span class="line">        ↓</span><br><span class="line">future scene / video generation</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned world simulation</span><br><span class="line">        ↓</span><br><span class="line">planning-aware world model</span><br></pre></td></tr></tbody></table></figure>
 
-<p>后续 <a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer</a> 延续可控驾驶视频生成，但加入更强的交通结构约束；<a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a> 则把 world model 用作 4D scene understanding 预训练目标。GAIA-1 的启示是：自动驾驶模型不仅要“看见当前”，还要能在条件约束下“想象未来”。</p>
+<p>后续 <a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer</a> 延续可控驾驶视频生成，但加入更强的交通结构约束；DriveWorld 则把 world model 用作 4D scene understanding 预训练目标。GAIA-1 的启示是：自动驾驶模型不仅要“看见当前”，还要能在条件约束下“想象未来”。</p>
+
 
             </div>
 

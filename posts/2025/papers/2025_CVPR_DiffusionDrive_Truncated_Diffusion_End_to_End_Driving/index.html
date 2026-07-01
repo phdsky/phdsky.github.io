@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: End-to-End Autonomous Driving (Multi-Mode Planning)<br>Method: Truncated Diffusion Policy, Cascade Diffusion Decoder<br>Venue: CVPR 2025 Highlight<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.15139">https://arxiv.org/abs/2411.15139</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/DiffusionDrive">https://github.com/hustvl/DiffusionDrive</a></p>
+                
+<p>Task: End-to-End Autonomous Driving (Multi-Mode Planning)<br>Method: Truncated Diffusion Policy, Cascade Diffusion Decoder<br>Venue: CVPR 2025 Highlight<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.15139">https://arxiv.org/abs/2411.15139</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/DiffusionDrive">https://github.com/hustvl/DiffusionDrive</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -73,7 +74,7 @@
 </thead>
 <tbody><tr>
 <td>单模态回归</td>
-<td>UniAD, VAD, Transfuser</td>
+<td><a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a>, <a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a>, Transfuser</td>
 <td>无法表达多种合理行为（如直行 or 变道）</td>
 </tr>
 <tr>
@@ -110,20 +111,20 @@
 <h3 id="洞察-2：级联-Transformer-解码器——替代笨重的-UNet"><a href="#洞察-2：级联-Transformer-解码器——替代笨重的-UNet" class="headerlink" title="洞察 2：级联 Transformer 解码器——替代笨重的 UNet"></a>洞察 2：级联 Transformer 解码器——替代笨重的 UNet</h3><p><strong>传统做法</strong>：机器人扩散策略统一使用 UNet 作为去噪网络，参数量大（102M）、每步耗时长（6.5ms）。</p>
 <p><strong>DiffusionDrive 做法</strong>：设计轻量级 Transformer 扩散解码器，包含四个关键交互：</p>
 <ol>
-<li><strong>可变形空间交叉注意力</strong>：用轨迹坐标从 BEV&#x2F;PV 特征中提取局部场景信息</li>
-<li><strong>Agent&#x2F;Map 交叉注意力</strong>：利用感知模块的结构化查询（检测框、地图元素）</li>
+<li><strong>可变形空间交叉注意力</strong>：用轨迹坐标从 BEV/PV 特征中提取局部场景信息</li>
+<li><strong>Agent/Map 交叉注意力</strong>：利用感知模块的结构化查询（检测框、地图元素）</li>
 <li><strong>时间步调制层</strong>：编码当前去噪步数信息</li>
 <li><strong>级联机制</strong>：堆叠 2 层解码器，在每个去噪步内迭代精炼轨迹</li>
 </ol>
 <p><strong>为什么更好</strong>：消融实验（Tab. 3）显示：</p>
 <ul>
-<li>仅用 Ego Query（无空间&#x2F;Agent 交互）：PDMS 暴跌至 55.1（ID-2）</li>
+<li>仅用 Ego Query（无空间/Agent 交互）：PDMS 暴跌至 55.1（ID-2）</li>
 <li>加入空间交叉注意力：PDMS 跃升至 87.1（ID-3，+32.0）</li>
 <li>再加 Agent 交叉注意力：87.4（ID-5）</li>
 <li>再加级联机制：88.1（ID-6）</li>
 <li>参数量从 UNet 的 102M 降至 60M（-39%），每步耗时从 6.5ms 降至 3.8ms</li>
 </ul>
-<h3 id="洞察-3：锚点实现真正的多模态——20-个锚点-8192-个"><a href="#洞察-3：锚点实现真正的多模态——20-个锚点-8192-个" class="headerlink" title="洞察 3：锚点实现真正的多模态——20 个锚点 &gt; 8192 个"></a>洞察 3：锚点实现真正的多模态——20 个锚点 &gt; 8192 个</h3><p><strong>传统做法</strong>（VADv2&#x2F;Hydra-MDP）：用 4096~8192 个固定锚点离散化动作空间，按分数采样。锚点越多越好？实际上 VADv2 仅达 80.9 PDMS。</p>
+<h3 id="洞察-3：锚点实现真正的多模态——20-个锚点-8192-个"><a href="#洞察-3：锚点实现真正的多模态——20-个锚点-8192-个" class="headerlink" title="洞察 3：锚点实现真正的多模态——20 个锚点 > 8192 个"></a>洞察 3：锚点实现真正的多模态——20 个锚点 &gt; 8192 个</h3><p><strong>传统做法</strong>（VADv2/Hydra-MDP）：用 4096~8192 个固定锚点离散化动作空间，按分数采样。锚点越多越好？实际上 VADv2 仅达 80.9 PDMS。</p>
 <p><strong>DiffusionDrive 做法</strong>：仅用 20 个 K-Means 锚点作为扩散起点。扩散模型的连续生成能力允许每个锚点”演化”出一族连续轨迹，而非固定在离散位置。推理时可灵活采样 $N_{\text{infer}}$ 条轨迹（默认 20，可动态调整到 40+）。</p>
 <p><strong>为什么更好</strong>：</p>
 <ul>
@@ -142,8 +143,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-传感器输入 (Camera + LiDAR)
+<pre>传感器输入 (Camera + LiDAR)
            │
            ▼
 ┌────────────────────────┐
@@ -191,8 +191,8 @@
 <tbody><tr>
 <td>感知编码器</td>
 <td>多视图图像 + LiDAR</td>
-<td>BEV&#x2F;PV 特征 + Agent&#x2F;Map 查询</td>
-<td>可替换（Transfuser &#x2F; SparseDrive）</td>
+<td>BEV/PV 特征 + Agent/Map 查询</td>
+<td>可替换（Transfuser / <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a>）</td>
 </tr>
 <tr>
 <td>锚点初始化</td>
@@ -520,13 +520,13 @@ $$\mathcal{L} = \sum_{k=1}^{N_{\text{anchor}}} \left[ y_k \mathcal{L}_{\text{rec
 <li><strong>LiDAR 依赖</strong>：NAVSIM 实验使用 Camera+LiDAR，纯视觉方案未充分验证</li>
 <li><strong>感知模块固定</strong>：DiffusionDrive 仅替换规划头，感知误差传导到规划的影响需要更多研究</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[NAVSIM]</span><br><span class="line">Backbone:        ResNet-34</span><br><span class="line">Input:           3 front cameras → 1024×256 + rasterized BEV LiDAR</span><br><span class="line">Perception:      Transfuser 编码器</span><br><span class="line">Anchors:         20 条 K-Means 聚类轨迹</span><br><span class="line">Truncation:      T_trunc = 50 / T = 1000</span><br><span class="line">Diffusion Dec:   2 cascade layers</span><br><span class="line">Training:        100 epochs, AdamW, lr=6e-4, bs=512, 8×4090</span><br><span class="line">Inference:       2 DDIM steps, top-1 scoring, N_infer=20</span><br><span class="line">Output:          8 waypoints / 4s</span><br><span class="line">FPS:             45 (4090)</span><br><span class="line"></span><br><span class="line">[nuScenes]</span><br><span class="line">Backbone:        ResNet-50</span><br><span class="line">Perception:      SparseDrive 编码器</span><br><span class="line">Anchors:         18 条 K-Means 聚类轨迹</span><br><span class="line">Diffusion Dec:   2 cascade layers</span><br><span class="line">Training:        遵循 SparseDrive 训练 recipe</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">[NAVSIM]</span><br><span class="line">Backbone:        ResNet-34</span><br><span class="line">Input:           3 front cameras → 1024×256 + rasterized BEV LiDAR</span><br><span class="line">Perception:      Transfuser 编码器</span><br><span class="line">Anchors:         20 条 K-Means 聚类轨迹</span><br><span class="line">Truncation:      T_trunc = 50 / T = 1000</span><br><span class="line">Diffusion Dec:   2 cascade layers</span><br><span class="line">Training:        100 epochs, AdamW, lr=6e-4, bs=512, 8×4090</span><br><span class="line">Inference:       2 DDIM steps, top-1 scoring, N_infer=20</span><br><span class="line">Output:          8 waypoints / 4s</span><br><span class="line">FPS:             45 (4090)</span><br><span class="line"></span><br><span class="line">[nuScenes]</span><br><span class="line">Backbone:        ResNet-50</span><br><span class="line">Perception:      SparseDrive 编码器</span><br><span class="line">Anchors:         18 条 K-Means 聚类轨迹</span><br><span class="line">Diffusion Dec:   2 cascade layers</span><br><span class="line">Training:        遵循 SparseDrive 训练 recipe</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
 <li><strong>锚点聚类质量至关重要</strong>：K-Means 在训练集全部 GT 轨迹上聚类，20 个中心即可覆盖主要驾驶模式（直行、左转、右转、变道等）</li>
-<li><strong>截断比例 50&#x2F;1000</strong>：这是一个关键超参数。过大（如 100&#x2F;1000）噪声太多，2 步难以去噪；过小（如 10&#x2F;1000）锚点附近多样性不足</li>
+<li><strong>截断比例 50/1000</strong>：这是一个关键超参数。过大（如 100/1000）噪声太多，2 步难以去噪；过小（如 10/1000）锚点附近多样性不足</li>
 <li><strong>级联解码器参数共享</strong>：不同去噪步复用同一个解码器参数，避免参数膨胀</li>
-<li><strong>正样本分配</strong>：训练时为每个 GT 轨迹找最近锚点作正样本，类似 DETR 的匈牙利匹配但更简单</li>
+<li><strong>正样本分配</strong>：训练时为每个 GT 轨迹找最近锚点作正样本，类似 <a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a> 的匈牙利匹配但更简单</li>
 <li><strong>推理灵活性</strong>：$N_{\text{infer}}$ 可动态调整——简单场景用 10 条节省算力，复杂场景用 40 条提升覆盖率</li>
 </ol>
 <h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
@@ -541,17 +541,18 @@ $$\mathcal{L} = \sum_{k=1}^{N_{\text{anchor}}} \left[ y_k \mathcal{L}_{\text{rec
 <li>减少采样数到 10（PDMS 84.9）换取更低延迟</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ul>
-<li><strong>截断扩散 &#x3D; 先验 + 生成</strong>：当动作空间有结构化先验（如驾驶模式、抓取姿态）时，用锚点初始化扩散起点可大幅减少去噪步数，适用于机器人操控、导航等所有需要实时决策的场景</li>
+<li><strong>截断扩散 = 先验 + 生成</strong>：当动作空间有结构化先验（如驾驶模式、抓取姿态）时，用锚点初始化扩散起点可大幅减少去噪步数，适用于机器人操控、导航等所有需要实时决策的场景</li>
 <li><strong>Transformer 替代 UNet 做去噪</strong>：在条件信息丰富（BEV 特征、结构化查询）的场景中，Transformer 解码器比 UNet 更高效且表达力更强</li>
 <li><strong>少量锚点 &gt; 大量锚点</strong>：扩散模型的连续生成能力使 20 个锚点覆盖的动作空间 &gt; 8192 个固定锚点，因为每个锚点可”演化”出一族连续变体</li>
 </ul>
 <h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
-<li>依赖感知模块提供的 BEV&#x2F;PV 特征和结构化查询——感知误差会传导到规划</li>
+<li>依赖感知模块提供的 BEV/PV 特征和结构化查询——感知误差会传导到规划</li>
 <li>非反应式仿真（NAVSIM）的评估结果在闭环真实驾驶中可能大幅下降</li>
 <li>截断扩散依赖锚点质量——如果训练集不包含某些罕见驾驶模式，推理时也无法生成</li>
 </ul>
 <h3 id="技术影响与后续发展"><a href="#技术影响与后续发展" class="headerlink" title="技术影响与后续发展"></a>技术影响与后续发展</h3><p>DiffusionDrive 首次将扩散模型成功应用于实时端到端自动驾驶，证明了生成式规划的可行性。截断扩散策略作为通用加速技巧，可推广到其他需要实时生成的应用场景。</p>
 <p>DiffusionDrive 发表后，端到端规划的两大路线竞争日趋激烈。<strong>生成派</strong>方面，<strong>DiffusionDriveV2</strong> 和基于 Flow Matching 的 <strong>GoalFlow</strong> 继续在去噪稳定性和 mode collapse 等问题上推进。但出人意料的是，地平线的 <strong>SparseDriveV2</strong>（arXiv 2026）从评分派的角度发起了反击——通过将轨迹分解为路径×速度的 26 万候选组合，配合粗到细层级评分，以 92.0 PDMS 反超了所有生成式方法，证明静态词表的天花板远高于此前的认知。这场”生成 vs 评分”的路线之争，连同正在兴起的 VLA 路线（DriveVLA-W0、AutoVLA 等），共同构成了端到端自动驾驶最前沿的技术版图。</p>
+
 
             </div>
 

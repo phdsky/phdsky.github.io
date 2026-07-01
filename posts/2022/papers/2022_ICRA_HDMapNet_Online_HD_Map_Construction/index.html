@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Online Local HD Map Construction<br>Method: MLP View Transform, Camera+LiDAR BEV Fusion, Semantic + Instance + Direction Heads<br>Venue: ICRA<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2107.06307">https://arxiv.org/abs/2107.06307</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/Tsinghua-MARS-Lab/HDMapNet">https://github.com/Tsinghua-MARS-Lab/HDMapNet</a></p>
+                
+<p>Task: Online Local HD Map Construction<br>Method: MLP View Transform, Camera+LiDAR BEV Fusion, Semantic + Instance + Direction Heads<br>Venue: ICRA<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2107.06307">https://arxiv.org/abs/2107.06307</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/Tsinghua-MARS-Lab/HDMapNet">https://github.com/Tsinghua-MARS-Lab/HDMapNet</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>HDMapNet 提出了首个面向在线本地高精地图构建的端到端学习框架。区别于传统离线高精地图依赖大规模人工标注 + SLAM 全局优化、维护成本高且无法实时更新的现状，本文以车载多视角相机 + LiDAR 为输入，直接在 BEV 空间预测出<strong>语义掩码 + 实例嵌入 + 方向场</strong>三类信息，并通过聚类与方向引导的贪心连接获得可用的矢量化地图元素（车道线 &#x2F; 人行横道 &#x2F; 道路边界）。在 nuScenes 上以多模态融合方案达到 39.7% IoU 与 35.2% Chamfer mAP，比当时基于 IPM &#x2F; Lift-Splat-Shoot 的 BEV 分割 baseline 大幅领先，并配套提出了一套基于 Chamfer 距离的实例级评测协议，是后续 VectorMapNet &#x2F; MapTR 等矢量化建图方法共同的起点。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>HDMapNet 提出了首个面向在线本地高精地图构建的端到端学习框架。区别于传统离线高精地图依赖大规模人工标注 + SLAM 全局优化、维护成本高且无法实时更新的现状，本文以车载多视角相机 + LiDAR 为输入，直接在 BEV 空间预测出<strong>语义掩码 + 实例嵌入 + 方向场</strong>三类信息，并通过聚类与方向引导的贪心连接获得可用的矢量化地图元素（车道线 / 人行横道 / 道路边界）。在 nuScenes 上以多模态融合方案达到 39.7% IoU 与 35.2% Chamfer mAP，比当时基于 IPM / Lift-Splat-Shoot 的 BEV 分割 baseline 大幅领先，并配套提出了一套基于 Chamfer 距离的实例级评测协议，是后续 <a href="/posts/2023/papers/2023_ICML_VectorMapNet_End_to_end_Vectorized_HD_Map_Learning/">VectorMapNet</a> / <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> 等矢量化建图方法共同的起点。</p>
 <p><strong>核心论点</strong>：把 HD 地图从”离线人工资产”重塑为”在线车载推理任务”，并用栅格语义 + 实例嵌入 + 方向场三件套替代 SLAM + 人工标注的传统流水线。</p>
 <h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><table>
 <thead>
@@ -72,7 +73,7 @@
 </thead>
 <tbody><tr>
 <td align="left">离线 HD 地图</td>
-<td align="left">TomTom &#x2F; HERE 等商用方案</td>
+<td align="left">TomTom / HERE 等商用方案</td>
 <td align="left">标注昂贵、更新慢、要求精确定位</td>
 </tr>
 <tr>
@@ -82,12 +83,12 @@
 </tr>
 <tr>
 <td align="left">BEV 分割 baseline</td>
-<td align="left">IPM &#x2F; VPN &#x2F; LSS + 类别分割</td>
+<td align="left">IPM / VPN / <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> + 类别分割</td>
 <td align="left">只能给”哪类像素”，无法区分实例，难以矢量化</td>
 </tr>
 </tbody></table>
 <p><strong>核心痛点</strong>：在车载实时算力下，从多模态原始传感器直接输出<strong>可用于下游规划</strong>的本地矢量化高精地图——既要语义、又要实例、还要方向，并且不能依赖 SLAM 与离线标注。</p>
-<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：MLP-视图变换替代-IPM-LSS"><a href="#洞察-1：MLP-视图变换替代-IPM-LSS" class="headerlink" title="洞察 1：MLP 视图变换替代 IPM &#x2F; LSS"></a>洞察 1：MLP 视图变换替代 IPM &#x2F; LSS</h3><p>PV→BEV 转换是所有 BEV 方法的关键一步：</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：MLP-视图变换替代-IPM-LSS"><a href="#洞察-1：MLP-视图变换替代-IPM-LSS" class="headerlink" title="洞察 1：MLP 视图变换替代 IPM / LSS"></a>洞察 1：MLP 视图变换替代 IPM / LSS</h3><p>PV→BEV 转换是所有 BEV 方法的关键一步：</p>
 <ul>
 <li><strong>IPM</strong>：假设地面是平面，几何上严格但对地面起伏、车辆抖动极敏感；</li>
 <li><strong>LSS</strong>：用 depth 分布把像素 lift 到 3D 视锥再 splat，几何可解释但 depth 误差大；</li>
@@ -100,12 +101,12 @@ $$\mathcal{F}^{c}_{\mathcal{I}^i}[h][w] = \phi^{hw}_{\mathcal{V}^i}\big(\mathcal
 <p>不假设几何先验，让网络自己学如何把 PV 像素重排到 BEV 网格。视图变换消融上，这个 MLP 方案 IoU 33.4%，显著好于 IPM 的 14.1% 与 LSS 的 27.4%。</p>
 <h3 id="洞察-2：语义-实例-方向，三分支让分割可向量化"><a href="#洞察-2：语义-实例-方向，三分支让分割可向量化" class="headerlink" title="洞察 2：语义 + 实例 + 方向，三分支让分割可向量化"></a>洞察 2：语义 + 实例 + 方向，三分支让分割可向量化</h3><p>只有语义分割是远远不够的——同类别的两条相邻车道线在像素上根本无法区分。HDMapNet 在 BEV 解码器后并行三个分支：</p>
 <ol>
-<li><strong>语义分支</strong>：FCN + 交叉熵，输出三类（divider &#x2F; ped_crossing &#x2F; boundary）；</li>
+<li><strong>语义分支</strong>：FCN + 交叉熵，输出三类（divider / ped_crossing / boundary）；</li>
 <li><strong>实例嵌入分支</strong>：用判别损失把同实例像素拉近、不同实例推远：</li>
 </ol>
-<p>$$L_{var} &#x3D; \frac{1}{C}\sum_{c&#x3D;1}^{C}\frac{1}{N_c}\sum_{j&#x3D;1}^{N_c}\big[|\mu_c - f_j^{\text{inst}}| - \delta_v\big]_+^2$$</p>
-<p>$$L_{dist} &#x3D; \frac{1}{C(C-1)}\sum_{c_A \neq c_B}\big[2\delta_d - |\mu_{c_A} - \mu_{c_B}|\big]_+^2$$</p>
-<p>参数 $\delta_v &#x3D; 0.5$、$\delta_d &#x3D; 3.0$；</p>
+<p>$$L_{var} = \frac{1}{C}\sum_{c=1}^{C}\frac{1}{N_c}\sum_{j=1}^{N_c}\big[|\mu_c - f_j^{\text{inst}}| - \delta_v\big]_+^2$$</p>
+<p>$$L_{dist} = \frac{1}{C(C-1)}\sum_{c_A \neq c_B}\big[2\delta_d - |\mu_{c_A} - \mu_{c_B}|\big]_+^2$$</p>
+<p>参数 $\delta_v = 0.5$、$\delta_d = 3.0$；</p>
 <ol start="3">
 <li><strong>方向分支</strong>：把 BEV 平面方向离散为 $N_d$ 类，每个像素预测自己沿元素延伸的方向，作为后续向量化连接的引导。</li>
 </ol>
@@ -113,10 +114,10 @@ $$\mathcal{F}^{c}_{\mathcal{I}^i}[h][w] = \phi^{hw}_{\mathcal{V}^i}\big(\mathcal
 <h3 id="洞察-3：BEV-是多模态融合的天然空间"><a href="#洞察-3：BEV-是多模态融合的天然空间" class="headerlink" title="洞察 3：BEV 是多模态融合的天然空间"></a>洞察 3：BEV 是多模态融合的天然空间</h3><p>Camera 提供语义和远处细节，LiDAR 提供准确深度与近距几何，二者在 BEV 空间天然对齐：</p>
 <ul>
 <li>camera 分支：EfficientNet-B0 + MLP 视图变换；</li>
-<li>LiDAR 分支：PointPillars + 动态体素化；</li>
+<li>LiDAR 分支：<a href="/posts/2019/papers/2019_CVPR_PointPillars_Fast_Encoders_LiDAR_3D_Object_Detection/">PointPillars</a> + 动态体素化；</li>
 <li>融合方式：<strong>直接 BEV 拼接 + 卷积</strong>，简单稳定。</li>
 </ul>
-<p>实验上：camera-only 33.4% IoU、LiDAR-only 33.9% IoU、Fusion <strong>39.7%</strong> IoU——融合的提升幅度（+6 IoU）超过任何单一架构改进，验证 BEV-level fusion 的工程价值。BEVFusion 之后把这条路线工程化到极致。</p>
+<p>实验上：camera-only 33.4% IoU、LiDAR-only 33.9% IoU、Fusion <strong>39.7%</strong> IoU——融合的提升幅度（+6 IoU）超过任何单一架构改进，验证 BEV-level fusion 的工程价值。<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 之后把这条路线工程化到极致。</p>
 <h4 id="三个洞察的递进关系"><a href="#三个洞察的递进关系" class="headerlink" title="三个洞察的递进关系"></a>三个洞察的递进关系</h4><ol>
 <li>表示：MLP 视图变换给出可学习的 BEV 特征；</li>
 <li>监督：语义 + 实例 + 方向三分支让特征可以被解码为矢量元素；</li>
@@ -124,7 +125,7 @@ $$\mathcal{F}^{c}_{\mathcal{I}^i}[h][w] = \phi^{hw}_{\mathcal{V}^i}\big(\mathcal
 </ol>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>39.7% IoU &#x2F; 35.2% Chamfer mAP</strong>：nuScenes Fusion 模型上的语义&#x2F;实例双指标；</li>
+<li><strong>39.7% IoU / 35.2% Chamfer mAP</strong>：nuScenes Fusion 模型上的语义/实例双指标；</li>
 <li><strong>MLP 33.4% vs LSS 27.4% vs IPM 14.1%</strong>：视图变换消融的关键对比，确立”学位置”在矢量化任务上的优势；</li>
 <li><strong>+6 IoU（融合 vs 单模态）</strong>：BEV-level fusion 带来的纯增益，比换 backbone 更实用。</li>
 </ul>
@@ -132,8 +133,7 @@ $$\mathcal{F}^{c}_{\mathcal{I}^i}[h][w] = \phi^{hw}_{\mathcal{V}^i}\big(\mathcal
 <p>$${\text{6 cams}, \text{LiDAR}} \rightarrow \text{BEV feat} \rightarrow {\text{semantic}, \text{instance emb}, \text{direction}} \rightarrow \text{vector polylines}$$</p>
 <p>ASCII 架构图：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-   6× surround cams                LiDAR sweep
+<pre>   6× surround cams                LiDAR sweep
         │                              │
         ▼                              ▼
   ┌───────────────┐              ┌──────────────┐
@@ -228,7 +228,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + 
 <details>
 <summary>📄 点击展开 discriminative loss 关键逻辑（基于官方实现整理）</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：hdmapnet/loss.py</span></span><br><span class="line"><span class="comment"># https://github.com/Tsinghua-MARS-Lab/HDMapNet</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">discriminative_loss</span>(<span class="params">embedding, instance_label,</span></span><br><span class="line"><span class="params">                        delta_v=<span class="number">0.5</span>, delta_d=<span class="number">3.0</span>,</span></span><br><span class="line"><span class="params">                        alpha=<span class="number">1.0</span>, beta=<span class="number">1.0</span>, gamma=<span class="number">0.001</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    embedding:      [B, D, H, W]   per-pixel embedding</span></span><br><span class="line"><span class="string">    instance_label: [B, H, W]      实例 id（0 为背景）</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    B = embedding.shape[<span class="number">0</span>]</span><br><span class="line">    var_loss, dist_loss, reg_loss = <span class="number">0.</span>, <span class="number">0.</span>, <span class="number">0.</span></span><br><span class="line">    <span class="keyword">for</span> b <span class="keyword">in</span> <span class="built_in">range</span>(B):</span><br><span class="line">        emb_b = embedding[b].view(D, -<span class="number">1</span>)         <span class="comment"># [D, HW]</span></span><br><span class="line">        ids = instance_label[b].view(-<span class="number">1</span>)         <span class="comment"># [HW]</span></span><br><span class="line">        unique_ids = ids.unique()</span><br><span class="line">        unique_ids = unique_ids[unique_ids != <span class="number">0</span>] <span class="comment"># 去背景</span></span><br><span class="line">        C = <span class="built_in">len</span>(unique_ids)</span><br><span class="line">        <span class="keyword">if</span> C == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 1) 每个实例的均值嵌入 mu_c</span></span><br><span class="line">        mus = []</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> unique_ids:</span><br><span class="line">            mask = (ids == c)</span><br><span class="line">            mu_c = emb_b[:, mask].mean(dim=<span class="number">1</span>)</span><br><span class="line">            mus.append(mu_c)</span><br><span class="line">        mus = torch.stack(mus, dim=<span class="number">0</span>)            <span class="comment"># [C, D]</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 2) variance loss: 实例内拉紧</span></span><br><span class="line">        <span class="keyword">for</span> k, c <span class="keyword">in</span> <span class="built_in">enumerate</span>(unique_ids):</span><br><span class="line">            mask = (ids == c)</span><br><span class="line">            d = torch.norm(emb_b[:, mask] - mus[k:k+<span class="number">1</span>].t(), dim=<span class="number">0</span>) - delta_v</span><br><span class="line">            var_loss += (torch.clamp(d, <span class="built_in">min</span>=<span class="number">0.</span>) ** <span class="number">2</span>).mean()</span><br><span class="line">        var_loss /= C</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 3) distance loss: 实例间推开</span></span><br><span class="line">        <span class="keyword">if</span> C &gt; <span class="number">1</span>:</span><br><span class="line">            <span class="keyword">for</span> a <span class="keyword">in</span> <span class="built_in">range</span>(C):</span><br><span class="line">                <span class="keyword">for</span> bb <span class="keyword">in</span> <span class="built_in">range</span>(a+<span class="number">1</span>, C):</span><br><span class="line">                    d = <span class="number">2</span>*delta_d - torch.norm(mus[a] - mus[bb])</span><br><span class="line">                    dist_loss += torch.clamp(d, <span class="built_in">min</span>=<span class="number">0.</span>) ** <span class="number">2</span></span><br><span class="line">            dist_loss /= (C * (C - <span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 4) regularization: mu 不要漂太远</span></span><br><span class="line">        reg_loss += torch.norm(mus, dim=<span class="number">1</span>).mean()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> alpha*var_loss/B + beta*dist_loss/B + gamma*reg_loss/B</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：hdmapnet/loss.py</span></span><br><span class="line"><span class="comment"># https://github.com/Tsinghua-MARS-Lab/HDMapNet</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">discriminative_loss</span>(<span class="params">embedding, instance_label,</span></span><br><span class="line"><span class="params">                        delta_v=<span class="number">0.5</span>, delta_d=<span class="number">3.0</span>,</span></span><br><span class="line"><span class="params">                        alpha=<span class="number">1.0</span>, beta=<span class="number">1.0</span>, gamma=<span class="number">0.001</span></span>):</span><br><span class="line">    <span class="string">"""</span></span><br><span class="line"><span class="string">    embedding:      [B, D, H, W]   per-pixel embedding</span></span><br><span class="line"><span class="string">    instance_label: [B, H, W]      实例 id（0 为背景）</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    B = embedding.shape[<span class="number">0</span>]</span><br><span class="line">    var_loss, dist_loss, reg_loss = <span class="number">0.</span>, <span class="number">0.</span>, <span class="number">0.</span></span><br><span class="line">    <span class="keyword">for</span> b <span class="keyword">in</span> <span class="built_in">range</span>(B):</span><br><span class="line">        emb_b = embedding[b].view(D, -<span class="number">1</span>)         <span class="comment"># [D, HW]</span></span><br><span class="line">        ids = instance_label[b].view(-<span class="number">1</span>)         <span class="comment"># [HW]</span></span><br><span class="line">        unique_ids = ids.unique()</span><br><span class="line">        unique_ids = unique_ids[unique_ids != <span class="number">0</span>] <span class="comment"># 去背景</span></span><br><span class="line">        C = <span class="built_in">len</span>(unique_ids)</span><br><span class="line">        <span class="keyword">if</span> C == <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 1) 每个实例的均值嵌入 mu_c</span></span><br><span class="line">        mus = []</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> unique_ids:</span><br><span class="line">            mask = (ids == c)</span><br><span class="line">            mu_c = emb_b[:, mask].mean(dim=<span class="number">1</span>)</span><br><span class="line">            mus.append(mu_c)</span><br><span class="line">        mus = torch.stack(mus, dim=<span class="number">0</span>)            <span class="comment"># [C, D]</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 2) variance loss: 实例内拉紧</span></span><br><span class="line">        <span class="keyword">for</span> k, c <span class="keyword">in</span> <span class="built_in">enumerate</span>(unique_ids):</span><br><span class="line">            mask = (ids == c)</span><br><span class="line">            d = torch.norm(emb_b[:, mask] - mus[k:k+<span class="number">1</span>].t(), dim=<span class="number">0</span>) - delta_v</span><br><span class="line">            var_loss += (torch.clamp(d, <span class="built_in">min</span>=<span class="number">0.</span>) ** <span class="number">2</span>).mean()</span><br><span class="line">        var_loss /= C</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 3) distance loss: 实例间推开</span></span><br><span class="line">        <span class="keyword">if</span> C &gt; <span class="number">1</span>:</span><br><span class="line">            <span class="keyword">for</span> a <span class="keyword">in</span> <span class="built_in">range</span>(C):</span><br><span class="line">                <span class="keyword">for</span> bb <span class="keyword">in</span> <span class="built_in">range</span>(a+<span class="number">1</span>, C):</span><br><span class="line">                    d = <span class="number">2</span>*delta_d - torch.norm(mus[a] - mus[bb])</span><br><span class="line">                    dist_loss += torch.clamp(d, <span class="built_in">min</span>=<span class="number">0.</span>) ** <span class="number">2</span></span><br><span class="line">            dist_loss /= (C * (C - <span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 4) regularization: mu 不要漂太远</span></span><br><span class="line">        reg_loss += torch.norm(mus, dim=<span class="number">1</span>).mean()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> alpha*var_loss/B + beta*dist_loss/B + gamma*reg_loss/B</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -331,7 +331,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + 
 <ol>
 <li>MLP 视图变换在所有视图变换里 IoU 最高（33.4%），且不依赖 depth；</li>
 <li>Fusion 在三类元素上全面领先单模态；</li>
-<li>论文同时提出了基于 Chamfer 距离的实例 mAP 协议，成为后续 VectorMapNet &#x2F; MapTR 共同采用的评测标准。</li>
+<li>论文同时提出了基于 Chamfer 距离的实例 mAP 协议，成为后续 VectorMapNet / MapTR 共同采用的评测标准。</li>
 </ol>
 <h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><table>
 <thead>
@@ -342,7 +342,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + 
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">视图变换：IPM 14.1% &#x2F; IPM(B) 21.6% &#x2F; IPM(CB) 26.6% &#x2F; LSS 27.4% &#x2F; <strong>MLP 33.4%</strong></td>
+<td align="left">视图变换：IPM 14.1% / IPM(B) 21.6% / IPM(CB) 26.6% / LSS 27.4% / <strong>MLP 33.4%</strong></td>
 <td align="left">MLP 显著优于几何 + 显式 depth 方案</td>
 <td align="center">洞察 1</td>
 </tr>
@@ -352,7 +352,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + 
 <td align="center">洞察 2</td>
 </tr>
 <tr>
-<td align="left">模态：Cam 33.4% &#x2F; LiDAR 33.9% &#x2F; <strong>Fusion 39.7%</strong></td>
+<td align="left">模态：Cam 33.4% / LiDAR 33.9% / <strong>Fusion 39.7%</strong></td>
 <td align="left">融合带来 +6 IoU 净增益</td>
 <td align="center">洞察 3</td>
 </tr>
@@ -362,7 +362,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + 
 <td align="center">洞察 1（特征质量）</td>
 </tr>
 <tr>
-<td align="left">恶劣天气：晴 44.9% &#x2F; 夜 39.3% &#x2F; 雨 38.7% IoU</td>
+<td align="left">恶劣天气：晴 44.9% / 夜 39.3% / 雨 38.7% IoU</td>
 <td align="left">LiDAR 的存在降低了对相机的依赖</td>
 <td align="center">洞察 3</td>
 </tr>
@@ -377,14 +377,14 @@ $$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + 
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><p>论文在第 5 节定性讨论：</p>
 <ul>
-<li><strong>夜间 &#x2F; 雨天</strong>：摄像头对比度差，IoU 从 44.9% 下降到 ~39%；</li>
+<li><strong>夜间 / 雨天</strong>：摄像头对比度差，IoU 从 44.9% 下降到 ~39%；</li>
 <li><strong>遮挡区域</strong>：被前车挡住的车道线无法补全，模型也不会”幻觉”；</li>
 <li><strong>复杂路口</strong>：多条边界与车道线交错时，实例聚类容易把不同元素错合。</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Camera backbone:  EfficientNet-B0 (ImageNet pretrained)</span><br><span class="line">LiDAR backbone:   PointPillars + dynamic voxelization + PointNet (64-d)</span><br><span class="line">View transform:   per-view MLP (channel-wise shared)</span><br><span class="line">BEV resolution:   256 × 256 (其他实验也用更高分辨率)</span><br><span class="line">Loss:             CE (semantic) + var + dist + direction CE</span><br><span class="line">Optimizer:        Adam, lr 1e-3</span><br><span class="line">Batch size:       32</span><br><span class="line">Heads:            3 parallel (semantic / instance / direction)</span><br><span class="line">Vectorization:    DBSCAN + NMS + direction-guided greedy linking</span><br></pre></td></tr></table></figure>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Camera backbone:  EfficientNet-B0 (ImageNet pretrained)</span><br><span class="line">LiDAR backbone:   PointPillars + dynamic voxelization + PointNet (64-d)</span><br><span class="line">View transform:   per-view MLP (channel-wise shared)</span><br><span class="line">BEV resolution:   256 × 256 (其他实验也用更高分辨率)</span><br><span class="line">Loss:             CE (semantic) + var + dist + direction CE</span><br><span class="line">Optimizer:        Adam, lr 1e-3</span><br><span class="line">Batch size:       32</span><br><span class="line">Heads:            3 parallel (semantic / instance / direction)</span><br><span class="line">Vectorization:    DBSCAN + NMS + direction-guided greedy linking</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>判别损失的 $\delta_v$ &#x2F; $\delta_d$ 不要乱调</strong>：论文的 0.5 &#x2F; 3.0 是经验最优，调小会让聚类边界模糊；</li>
+<li><strong>判别损失的 $\delta_v$ / $\delta_d$ 不要乱调</strong>：论文的 0.5 / 3.0 是经验最优，调小会让聚类边界模糊；</li>
 <li><strong>direction 类数 $N_d$</strong> 要与方向连接逻辑配套，否则贪心连接经常拐错方向；</li>
 <li><strong>Camera 与 LiDAR BEV 必须严格几何对齐</strong>——两个分支用同一套 BEV 网格定义（中心、分辨率、范围）；</li>
 <li><strong>DBSCAN 的 eps</strong>：在 BEV 像素单位下设置，对最终 mAP 影响显著，与实例嵌入维度 $D$ 强相关；</li>
@@ -411,14 +411,15 @@ $$\mathcal{L} = \mathcal{L}_{\text{ce}} + \alpha\, L_{var} + \beta\, L_{dist} + 
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ol>
 <li>后处理 pipeline 长（DBSCAN + NMS + greedy linking），失败模式难以追溯；</li>
 <li>同类邻近实例的分离仍是聚类瓶颈（ped_crossing 27.4% 远低于 boundary 的 48.8%）；</li>
-<li>输出仍是栅格表示再启发式向量化，难以直接给下游规划用——后续 VectorMapNet &#x2F; MapTR 直接端到端输出向量正是为此而生。</li>
+<li>输出仍是栅格表示再启发式向量化，难以直接给下游规划用——后续 VectorMapNet / MapTR 直接端到端输出向量正是为此而生。</li>
 </ol>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li>是<strong>在线本地高精地图</strong>任务范式的奠基之作，证明了”地图可以是实时输出而不是离线资产”；</li>
-<li>提出的 Chamfer 距离实例 mAP 协议被 VectorMapNet、MapTR、MapTRv2 等所有后续矢量化方法继承；</li>
+<li>提出的 Chamfer 距离实例 mAP 协议被 VectorMapNet、MapTR、<a href="/posts/2024/papers/2024_IJCV_MapTRv2_End_to_End_Vectorized_HD_Map/">MapTRv2</a> 等所有后续矢量化方法继承；</li>
 <li>工业上，HDMapNet 的”语义 + 实例 + 方向”三分支结构被许多量产方案沿用作 BEV 分割的默认设计；</li>
 <li>为 VectorMapNet 的”端到端矢量化”提供了直接对比 baseline，催生了”栅格 → 矢量”的范式跃迁。</li>
 </ul>
+
 
             </div>
 

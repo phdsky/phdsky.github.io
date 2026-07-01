@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 3D Occupancy World Modeling and Planning<br>Method: 3D Occupancy Tokenizer, GPT-like Spatial-Temporal Transformer<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2311.16038">https://arxiv.org/abs/2311.16038</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/OccWorld">https://github.com/wzzheng/OccWorld</a></p>
+                
+<p>Task: 3D Occupancy World Modeling and Planning<br>Method: 3D Occupancy Tokenizer, GPT-like Spatial-Temporal Transformer<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2311.16038">https://arxiv.org/abs/2311.16038</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/OccWorld">https://github.com/wzzheng/OccWorld</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -71,7 +72,7 @@
 <li>segmentation map 又可能过于密集，难以直接建模长时序。</li>
 </ul>
 <p>OccWorld 选择 3D occupancy，是为了把世界状态从 sparse object list 扩展为空间占用状态。它要回答的问题不是“某辆车会去哪里”，而是：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">未来每个 3D 空间位置是否会被占用？</span><br><span class="line">这种未来占用如何影响 ego trajectory？</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">未来每个 3D 空间位置是否会被占用？</span><br><span class="line">这种未来占用如何影响 ego trajectory？</span><br></pre></td></tr></tbody></table></figure>
 
 <h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：3D-occupancy-更适合作为-world-state"><a href="#洞察-1：3D-occupancy-更适合作为-world-state" class="headerlink" title="洞察 1：3D occupancy 更适合作为 world state"></a>洞察 1：3D occupancy 更适合作为 world state</h3><p>Occupancy 可以描述更细粒度的三维结构，不局限于已知类别物体，也比 dense semantic map 更容易从稀疏 LiDAR 获取。它的优势来自“物理优先”：</p>
 <table>
@@ -104,7 +105,7 @@
 <li>occupancy 被压缩成可序列建模的 token，避免直接在高维体素空间做长时生成；</li>
 <li>GPT-like transformer 可以沿时间维学习场景状态转移，把 world model 写成 token prediction 问题。</li>
 </ol>
-<p>这和 GAIA-1 的视频 token 思路相似，但 token 代表的是 3D occupancy，而不是视频外观。</p>
+<p>这和 <a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a> 的视频 token 思路相似，但 token 代表的是 3D occupancy，而不是视频外观。</p>
 <h3 id="洞察-3：规划可以从未来-occupancy-中受益"><a href="#洞察-3：规划可以从未来-occupancy-中受益" class="headerlink" title="洞察 3：规划可以从未来 occupancy 中受益"></a>洞察 3：规划可以从未来 occupancy 中受益</h3><p>模型同时生成未来 occupancy 和 ego trajectory，使世界预测与自车轨迹选择共享同一状态空间。这样，规划不再只依赖当前检测结果，而可以参考预测出的未来空间状态。</p>
 <p>这也是 OccWorld 与普通 occupancy prediction 的区别：它不只是预测当前 occupancy，而是把未来 occupancy 当作 world model 的核心输出。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
@@ -112,8 +113,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-current 3D occupancy
+<pre>current 3D occupancy
         │
         ▼
 scene tokenizer
@@ -131,10 +131,9 @@ GPT-like spatial-temporal transformer
 
 <p>OccWorld 的核心不是“把 occupancy 做成另一个预测头”，而是先把 3D occupancy 压成离散 token，再像语言模型一样预测未来 token 序列：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-OccWorld detailed architecture
+<pre>OccWorld detailed architecture
 
-<p>Input world state:<br>  current &#x2F; historical 3D occupancy<br>  semantic occupancy grid if available<br>  ego context</p>
+<p>Input world state:<br>  current / historical 3D occupancy<br>  semantic occupancy grid if available<br>  ego context</p>
 <pre><code>    ┌─────────────────────────────────────────┐
     │  1. Scene Tokenizer                     │
     │  3D occupancy -&gt; discrete scene tokens  │
@@ -161,7 +160,7 @@ OccWorld detailed architecture
     │ future 3D voxels  │   │ future ego motion     │
     └───────────────────┘   └──────────────────────┘
 </code></pre>
-<p></pre></p>
+<p></p></pre><p></p>
 </div>
 
 <p>这张图解释了 OccWorld 为什么更接近 world model：它不是只预测下一帧 occupancy，而是把空间状态离散成 token 后学习时空演化规律。未来 occupancy 和 ego trajectory 共享同一个生成式场景状态。</p>
@@ -190,7 +189,7 @@ OccWorld detailed architecture
 </tr>
 </tbody></table>
 <h3 id="4-3-Token-化为什么重要"><a href="#4-3-Token-化为什么重要" class="headerlink" title="4.3 Token 化为什么重要"></a>4.3 Token 化为什么重要</h3><p>直接在 3D voxel 上预测未来会遇到维度高、稀疏、长时依赖难建模的问题。OccWorld 的 tokenizer 相当于把 occupancy 压成一个更适合生成模型处理的状态空间：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">3D occupancy volume</span><br><span class="line">        ↓</span><br><span class="line">discrete scene tokens</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal generation</span><br><span class="line">        ↓</span><br><span class="line">future occupancy volume</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">3D occupancy volume</span><br><span class="line">        ↓</span><br><span class="line">discrete scene tokens</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal generation</span><br><span class="line">        ↓</span><br><span class="line">future occupancy volume</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这条链路的关键不是“离散化”本身，而是让 occupancy world model 可以借用语言模型式的序列建模能力。</p>
 <h3 id="4-4-occupancy-token-与规划接口"><a href="#4-4-occupancy-token-与规划接口" class="headerlink" title="4.4 occupancy token 与规划接口"></a>4.4 occupancy token 与规划接口</h3><p>OccWorld 的 occupancy token 不是普通压缩编码，它的下游价值在于能重新解码为空间状态，再和规划风险发生关系。</p>
@@ -225,7 +224,7 @@ OccWorld detailed architecture
 </tbody></table>
 <p>和 object-box forecasting 相比，occupancy token 的优势在于它不要求每个障碍物都有明确类别。只要某块空间可能被占用，就能成为未来规划的约束。这也是它适合作为 world model state 的根本原因。</p>
 <h3 id="4-5-生成式-occupancy-的信息流"><a href="#4-5-生成式-occupancy-的信息流" class="headerlink" title="4.5 生成式 occupancy 的信息流"></a>4.5 生成式 occupancy 的信息流</h3><p>OccWorld 的训练和推理都围绕 occupancy token 展开：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">past 3D occupancy</span><br><span class="line">        ↓</span><br><span class="line">scene tokenizer</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal token sequence</span><br><span class="line">        ↓</span><br><span class="line">generative transformer</span><br><span class="line">        ↓</span><br><span class="line">future occupancy tokens</span><br><span class="line">        ↓</span><br><span class="line">occupancy decoder + ego trajectory head</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">past 3D occupancy</span><br><span class="line">        ↓</span><br><span class="line">scene tokenizer</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal token sequence</span><br><span class="line">        ↓</span><br><span class="line">generative transformer</span><br><span class="line">        ↓</span><br><span class="line">future occupancy tokens</span><br><span class="line">        ↓</span><br><span class="line">occupancy decoder + ego trajectory head</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这里的 tokenizer 不是工程细节，而是把高维 voxel world 压成可生成序列的关键步骤。生成 transformer 负责学习 token 的时间演化，decoder 再把预测拉回 3D 空间，使结果可以被规划约束检查。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上验证模型能预测 driving scene evolution，并能在不使用 instance 和 map supervision 的条件下产生有竞争力的规划结果。重要的是，它把 world model 从视频生成或 latent prediction 推进到显式 3D occupancy 状态。</p>
@@ -247,7 +246,7 @@ OccWorld detailed architecture
 </tr>
 </tbody></table>
 <p>这两层之间有一个关键过渡：occupancy prediction 必须能被 ego trajectory 使用，才能说明 world model 真的进入了驾驶决策接口。</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">past occupancy tokens</span><br><span class="line">        ↓</span><br><span class="line">future occupancy distribution</span><br><span class="line">        ↓</span><br><span class="line">collision / free-space implication</span><br><span class="line">        ↓</span><br><span class="line">ego trajectory prediction</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">past occupancy tokens</span><br><span class="line">        ↓</span><br><span class="line">future occupancy distribution</span><br><span class="line">        ↓</span><br><span class="line">collision / free-space implication</span><br><span class="line">        ↓</span><br><span class="line">ego trajectory prediction</span><br></pre></td></tr></tbody></table></figure>
 
 <p>因此，OccWorld 的实验重点不是单纯让 voxel 预测更像真值，而是证明这种未来空间状态能给自车未来提供约束。若只预测 occupancy 而不影响 ego trajectory，它更像一个场景补全模型；若 trajectory 能利用 occupancy 风险，它才开始具备 world model 的决策意义。</p>
 <p>OccWorld 的重点不是取代所有规划模块，而是证明 occupancy state 可以作为 world model 与 planning 之间的中间桥梁。</p>
@@ -264,12 +263,13 @@ OccWorld detailed architecture
 <li><strong>长时预测漂移</strong>：生成式时序模型容易在长 horizon 里积累偏差。</li>
 <li><strong>动态交互</strong>：occupancy 描述空间状态，但 agent intent 仍需要额外建模。</li>
 </ul>
-<p>这些问题也解释了后续 Drive-OccWorld 为什么要加入 action condition 和 occupancy-based planning cost。</p>
+<p>这些问题也解释了后续 <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 为什么要加入 action condition 和 occupancy-based planning cost。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>OccWorld 的启示是：world model 不一定只能生成视频，也可以在更接近规划的 3D occupancy 空间中学习未来演化。它为 Drive-OccWorld 这类 4D occupancy forecasting + planning 方法奠定了状态空间基础。</p>
 <p>路线关系可以这样理解：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">OccFormer: 当前 3D semantic occupancy</span><br><span class="line">        ↓</span><br><span class="line">OccWorld: future 3D occupancy world model</span><br><span class="line">        ↓</span><br><span class="line">Drive-OccWorld: action-conditioned 4D occupancy + planning cost</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">OccFormer: 当前 3D semantic occupancy</span><br><span class="line">        ↓</span><br><span class="line">OccWorld: future 3D occupancy world model</span><br><span class="line">        ↓</span><br><span class="line">Drive-OccWorld: action-conditioned 4D occupancy + planning cost</span><br></pre></td></tr></tbody></table></figure>
 
 <p>从这个角度看，OccWorld 是从感知 occupancy 走向规划 world model 的关键过渡点。</p>
+
 
             </div>
 

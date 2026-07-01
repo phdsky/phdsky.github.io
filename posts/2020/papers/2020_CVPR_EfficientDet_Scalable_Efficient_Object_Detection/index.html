@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 2D 目标检测<br>Method: BiFPN + Compound Scaling + EfficientNet<br>Venue: CVPR<br>Year: 2020<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1911.09070">https://arxiv.org/abs/1911.09070</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/google/automl/tree/master/efficientdet">https://github.com/google/automl/tree/master/efficientdet</a></p>
+                
+<p>Task: 2D 目标检测<br>Method: BiFPN + Compound Scaling + EfficientNet<br>Venue: CVPR<br>Year: 2020<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1911.09070">https://arxiv.org/abs/1911.09070</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/google/automl/tree/master/efficientdet">https://github.com/google/automl/tree/master/efficientdet</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>EfficientDet 系统性地研究了目标检测中的网络架构设计选择，提出两项关键优化：（1）加权双向特征金字塔网络（BiFPN），通过可学习权重实现快速多尺度特征融合；（2）复合缩放方法，用单一系数 $\phi$ 同时缩放 backbone、特征网络、预测头的宽度&#x2F;深度以及输入分辨率。结合 EfficientNet backbone，作者开发了 D0~D7x 共 8 个级别的检测器，在全资源谱段上均显著优于前作。EfficientDet-D7x 以 77M 参数和 410B FLOPs 达到 55.1 AP（COCO test-dev），比 AmoebaNet + NAS-FPN 高 4 AP 且小 2.7×、快 7.4×。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>EfficientDet 系统性地研究了目标检测中的网络架构设计选择，提出两项关键优化：（1）加权双向特征金字塔网络（BiFPN），通过可学习权重实现快速多尺度特征融合；（2）复合缩放方法，用单一系数 $\phi$ 同时缩放 backbone、特征网络、预测头的宽度/深度以及输入分辨率。结合 EfficientNet backbone，作者开发了 D0~D7x 共 8 个级别的检测器，在全资源谱段上均显著优于前作。EfficientDet-D7x 以 77M 参数和 410B FLOPs 达到 55.1 AP（COCO test-dev），比 AmoebaNet + NAS-FPN 高 4 AP 且小 2.7×、快 7.4×。</p>
 <p><strong>核心论点</strong>：高效检测的核心不在于单一维度的优化，而在于多尺度融合（BiFPN）与全维度联合缩放（compound scaling）的系统性设计——EfficientDet 证明了小模型也可以达到大模型的精度。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>2020 年目标检测领域面临精度与效率的矛盾：SOTA 模型体量巨大，部署困难。</p>
 <table>
@@ -81,7 +82,7 @@
 <td>体量太大，不可部署</td>
 </tr>
 <tr>
-<td>RetinaNet (ResNet-101)</td>
+<td><a href="/posts/2017/papers/2017_ICCV_RetinaNet_Focal_Loss_Dense_Object_Detection/">RetinaNet</a> (ResNet-101)</td>
 <td>39.9</td>
 <td>53M</td>
 <td>127B</td>
@@ -109,7 +110,7 @@
 $$O = \sum_i \frac{w_i}{\epsilon + \sum_j w_j} \cdot I_i, \quad w_i \geq 0$$
 
 
-<p>其中 $w_i$ 通过 ReLU 保证非负，$\epsilon &#x3D; 0.0001$。这比 softmax 融合快 26-31%，精度几乎无损。</p>
+<p>其中 $w_i$ 通过 ReLU 保证非负，$\epsilon = 0.0001$。这比 softmax 融合快 26-31%，精度几乎无损。</p>
 <p>消融实验证实：BiFPN（带权重）在相同 backbone 下相比 FPN 提升约 7 AP（37.0 → 44.4），同时参数减少 65%，FLOPs 减少 75%。</p>
 <h3 id="洞察-2：复合缩放（Compound-Scaling）"><a href="#洞察-2：复合缩放（Compound-Scaling）" class="headerlink" title="洞察 2：复合缩放（Compound Scaling）"></a>洞察 2：复合缩放（Compound Scaling）</h3><p>传统做法：检测器缩放通常只调单一维度——换更大 backbone、增大输入分辨率、或堆叠更多 FPN 层。各维度独立调优效率低。</p>
 <p>本文做法：用单一复合系数 $\phi$ 同时控制所有维度：</p>
@@ -119,12 +120,12 @@ $$D_{\text{box}} = D_{\text{class}} = 3 + \lfloor \phi / 3 \rfloor$$
 $$R_{\text{input}} = 512 + \phi \cdot 128$$
 
 
-<p>Backbone 则直接复用 EfficientNet-B0~B6 的缩放。$\phi &#x3D; 0$ 得到 D0（512 输入，3 层 BiFPN，64 通道），$\phi &#x3D; 7$ 得到 D7（1536 输入，8 层 BiFPN，384 通道）。</p>
-<h3 id="洞察-3：EfficientNet-作为高效-Backbone"><a href="#洞察-3：EfficientNet-作为高效-Backbone" class="headerlink" title="洞察 3：EfficientNet 作为高效 Backbone"></a>洞察 3：EfficientNet 作为高效 Backbone</h3><p>传统做法：大多数检测器使用 ResNet&#x2F;ResNeXt 作为 backbone，这些网络为分类设计，用于检测时效率不是最优。</p>
+<p>Backbone 则直接复用 EfficientNet-B0~B6 的缩放。$\phi = 0$ 得到 D0（512 输入，3 层 BiFPN，64 通道），$\phi = 7$ 得到 D7（1536 输入，8 层 BiFPN，384 通道）。</p>
+<h3 id="洞察-3：EfficientNet-作为高效-Backbone"><a href="#洞察-3：EfficientNet-作为高效-Backbone" class="headerlink" title="洞察 3：EfficientNet 作为高效 Backbone"></a>洞察 3：EfficientNet 作为高效 Backbone</h3><p>传统做法：大多数检测器使用 ResNet/ResNeXt 作为 backbone，这些网络为分类设计，用于检测时效率不是最优。</p>
 <p>本文做法：采用 EfficientNet 作为 backbone，它本身就通过复合缩放实现了分类任务上的高效性。替换 backbone 从 ResNet-50 到 EfficientNet-B3 即可在参数更少的情况下提升约 3 AP（37.0 → 40.3）。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>55.1 AP</strong>：EfficientDet-D7x 在 COCO test-dev 上的 SOTA 精度，77M 参数 &#x2F; 410B FLOPs</li>
+<li><strong>55.1 AP</strong>：EfficientDet-D7x 在 COCO test-dev 上的 SOTA 精度，77M 参数 / 410B FLOPs</li>
 <li><strong>28×</strong>：EfficientDet-D0（33.8 AP）相比 YOLOv3（33.0 AP）减少的 FLOPs 倍数</li>
 <li><strong>44.4 vs 37.0 AP</strong>：EfficientNet-B3 + BiFPN 对比 ResNet-50 + FPN 的精度提升，参数和 FLOPs 均更少</li>
 </ul>
@@ -137,8 +138,7 @@ $$\text{Image} \xrightarrow{\text{EfficientNet}} \{P_3,...,P_7\} \xrightarrow{\t
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-Input (R_input × R_input × 3)
+<pre>Input (R_input × R_input × 3)
           │
           ▼
 ┌──────────────────────────┐
@@ -271,23 +271,23 @@ $$P_6^{td} = \text{Conv}\left(\frac{w_1 \cdot P_6^{in} + w_2 \cdot \text{Resize}
 $$P_6^{out} = \text{Conv}\left(\frac{w_1' \cdot P_6^{in} + w_2' \cdot P_6^{td} + w_3' \cdot \text{Resize}(P_5^{out})}{w_1' + w_2' + w_3' + \epsilon}\right)$$
 
 
-<p><strong>损失函数</strong>：Focal Loss（$\alpha &#x3D; 0.25, \gamma &#x3D; 1.5$）+ Smooth L1</p>
+<p><strong>损失函数</strong>：Focal Loss（$\alpha = 0.25, \gamma = 1.5$）+ Smooth L1</p>
 <h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>从官方 Google AutoML 仓库提取的核心代码。</p>
 <p><strong>BiFPN 特征融合</strong>：fast normalized fusion 实现</p>
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/google/automl/blob/master/efficientdet/efficientdet_arch.py">efficientdet&#x2F;efficientdet_arch.py</a>）</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/google/automl/blob/master/efficientdet/efficientdet_arch.py">efficientdet/efficientdet_arch.py</a>）</p>
 <details>
 <summary>📄 点击展开 fuse_features 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">fuse_features</span>(<span class="params">nodes, weight_method</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;融合不同分辨率的特征，返回加权和。</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        nodes: 不同层级的特征列表</span></span><br><span class="line"><span class="string">        weight_method: 融合方法 - &quot;attn&quot;(softmax), &quot;fastattn&quot;(快速归一化), &quot;sum&quot;</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    dtype = nodes[<span class="number">0</span>].dtype</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> weight_method == <span class="string">&#x27;attn&#x27;</span>:</span><br><span class="line">        <span class="comment"># Softmax 加权融合: O = Σ (e^wi / Σe^wj) * Ii</span></span><br><span class="line">        edge_weights = [tf.cast(tf.Variable(<span class="number">1.0</span>, name=<span class="string">&#x27;WSM&#x27;</span>), dtype=dtype)</span><br><span class="line">                        <span class="keyword">for</span> _ <span class="keyword">in</span> nodes]</span><br><span class="line">        normalized_weights = tf.nn.softmax(tf.stack(edge_weights))</span><br><span class="line">        nodes = tf.stack(nodes, axis=-<span class="number">1</span>)</span><br><span class="line">        new_node = tf.reduce_sum(nodes * normalized_weights, -<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">elif</span> weight_method == <span class="string">&#x27;fastattn&#x27;</span>:</span><br><span class="line">        <span class="comment"># 快速归一化融合: O = Σ wi / (ε + Σwj) * Ii，wi &gt;= 0</span></span><br><span class="line">        edge_weights = [</span><br><span class="line">            tf.nn.relu(tf.cast(tf.Variable(<span class="number">1.0</span>, name=<span class="string">&#x27;WSM&#x27;</span>), dtype=dtype))</span><br><span class="line">            <span class="keyword">for</span> _ <span class="keyword">in</span> nodes</span><br><span class="line">        ]</span><br><span class="line">        weights_sum = tf.add_n(edge_weights)</span><br><span class="line">        <span class="comment"># 每个输入按其归一化权重加权，ε=0.0001 防止除零</span></span><br><span class="line">        nodes = [nodes[i] * edge_weights[i] / (weights_sum + <span class="number">0.0001</span>)</span><br><span class="line">                 <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(nodes))]</span><br><span class="line">        new_node = tf.add_n(nodes)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">elif</span> weight_method == <span class="string">&#x27;sum&#x27;</span>:</span><br><span class="line">        new_node = tf.add_n(nodes)  <span class="comment"># 传统无权重求和</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> new_node</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">fuse_features</span>(<span class="params">nodes, weight_method</span>):</span><br><span class="line">    <span class="string">"""融合不同分辨率的特征，返回加权和。</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        nodes: 不同层级的特征列表</span></span><br><span class="line"><span class="string">        weight_method: 融合方法 - "attn"(softmax), "fastattn"(快速归一化), "sum"</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    dtype = nodes[<span class="number">0</span>].dtype</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> weight_method == <span class="string">'attn'</span>:</span><br><span class="line">        <span class="comment"># Softmax 加权融合: O = Σ (e^wi / Σe^wj) * Ii</span></span><br><span class="line">        edge_weights = [tf.cast(tf.Variable(<span class="number">1.0</span>, name=<span class="string">'WSM'</span>), dtype=dtype)</span><br><span class="line">                        <span class="keyword">for</span> _ <span class="keyword">in</span> nodes]</span><br><span class="line">        normalized_weights = tf.nn.softmax(tf.stack(edge_weights))</span><br><span class="line">        nodes = tf.stack(nodes, axis=-<span class="number">1</span>)</span><br><span class="line">        new_node = tf.reduce_sum(nodes * normalized_weights, -<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">elif</span> weight_method == <span class="string">'fastattn'</span>:</span><br><span class="line">        <span class="comment"># 快速归一化融合: O = Σ wi / (ε + Σwj) * Ii，wi &gt;= 0</span></span><br><span class="line">        edge_weights = [</span><br><span class="line">            tf.nn.relu(tf.cast(tf.Variable(<span class="number">1.0</span>, name=<span class="string">'WSM'</span>), dtype=dtype))</span><br><span class="line">            <span class="keyword">for</span> _ <span class="keyword">in</span> nodes</span><br><span class="line">        ]</span><br><span class="line">        weights_sum = tf.add_n(edge_weights)</span><br><span class="line">        <span class="comment"># 每个输入按其归一化权重加权，ε=0.0001 防止除零</span></span><br><span class="line">        nodes = [nodes[i] * edge_weights[i] / (weights_sum + <span class="number">0.0001</span>)</span><br><span class="line">                 <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(nodes))]</span><br><span class="line">        new_node = tf.add_n(nodes)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">elif</span> weight_method == <span class="string">'sum'</span>:</span><br><span class="line">        new_node = tf.add_n(nodes)  <span class="comment"># 传统无权重求和</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> new_node</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <p><strong>检测头</strong>：共享参数的分类和回归网络</p>
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/google/automl/blob/master/efficientdet/efficientdet_arch.py">efficientdet&#x2F;efficientdet_arch.py</a>）</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/google/automl/blob/master/efficientdet/efficientdet_arch.py">efficientdet/efficientdet_arch.py</a>）</p>
 <details>
 <summary>📄 点击展开 class_net 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">class_net</span>(<span class="params">images, level, num_classes, num_anchors, num_filters,</span></span><br><span class="line"><span class="params">              is_training, act_type, separable_conv=<span class="literal">True</span>, repeats=<span class="number">4</span>,</span></span><br><span class="line"><span class="params">              survival_prob=<span class="literal">None</span>, strategy=<span class="literal">None</span>, data_format=<span class="string">&#x27;channels_last&#x27;</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;分类预测网络：多层 depthwise separable conv + BN + SiLU。&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">if</span> separable_conv:</span><br><span class="line">        conv_op = functools.partial(</span><br><span class="line">            tf.layers.separable_conv2d, depth_multiplier=<span class="number">1</span>,</span><br><span class="line">            data_format=data_format,</span><br><span class="line">            pointwise_initializer=tf.initializers.variance_scaling(),</span><br><span class="line">            depthwise_initializer=tf.initializers.variance_scaling())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(repeats):  <span class="comment"># repeats = D_class = 3 + ⌊φ/3⌋</span></span><br><span class="line">        orig_images = images</span><br><span class="line">        images = conv_op(images, num_filters, kernel_size=<span class="number">3</span>,</span><br><span class="line">                         bias_initializer=tf.zeros_initializer(),</span><br><span class="line">                         activation=<span class="literal">None</span>, padding=<span class="string">&#x27;same&#x27;</span>, name=<span class="string">&#x27;class-%d&#x27;</span> % i)</span><br><span class="line">        images = utils.batch_norm_act(images, is_training, act_type=act_type,</span><br><span class="line">                                       name=<span class="string">&#x27;class-%d-bn-%d&#x27;</span> % (i, level))</span><br><span class="line">        <span class="comment"># DropConnect 残差连接（层数 &gt; 0 时）</span></span><br><span class="line">        <span class="keyword">if</span> i &gt; <span class="number">0</span> <span class="keyword">and</span> survival_prob:</span><br><span class="line">            images = utils.drop_connect(images, is_training, survival_prob)</span><br><span class="line">            images = images + orig_images</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 最终分类输出，bias 初始化为 -log((1-0.01)/0.01) ≈ 4.6</span></span><br><span class="line">    classes = conv_op(images, num_classes * num_anchors, kernel_size=<span class="number">3</span>,</span><br><span class="line">                      bias_initializer=tf.constant_initializer(-np.log((<span class="number">1</span> - <span class="number">0.01</span>) / <span class="number">0.01</span>)),</span><br><span class="line">                      padding=<span class="string">&#x27;same&#x27;</span>, name=<span class="string">&#x27;class-predict&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> classes</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">class_net</span>(<span class="params">images, level, num_classes, num_anchors, num_filters,</span></span><br><span class="line"><span class="params">              is_training, act_type, separable_conv=<span class="literal">True</span>, repeats=<span class="number">4</span>,</span></span><br><span class="line"><span class="params">              survival_prob=<span class="literal">None</span>, strategy=<span class="literal">None</span>, data_format=<span class="string">'channels_last'</span></span>):</span><br><span class="line">    <span class="string">"""分类预测网络：多层 depthwise separable conv + BN + SiLU。"""</span></span><br><span class="line">    <span class="keyword">if</span> separable_conv:</span><br><span class="line">        conv_op = functools.partial(</span><br><span class="line">            tf.layers.separable_conv2d, depth_multiplier=<span class="number">1</span>,</span><br><span class="line">            data_format=data_format,</span><br><span class="line">            pointwise_initializer=tf.initializers.variance_scaling(),</span><br><span class="line">            depthwise_initializer=tf.initializers.variance_scaling())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(repeats):  <span class="comment"># repeats = D_class = 3 + ⌊φ/3⌋</span></span><br><span class="line">        orig_images = images</span><br><span class="line">        images = conv_op(images, num_filters, kernel_size=<span class="number">3</span>,</span><br><span class="line">                         bias_initializer=tf.zeros_initializer(),</span><br><span class="line">                         activation=<span class="literal">None</span>, padding=<span class="string">'same'</span>, name=<span class="string">'class-%d'</span> % i)</span><br><span class="line">        images = utils.batch_norm_act(images, is_training, act_type=act_type,</span><br><span class="line">                                       name=<span class="string">'class-%d-bn-%d'</span> % (i, level))</span><br><span class="line">        <span class="comment"># DropConnect 残差连接（层数 &gt; 0 时）</span></span><br><span class="line">        <span class="keyword">if</span> i &gt; <span class="number">0</span> <span class="keyword">and</span> survival_prob:</span><br><span class="line">            images = utils.drop_connect(images, is_training, survival_prob)</span><br><span class="line">            images = images + orig_images</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 最终分类输出，bias 初始化为 -log((1-0.01)/0.01) ≈ 4.6</span></span><br><span class="line">    classes = conv_op(images, num_classes * num_anchors, kernel_size=<span class="number">3</span>,</span><br><span class="line">                      bias_initializer=tf.constant_initializer(-np.log((<span class="number">1</span> - <span class="number">0.01</span>) / <span class="number">0.01</span>)),</span><br><span class="line">                      padding=<span class="string">'same'</span>, name=<span class="string">'class-predict'</span>)</span><br><span class="line">    <span class="keyword">return</span> classes</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -481,13 +481,13 @@ $$P_6^{out} = \text{Conv}\left(\frac{w_1' \cdot P_6^{in} + w_2' \cdot P_6^{td} +
 <li><strong>超低延迟场景</strong>：D0 虽然 FLOPs 极低（2.5B），但 AP 仅 34.6，距高精度需求仍有差距</li>
 <li><strong>NAS 搜索可能找到更优 BiFPN 拓扑</strong>：现有 BiFPN 设计基于启发式优化，非全局最优</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:       EfficientNet-B0~B6（ImageNet 预训练）</span><br><span class="line">Input:          512~1536（按 φ 缩放）</span><br><span class="line">Batch Size:     128（32 TPUv3 cores）</span><br><span class="line">Optimizer:      SGD (lr=0.16 cosine decay, momentum=0.9, weight_decay=4e-5)</span><br><span class="line">LR Warmup:      1 epoch linear warmup</span><br><span class="line">Activation:     SiLU (Swish-1)</span><br><span class="line">Focal Loss:     α=0.25, γ=1.5</span><br><span class="line">BN:             Synchronized BN (decay=0.99, ε=1e-3)</span><br><span class="line">Augmentation:   水平翻转, scale jitter [0.1, 2.0]</span><br><span class="line">Epochs:         300 (D0~D6), 600 (D7/D7x)</span><br><span class="line">Framework:      TensorFlow</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:       EfficientNet-B0~B6（ImageNet 预训练）</span><br><span class="line">Input:          512~1536（按 φ 缩放）</span><br><span class="line">Batch Size:     128（32 TPUv3 cores）</span><br><span class="line">Optimizer:      SGD (lr=0.16 cosine decay, momentum=0.9, weight_decay=4e-5)</span><br><span class="line">LR Warmup:      1 epoch linear warmup</span><br><span class="line">Activation:     SiLU (Swish-1)</span><br><span class="line">Focal Loss:     α=0.25, γ=1.5</span><br><span class="line">BN:             Synchronized BN (decay=0.99, ε=1e-3)</span><br><span class="line">Augmentation:   水平翻转, scale jitter [0.1, 2.0]</span><br><span class="line">Epochs:         300 (D0~D6), 600 (D7/D7x)</span><br><span class="line">Framework:      TensorFlow</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>BiFPN 权重初始化</strong>：所有融合权重初始化为 1.0，经 ReLU 保证非负；$\epsilon &#x3D; 0.0001$ 防止除零</li>
+<li><strong>BiFPN 权重初始化</strong>：所有融合权重初始化为 1.0，经 ReLU 保证非负；$\epsilon = 0.0001$ 防止除零</li>
 <li><strong>SiLU 激活函数</strong>：使用 $x \cdot \sigma(x)$ 替代 ReLU，对 EfficientNet 和 BiFPN 均有效</li>
 <li>**Scale jitter [0.1, 2.0]**：大范围 jitter 需配合长训练（≥300 epoch），短训练反而降低精度</li>
-<li><strong>EMA</strong>：使用 decay&#x3D;0.9998 的指数移动平均更新模型权重</li>
+<li><strong>EMA</strong>：使用 decay=0.9998 的指数移动平均更新模型权重</li>
 <li><strong>Soft-NMS</strong>：使用 Soft-NMS 替代标准 NMS 可提升约 0.5 AP</li>
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
@@ -509,14 +509,15 @@ $$P_6^{out} = \text{Conv}\left(\frac{w_1' \cdot P_6^{in} + w_2' \cdot P_6^{td} +
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
 <li>复合缩放公式基于启发式搜索，非理论最优</li>
 <li>BiFPN 仍是手工设计的拓扑，NAS 搜索可能找到更好结构</li>
-<li>训练成本较高（D7&#x2F;D7x 需要 128 TPUv3 × 600 epoch）</li>
+<li>训练成本较高（D7/D7x 需要 128 TPUv3 × 600 epoch）</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li>确立了”高效 backbone + 加权特征融合 + 复合缩放”的检测器设计范式</li>
-<li>BiFPN 的加权融合思想被广泛采纳到后续工作（如 YOLOv5&#x2F;v8 的 PANet 变体）</li>
-<li>复合缩放方法直接影响了 YOLO 系列的模型家族设计（nano&#x2F;small&#x2F;medium&#x2F;large&#x2F;xlarge）</li>
+<li>BiFPN 的加权融合思想被广泛采纳到后续工作（如 YOLOv5/v8 的 PANet 变体）</li>
+<li>复合缩放方法直接影响了 <a href="/posts/2018/papers/2018_arXiv_YOLO_Series_Unified_Real_Time_Object_Detection/">YOLO</a> 系列的模型家族设计（nano/small/medium/large/xlarge）</li>
 <li>证明了 EfficientNet 在检测任务中的有效性，推动了精度-效率帕累托前沿的改进</li>
 </ul>
+
 
             </div>
 

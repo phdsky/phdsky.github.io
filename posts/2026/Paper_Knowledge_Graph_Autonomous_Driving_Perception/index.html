@@ -80,16 +80,16 @@
 </blockquote>
 <p><strong>图例说明</strong>（按彩虹色谱由”基础 → 应用”分层）：</p>
 <ul>
-<li>🔴 <strong>红色</strong>：骨干网络（ResNet → ViT → Swin Transformer）</li>
-<li>🟠 <strong>橙色</strong>：经典 2D 检测演进（R-CNN → YOLO → SSD → RetinaNet → EfficientDet）</li>
-<li>🟡 <strong>黄色</strong>：2D&#x2F;3D 检测与跟踪基础（CenterNet → CenterTrack → CenterPoint；DETR → Deformable DETR → DINO DETR；PointPillars）</li>
-<li>🟢 <strong>绿色</strong>：LSS 系 BEV 显式投影 + 融合（LSS → BEVDet → BEVDepth → BEVFusion）</li>
-<li>🩵 <strong>青色</strong>：Transformer Query 系 + 矢量化建图（DETR3D → PETR → Sparse4D → StreamPETR；BEVFormer；HDMapNet → VectorMapNet → MapTR → MapTRv2）</li>
-<li>🔵 <strong>蓝色</strong>：3D 语义占用预测（Mask2Former → OccFormer）</li>
-<li>🟣 <strong>紫色</strong>：端到端自动驾驶（UniAD → VAD &#x2F; VADv2 → SparseDrive 系列 → DiffusionDrive）</li>
-<li>🟫 <strong>棕色</strong>：视觉几何与 4D 几何（VGGT → D4RT &#x2F; DVGT 系列）</li>
-<li>⚫ <strong>蓝灰色</strong>：驾驶世界模型（GAIA-1 → DriveDreamer；OccWorld → Drive-OccWorld；UniWorld → DriveWorld）</li>
-<li>🩷 <strong>粉色</strong>：车道线检测分支（LaneAF）</li>
+<li>🔴 <strong>红色</strong>：骨干网络（<a href="/posts/2016/papers/2016_CVPR_ResNet_Deep_Residual_Learning/">ResNet</a> → <a href="/posts/2021/papers/2021_ICLR_ViT_Vision_Transformer_Image_Recognition/">ViT</a> → <a href="/posts/2022/papers/2022_CVPR_Swin_Transformer_Series_Hierarchical_Vision_Transformer/">Swin Transformer</a>）</li>
+<li>🟠 <strong>橙色</strong>：经典 2D 检测演进（<a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">R-CNN</a> → <a href="/posts/2018/papers/2018_arXiv_YOLO_Series_Unified_Real_Time_Object_Detection/">YOLO</a> → <a href="/posts/2016/papers/2016_ECCV_SSD_Single_Shot_MultiBox_Detector/">SSD</a> → <a href="/posts/2017/papers/2017_ICCV_RetinaNet_Focal_Loss_Dense_Object_Detection/">RetinaNet</a> → <a href="/posts/2020/papers/2020_CVPR_EfficientDet_Scalable_Efficient_Object_Detection/">EfficientDet</a>）</li>
+<li>🟡 <strong>黄色</strong>：2D&#x2F;3D 检测与跟踪基础（<a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a> → <a href="/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/">CenterTrack</a> → <a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a>；<a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a> → <a href="/posts/2021/papers/2021_ICLR_Deformable_DETR_Deformable_Transformers/">Deformable DETR</a> → DINO DETR；<a href="/posts/2019/papers/2019_CVPR_PointPillars_Fast_Encoders_LiDAR_3D_Object_Detection/">PointPillars</a>）</li>
+<li>🟢 <strong>绿色</strong>：<a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 系 BEV 显式投影 + 融合（LSS → <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a> → <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> → <a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>）</li>
+<li>🩵 <strong>青色</strong>：Transformer Query 系 + 矢量化建图（<a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a> → <a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a> → <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a> → <a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a>；<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>；<a href="/posts/2022/papers/2022_ICRA_HDMapNet_Online_HD_Map_Construction/">HDMapNet</a> → <a href="/posts/2023/papers/2023_ICML_VectorMapNet_End_to_end_Vectorized_HD_Map_Learning/">VectorMapNet</a> → <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> → <a href="/posts/2024/papers/2024_IJCV_MapTRv2_End_to_End_Vectorized_HD_Map/">MapTRv2</a>）</li>
+<li>🔵 <strong>蓝色</strong>：3D 语义占用预测（<a href="/posts/2022/papers/2022_CVPR_Mask2Former_Universal_Image_Segmentation/">Mask2Former</a> → <a href="/posts/2023/papers/2023_ICCV_OccFormer_Dual_Path_Transformer_3D_Semantic_Occupancy/">OccFormer</a>）</li>
+<li>🟣 <strong>紫色</strong>：端到端自动驾驶（<a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> → <a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a> &#x2F; VADv2 → <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a> 系列 → <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a>）</li>
+<li>🟫 <strong>棕色</strong>：视觉几何与 4D 几何（<a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a> → <a href="/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/">D4RT</a> &#x2F; <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT</a> 系列）</li>
+<li>⚫ <strong>蓝灰色</strong>：驾驶世界模型（<a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a> → <a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer</a>；<a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a> → <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a>；<a href="/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/">UniWorld</a> → <a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a>）</li>
+<li>🩷 <strong>粉色</strong>：车道线检测分支（<a href="/posts/2021/papers/2021_arXiv_LaneAF_Robust_Multi_Lane_Detection_with_Affinity_Fields/">LaneAF</a>）</li>
 <li><strong>实线</strong>：直接继承&#x2F;改进关系  |  <strong>虚线</strong>：对比&#x2F;互补关系</li>
 </ul>
 <h2 id="技术路线总览"><a href="#技术路线总览" class="headerlink" title="技术路线总览"></a>技术路线总览</h2><p>自动驾驶纯视觉感知经历了三条并行演进的技术路线，最终在 2023 年趋于收敛：</p>
@@ -405,7 +405,7 @@
 <li><strong>VAD</strong> → <strong>VADv2</strong> — 理解端到端规划从”向量化场景 + 单轨迹回归”演进到”4096 词汇表 + 概率分布建模”的两步跃迁，是后续所有”评分派”规划方法的范式基线</li>
 <li><strong>SparseDrive</strong> → <strong>SparseDriveV2</strong> — 理解稀疏表示如何替代 BEV，以及超密分解词表+层级评分如何超越生成式方法</li>
 <li><strong>DiffusionDrive</strong> — 理解生成式扩散模型如何用于实时多模态规划（与 SparseDriveV2 形成评分 vs 生成的路线对比）</li>
-<li><strong>GenAD</strong> — 理解端到端自动驾驶如何被建模为 future evolution 的生成问题</li>
+<li><strong><a href="/posts/2024/papers/2024_ECCV_GenAD_Generative_End_to_End_Autonomous_Driving/">GenAD</a></strong> — 理解端到端自动驾驶如何被建模为 future evolution 的生成问题</li>
 <li><strong>OccWorld</strong> → <strong>Drive-OccWorld</strong> — 理解 occupancy world model 如何从未来占用预测走向规划代价</li>
 <li><strong>GAIA-1</strong> → <strong>DriveDreamer</strong> — 理解可控驾驶视频生成路线</li>
 <li><strong>UniWorld</strong> → <strong>DriveWorld</strong> — 理解 world model 如何成为 4D 预训练目标</li>
@@ -413,7 +413,7 @@
 <li><strong>LaneAF</strong> — 了解车道线检测的不同思路</li>
 </ol>
 <blockquote>
-<p><strong>2D 检测基础脉络</strong>：anchor-based → anchor-free → Transformer 的演进可由 <a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">RCNN 系列</a>、<a href="/posts/2018/papers/2018_arXiv_YOLO_Series_Unified_Real_Time_Object_Detection/">YOLO 系列</a>、<a href="/posts/2016/papers/2016_ECCV_SSD_Single_Shot_MultiBox_Detector/">SSD</a>、<a href="/posts/2017/papers/2017_ICCV_RetinaNet_Focal_Loss_Dense_Object_Detection/">RetinaNet</a> 和 <a href="/posts/2020/papers/2020_CVPR_EfficientDet_Scalable_Efficient_Object_Detection/">EfficientDet</a> 串起；骨干网络的转折点则落在 <a href="/posts/2016/papers/2016_CVPR_ResNet_Deep_Residual_Learning/">ResNet</a> 与 <a href="/posts/2021/papers/2021_ICLR_ViT_Vision_Transformer_Image_Recognition/">ViT</a>。</p>
+<p><strong>2D 检测基础脉络</strong>：anchor-based → anchor-free → Transformer 的演进可由 RCNN 系列、YOLO 系列、SSD、RetinaNet 和 EfficientDet 串起；骨干网络的转折点则落在 ResNet 与 ViT。</p>
 </blockquote>
 <blockquote>
 <p>更宏观的自动驾驶技术演进，可对应到 <a href="/posts/2026/Autonomous_Driving_Evolution_From_Perception_to_World_Model/">自动驾驶的觉醒：从感知像素到重构世界的五次跃迁</a>。</p>

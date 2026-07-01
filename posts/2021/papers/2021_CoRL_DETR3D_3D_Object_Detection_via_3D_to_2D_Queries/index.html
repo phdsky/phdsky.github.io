@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Multi-view 3D Object Detection<br>Method: 3D-to-2D Object Query, Backward Projection, Set Prediction<br>Venue: CoRL<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2110.06922">https://arxiv.org/abs/2110.06922</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/WangYueFt/detr3d">https://github.com/WangYueFt/detr3d</a></p>
+                
+<p>Task: Multi-view 3D Object Detection<br>Method: 3D-to-2D Object Query, Backward Projection, Set Prediction<br>Venue: CoRL<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2110.06922">https://arxiv.org/abs/2110.06922</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/WangYueFt/detr3d">https://github.com/WangYueFt/detr3d</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DETR3D 提出了一种面向多相机 3D 目标检测的统一框架。区别于”先单目预测 3D 框再做后处理”或”先估深度再做点云检测”两类传统方案，本文直接在 3D 空间中操作预测：模型先用 ResNet + FPN 提取每个相机的 2D 特征，再用一组稀疏的 3D object query 反向投影到所有相机视图、通过双线性插值采样图像特征，并在 query 之间用 multi-head attention 进行交互；最终以 DETR 风格的 set-to-set loss 进行端到端训练，不需要任何 NMS。这种自顶向下的范式避开了 depth 预测带来的级联误差，在 nuScenes 数据集上取得了当时 SOTA 的多相机检测性能，且在相机重叠区域优势尤为显著。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DETR3D 提出了一种面向多相机 3D 目标检测的统一框架。区别于”先单目预测 3D 框再做后处理”或”先估深度再做点云检测”两类传统方案，本文直接在 3D 空间中操作预测：模型先用 <a href="/posts/2016/papers/2016_CVPR_ResNet_Deep_Residual_Learning/">ResNet</a> + FPN 提取每个相机的 2D 特征，再用一组稀疏的 3D object query 反向投影到所有相机视图、通过双线性插值采样图像特征，并在 query 之间用 multi-head attention 进行交互；最终以 <a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a> 风格的 set-to-set loss 进行端到端训练，不需要任何 NMS。这种自顶向下的范式避开了 depth 预测带来的级联误差，在 nuScenes 数据集上取得了当时 SOTA 的多相机检测性能，且在相机重叠区域优势尤为显著。</p>
 <p><strong>核心论点</strong>：用稀疏的 3D object query + 反向投影替代 dense depth 估计与后处理，把多相机 3D 检测从”逐图预测 + 跨图合并”重塑为”以物体为中心的 set prediction”。</p>
 <h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>多相机 3D 检测在 DETR3D 之前主要有两条路：</p>
 <table>
@@ -73,12 +74,12 @@
 </thead>
 <tbody><tr>
 <td align="left">2D 检测器 + 3D 预测头</td>
-<td align="left">FCOS3D &#x2F; CenterNet</td>
+<td align="left">FCOS3D / <a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a></td>
 <td align="left">每个相机独立推理，需要逐图 NMS + 跨图全局 NMS 合并；忽略了相机几何</td>
 </tr>
 <tr>
 <td align="left">Pseudo-LiDAR</td>
-<td align="left">PackNet + CenterPoint</td>
+<td align="left">PackNet + <a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a></td>
 <td align="left">依赖 dense depth 估计，深度误差与检测误差级联放大</td>
 </tr>
 </tbody></table>
@@ -103,7 +104,7 @@ $$\bm{q}_{(\ell+1) i} = \bm{f}_{\ell i} + \bm{q}_{\ell i}$$
 
 
 <p>不再需要”先各相机出框，再跨相机合并”这种后处理逻辑。论文在 nuScenes 重叠区域的对比中，DETR3D 的 NDS 比 FCOS3D 高出约 5–6 个点，验证了”在每一层就跨视角融合”的优势。</p>
-<h3 id="洞察-3：Set-to-set-loss-迭代精修，去掉-NMS"><a href="#洞察-3：Set-to-set-loss-迭代精修，去掉-NMS" class="headerlink" title="洞察 3：Set-to-set loss + 迭代精修，去掉 NMS"></a>洞察 3：Set-to-set loss + 迭代精修，去掉 NMS</h3><p>延续 DETR &#x2F; Deformable DETR 的思想，用 Hungarian 匹配 + focal + L1 loss 做集合预测：</p>
+<h3 id="洞察-3：Set-to-set-loss-迭代精修，去掉-NMS"><a href="#洞察-3：Set-to-set-loss-迭代精修，去掉-NMS" class="headerlink" title="洞察 3：Set-to-set loss + 迭代精修，去掉 NMS"></a>洞察 3：Set-to-set loss + 迭代精修，去掉 NMS</h3><p>延续 DETR / <a href="/posts/2021/papers/2021_ICLR_Deformable_DETR_Deformable_Transformers/">Deformable DETR</a> 的思想，用 Hungarian 匹配 + focal + L1 loss 做集合预测：</p>
 
 $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \mathbb{1}_{\{c_j \neq \varnothing\}} \mathcal{L}_{\text{box}}(\bm{b}_j, \hat{\bm{b}}_{\sigma^*(j)})$$
 
@@ -116,7 +117,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 </ol>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>0.425 &#x2F; 0.346</strong>：nuScenes val 上 ResNet101+DCN backbone 的 NDS &#x2F; mAP；</li>
+<li><strong>0.425 / 0.346</strong>：nuScenes val 上 ResNet101+DCN backbone 的 NDS / mAP；</li>
 <li><strong>6 层 decoder</strong>：每层都做”投影—采样—attention—预测”的迭代 refine（layer 0 → 5：NDS 0.380 → 0.425）；</li>
 <li><strong>900 个 object queries</strong>：消融显示 query 数量增加到 900 后性能饱和（mAP 0.346）。</li>
 </ul>
@@ -129,8 +130,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 
 <p>ASCII 架构图：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-       6× multi-view RGB
+<pre>       6× multi-view RGB
               │
               ▼
    ┌───────────────────────┐
@@ -178,7 +178,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 </thead>
 <tbody><tr>
 <td align="left">ResNet101 + DCN (stage 3,4)</td>
-<td align="left">4 级特征 (1&#x2F;8, 1&#x2F;16, 1&#x2F;32, 1&#x2F;64)</td>
+<td align="left">4 级特征 (1/8, 1/16, 1/32, 1/64)</td>
 <td align="left">共享 backbone</td>
 </tr>
 <tr>
@@ -202,19 +202,19 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 <td align="left">query 之间交互去重</td>
 </tr>
 <tr>
-<td align="left">$\Phi_{\text{reg}}$ &#x2F; $\Phi_{\text{cls}}$</td>
+<td align="left">$\Phi_{\text{reg}}$ / $\Phi_{\text{cls}}$</td>
 <td align="left">9-D box + class</td>
 <td align="left">每层都输出，深监督</td>
 </tr>
 </tbody></table>
 <p><strong>损失函数</strong>：focal loss（分类） + L1 loss（box 9 维参数：位置、尺寸、朝向、速度）：</p>
-<p>$$\mathcal{L} &#x3D; \mathcal{L}_{\text{focal}}(\hat{c}, c) + \lambda \cdot \mathcal{L}_1(\hat{\bm{b}}, \bm{b})$$</p>
+<p>$$\mathcal{L} = \mathcal{L}_{\text{focal}}(\hat{c}, c) + \lambda \cdot \mathcal{L}_1(\hat{\bm{b}}, \bm{b})$$</p>
 <p>每层都计算损失，推理时只用最后一层输出。</p>
 <h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>DETR3D 的核心是 detection head 中的 3D 参考点反投影 + 多相机特征采样模块，对应仓库中的 <code>feature_sampling</code> 函数。</p>
 <details>
 <summary>📄 点击展开 feature_sampling 关键逻辑（基于官方实现整理）</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：projects/mmdet3d_plugin/models/utils/detr3d_transformer.py</span></span><br><span class="line"><span class="comment"># https://github.com/WangYueFt/detr3d</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">feature_sampling</span>(<span class="params">mlvl_feats, reference_points, pc_range, img_metas</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    mlvl_feats: list of [B, N_cam, C, H_l, W_l]   # FPN 4 levels × 6 cams</span></span><br><span class="line"><span class="string">    reference_points: [B, N_q, 3]   # query 解码出的归一化 3D 点</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="comment"># 1) 反归一化到 LiDAR/ego 坐标系</span></span><br><span class="line">    reference_points = reference_points.clone()</span><br><span class="line">    reference_points[..., <span class="number">0</span>:<span class="number">1</span>] = reference_points[..., <span class="number">0</span>:<span class="number">1</span>] * \</span><br><span class="line">        (pc_range[<span class="number">3</span>] - pc_range[<span class="number">0</span>]) + pc_range[<span class="number">0</span>]</span><br><span class="line">    reference_points[..., <span class="number">1</span>:<span class="number">2</span>] = reference_points[..., <span class="number">1</span>:<span class="number">2</span>] * \</span><br><span class="line">        (pc_range[<span class="number">4</span>] - pc_range[<span class="number">1</span>]) + pc_range[<span class="number">1</span>]</span><br><span class="line">    reference_points[..., <span class="number">2</span>:<span class="number">3</span>] = reference_points[..., <span class="number">2</span>:<span class="number">3</span>] * \</span><br><span class="line">        (pc_range[<span class="number">5</span>] - pc_range[<span class="number">2</span>]) + pc_range[<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2) 拼齐次坐标，准备投影到每个相机</span></span><br><span class="line">    reference_points = torch.cat(</span><br><span class="line">        (reference_points, torch.ones_like(reference_points[..., :<span class="number">1</span>])), -<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># lidar2img: [B, N_cam, 4, 4]，由相机内外参合成</span></span><br><span class="line">    lidar2img = ... <span class="comment"># from img_metas</span></span><br><span class="line">    reference_points_cam = torch.matmul(</span><br><span class="line">        lidar2img, reference_points[..., <span class="literal">None</span>]).squeeze(-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 3) 透视除法 + 可见性 mask（z&gt;0 且落在图像内）</span></span><br><span class="line">    eps = <span class="number">1e-5</span></span><br><span class="line">    mask = (reference_points_cam[..., <span class="number">2</span>:<span class="number">3</span>] &gt; eps)</span><br><span class="line">    reference_points_cam = reference_points_cam[..., <span class="number">0</span>:<span class="number">2</span>] / \</span><br><span class="line">        torch.maximum(reference_points_cam[..., <span class="number">2</span>:<span class="number">3</span>],</span><br><span class="line">                      torch.ones_like(reference_points_cam[..., <span class="number">2</span>:<span class="number">3</span>]) * eps)</span><br><span class="line">    <span class="comment"># 归一化到 [-1, 1]，供 grid_sample 使用</span></span><br><span class="line">    reference_points_cam[..., <span class="number">0</span>] /= img_W</span><br><span class="line">    reference_points_cam[..., <span class="number">1</span>] /= img_H</span><br><span class="line">    reference_points_cam = reference_points_cam * <span class="number">2</span> - <span class="number">1</span></span><br><span class="line">    mask = (mask &amp; (reference_points_cam[..., <span class="number">0</span>:<span class="number">1</span>] &gt; -<span class="number">1.0</span>)</span><br><span class="line">                 &amp; (reference_points_cam[..., <span class="number">0</span>:<span class="number">1</span>] &lt;  <span class="number">1.0</span>)</span><br><span class="line">                 &amp; (reference_points_cam[..., <span class="number">1</span>:<span class="number">2</span>] &gt; -<span class="number">1.0</span>)</span><br><span class="line">                 &amp; (reference_points_cam[..., <span class="number">1</span>:<span class="number">2</span>] &lt;  <span class="number">1.0</span>))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 4) 在每个 FPN level 上做 bilinear grid_sample，再按 mask 加权平均</span></span><br><span class="line">    sampled_feats = []</span><br><span class="line">    <span class="keyword">for</span> lvl, feat <span class="keyword">in</span> <span class="built_in">enumerate</span>(mlvl_feats):</span><br><span class="line">        feat = feat.flatten(<span class="number">0</span>, <span class="number">1</span>)  <span class="comment"># [B*N_cam, C, H, W]</span></span><br><span class="line">        ref = reference_points_cam.view(-<span class="number">1</span>, N_q, <span class="number">1</span>, <span class="number">2</span>)</span><br><span class="line">        sampled = F.grid_sample(feat, ref)  <span class="comment"># [B*N_cam, C, N_q, 1]</span></span><br><span class="line">        sampled_feats.append(sampled)</span><br><span class="line">    sampled_feats = torch.stack(sampled_feats, -<span class="number">1</span>)  <span class="comment"># [..., N_levels]</span></span><br><span class="line">    <span class="keyword">return</span> sampled_feats, mask  <span class="comment"># mask 用于在 head 中加权</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：projects/mmdet3d_plugin/models/utils/detr3d_transformer.py</span></span><br><span class="line"><span class="comment"># https://github.com/WangYueFt/detr3d</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">feature_sampling</span>(<span class="params">mlvl_feats, reference_points, pc_range, img_metas</span>):</span><br><span class="line">    <span class="string">"""</span></span><br><span class="line"><span class="string">    mlvl_feats: list of [B, N_cam, C, H_l, W_l]   # FPN 4 levels × 6 cams</span></span><br><span class="line"><span class="string">    reference_points: [B, N_q, 3]   # query 解码出的归一化 3D 点</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    <span class="comment"># 1) 反归一化到 LiDAR/ego 坐标系</span></span><br><span class="line">    reference_points = reference_points.clone()</span><br><span class="line">    reference_points[..., <span class="number">0</span>:<span class="number">1</span>] = reference_points[..., <span class="number">0</span>:<span class="number">1</span>] * \</span><br><span class="line">        (pc_range[<span class="number">3</span>] - pc_range[<span class="number">0</span>]) + pc_range[<span class="number">0</span>]</span><br><span class="line">    reference_points[..., <span class="number">1</span>:<span class="number">2</span>] = reference_points[..., <span class="number">1</span>:<span class="number">2</span>] * \</span><br><span class="line">        (pc_range[<span class="number">4</span>] - pc_range[<span class="number">1</span>]) + pc_range[<span class="number">1</span>]</span><br><span class="line">    reference_points[..., <span class="number">2</span>:<span class="number">3</span>] = reference_points[..., <span class="number">2</span>:<span class="number">3</span>] * \</span><br><span class="line">        (pc_range[<span class="number">5</span>] - pc_range[<span class="number">2</span>]) + pc_range[<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2) 拼齐次坐标，准备投影到每个相机</span></span><br><span class="line">    reference_points = torch.cat(</span><br><span class="line">        (reference_points, torch.ones_like(reference_points[..., :<span class="number">1</span>])), -<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># lidar2img: [B, N_cam, 4, 4]，由相机内外参合成</span></span><br><span class="line">    lidar2img = ... <span class="comment"># from img_metas</span></span><br><span class="line">    reference_points_cam = torch.matmul(</span><br><span class="line">        lidar2img, reference_points[..., <span class="literal">None</span>]).squeeze(-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 3) 透视除法 + 可见性 mask（z&gt;0 且落在图像内）</span></span><br><span class="line">    eps = <span class="number">1e-5</span></span><br><span class="line">    mask = (reference_points_cam[..., <span class="number">2</span>:<span class="number">3</span>] &gt; eps)</span><br><span class="line">    reference_points_cam = reference_points_cam[..., <span class="number">0</span>:<span class="number">2</span>] / \</span><br><span class="line">        torch.maximum(reference_points_cam[..., <span class="number">2</span>:<span class="number">3</span>],</span><br><span class="line">                      torch.ones_like(reference_points_cam[..., <span class="number">2</span>:<span class="number">3</span>]) * eps)</span><br><span class="line">    <span class="comment"># 归一化到 [-1, 1]，供 grid_sample 使用</span></span><br><span class="line">    reference_points_cam[..., <span class="number">0</span>] /= img_W</span><br><span class="line">    reference_points_cam[..., <span class="number">1</span>] /= img_H</span><br><span class="line">    reference_points_cam = reference_points_cam * <span class="number">2</span> - <span class="number">1</span></span><br><span class="line">    mask = (mask &amp; (reference_points_cam[..., <span class="number">0</span>:<span class="number">1</span>] &gt; -<span class="number">1.0</span>)</span><br><span class="line">                 &amp; (reference_points_cam[..., <span class="number">0</span>:<span class="number">1</span>] &lt;  <span class="number">1.0</span>)</span><br><span class="line">                 &amp; (reference_points_cam[..., <span class="number">1</span>:<span class="number">2</span>] &gt; -<span class="number">1.0</span>)</span><br><span class="line">                 &amp; (reference_points_cam[..., <span class="number">1</span>:<span class="number">2</span>] &lt;  <span class="number">1.0</span>))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 4) 在每个 FPN level 上做 bilinear grid_sample，再按 mask 加权平均</span></span><br><span class="line">    sampled_feats = []</span><br><span class="line">    <span class="keyword">for</span> lvl, feat <span class="keyword">in</span> <span class="built_in">enumerate</span>(mlvl_feats):</span><br><span class="line">        feat = feat.flatten(<span class="number">0</span>, <span class="number">1</span>)  <span class="comment"># [B*N_cam, C, H, W]</span></span><br><span class="line">        ref = reference_points_cam.view(-<span class="number">1</span>, N_q, <span class="number">1</span>, <span class="number">2</span>)</span><br><span class="line">        sampled = F.grid_sample(feat, ref)  <span class="comment"># [B*N_cam, C, N_q, 1]</span></span><br><span class="line">        sampled_feats.append(sampled)</span><br><span class="line">    sampled_feats = torch.stack(sampled_feats, -<span class="number">1</span>)  <span class="comment"># [..., N_levels]</span></span><br><span class="line">    <span class="keyword">return</span> sampled_feats, mask  <span class="comment"># mask 用于在 head 中加权</span></span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -290,8 +290,8 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">不同 backbone（ResNet50 &#x2F; ResNet101 &#x2F; DLA34）</td>
-<td align="left">NDS 0.373 &#x2F; 0.425 &#x2F; 0.394，R101 最佳</td>
+<td align="left">不同 backbone（ResNet50 / ResNet101 / DLA34）</td>
+<td align="left">NDS 0.373 / 0.425 / 0.394，R101 最佳</td>
 <td align="center">洞察 1（特征质量决定反投影后的证据强度）</td>
 </tr>
 <tr>
@@ -316,12 +316,12 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 </tr>
 </tbody></table>
 <blockquote>
-<p>注：消融表中的层级 0–5 数值与 backbone &#x2F; query 数量数值均来自论文 Tables 5–7；定性结论对应关系为本笔记总结。</p>
+<p>注：消融表中的层级 0–5 数值与 backbone / query 数量数值均来自论文 Tables 5–7；定性结论对应关系为本笔记总结。</p>
 </blockquote>
 <h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
 <li><strong>mATE 偏高</strong>（DETR3D 0.773 vs FCOS3D 0.725）：避免 depth 估计的代价是位置精度略弱，因为 FCOS3D 直接显式监督 box depth；</li>
-<li><strong>单点采样的感受野有限</strong>：每个 query 在每个相机里只取 1 个像素位置，论文 Conclusion 自己指出这是后续可以扩展的方向（→ 后续 PETR &#x2F; Sparse4D 的 deformable &#x2F; multi-point 采样）；</li>
-<li><strong>训练效率</strong>：12 epoch &#x2F; 8× RTX 3090 &#x2F; 约 18 小时，batch size &#x3D; 1&#x2F;GPU，吞吐受限于多视角输入。</li>
+<li><strong>单点采样的感受野有限</strong>：每个 query 在每个相机里只取 1 个像素位置，论文 Conclusion 自己指出这是后续可以扩展的方向（→ 后续 <a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a> / <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a> 的 deformable / multi-point 采样）；</li>
+<li><strong>训练效率</strong>：12 epoch / 8× RTX 3090 / 约 18 小时，batch size = 1/GPU，吞吐受限于多视角输入。</li>
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><p>论文 Figure 3 展示了若干典型情况：</p>
 <ul>
@@ -329,21 +329,21 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 <li><strong>未标注但被检出的物体</strong>（CAM_BACK_LEFT 中模型检出了未在 GT 标注的车）——侧面反映模型 recall 较好，但也可能在评估时被算作 FP；</li>
 <li><strong>相机重叠区域虽显著优于 baseline，但绝对 NDS 仍只有 0.384</strong>，说明跨视角对齐并没有完全解决。</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:    ResNet101 + DCN (stage 3, 4)</span><br><span class="line">FPN:         4 levels (1/8, 1/16, 1/32, 1/64)</span><br><span class="line">Head:        6 decoder layers, hidden_dim = 256, two FC for reg/cls</span><br><span class="line">Loss:        focal (cls) + L1 (box 9-dim)</span><br><span class="line">Optimizer:   AdamW, weight decay 1e-4</span><br><span class="line">LR:          1e-4 → 1e-5 (epoch 8) → 1e-6 (epoch 11)</span><br><span class="line">Epochs:      12</span><br><span class="line">Hardware:    8 × RTX 3090, batch size = 1 per GPU</span><br><span class="line">Wall time:   ~18 hours</span><br><span class="line">Inference:   no NMS</span><br><span class="line">Dataset:     nuScenes (28k / 6k / 6k samples; 6 cams; 10 classes)</span><br></pre></td></tr></table></figure>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:    ResNet101 + DCN (stage 3, 4)</span><br><span class="line">FPN:         4 levels (1/8, 1/16, 1/32, 1/64)</span><br><span class="line">Head:        6 decoder layers, hidden_dim = 256, two FC for reg/cls</span><br><span class="line">Loss:        focal (cls) + L1 (box 9-dim)</span><br><span class="line">Optimizer:   AdamW, weight decay 1e-4</span><br><span class="line">LR:          1e-4 → 1e-5 (epoch 8) → 1e-6 (epoch 11)</span><br><span class="line">Epochs:      12</span><br><span class="line">Hardware:    8 × RTX 3090, batch size = 1 per GPU</span><br><span class="line">Wall time:   ~18 hours</span><br><span class="line">Inference:   no NMS</span><br><span class="line">Dataset:     nuScenes (28k / 6k / 6k samples; 6 cams; 10 classes)</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
 <li><strong>3D 参考点的归一化坐标范围</strong>必须与 <code>pc_range</code>（点云感知范围）一致，否则反投影点会落到图像之外，导致 mask 全 0、梯度消失；</li>
-<li><strong>相机变换矩阵 lidar2img 必须包含整套 intrinsics + extrinsics + 数据增强（如 resize&#x2F;crop&#x2F;flip）的复合变换</strong>，少考虑任意一个增强都会让监督信号失真；</li>
+<li><strong>相机变换矩阵 lidar2img 必须包含整套 intrinsics + extrinsics + 数据增强（如 resize/crop/flip）的复合变换</strong>，少考虑任意一个增强都会让监督信号失真；</li>
 <li><strong>可见性 mask</strong> 要同时检查 z &gt; 0 和归一化坐标在 [-1, 1] 内，缺一会引入虚假梯度；</li>
 <li><strong>每层都要计算 loss</strong>（深监督），否则前几层 query 不会被有效学习，迭代 refine 会退化；</li>
 <li><strong>FCOS3D backbone 初始化</strong>：论文实现里 ResNet101+DCN 是从 FCOS3D 预训练权重初始化的，从 ImageNet 直接训会显著掉点；</li>
-<li><strong>batch size &#x3D; 1 &#x2F; GPU</strong> 是显存现实，多视角输入注意 BN 改为 SyncBN。</li>
+<li><strong>batch size = 1 / GPU</strong> 是显存现实，多视角输入注意 BN 改为 SyncBN。</li>
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong></p>
 <ul>
-<li>单点采样 → 每个 query 取多个采样点（沿后续 Deformable DETR &#x2F; Sparse4D 思路），增加感受野；</li>
-<li>引入时序：当前帧 query 由上一帧 propagate 而来（StreamPETR &#x2F; Sparse4D 已沿这条路演进）；</li>
-<li>加入 LiDAR &#x2F; Radar 模态，弥补 mATE 偏高的弱点。</li>
+<li>单点采样 → 每个 query 取多个采样点（沿后续 Deformable DETR / Sparse4D 思路），增加感受野；</li>
+<li>引入时序：当前帧 query 由上一帧 propagate 而来（<a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a> / Sparse4D 已沿这条路演进）；</li>
+<li>加入 LiDAR / Radar 模态，弥补 mATE 偏高的弱点。</li>
 </ul>
 <p><strong>速度优化</strong></p>
 <ul>
@@ -352,7 +352,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 <li>query 投影矩阵预计算（推理期相机参数固定时），把 runtime 矩阵乘法换成查表。</li>
 </ul>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li><strong>“先假设 3D，再回 2D 取证据”</strong>：把 ill-posed 的 2D-to-3D 问题反过来做，是后续 BEVFormer、PETR、Sparse4D 共同的范式起点；</li>
+<li><strong>“先假设 3D，再回 2D 取证据”</strong>：把 ill-posed 的 2D-to-3D 问题反过来做，是后续 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>、PETR、Sparse4D 共同的范式起点；</li>
 <li><strong>“以物体为中心的稀疏表示”</strong>：稀疏 query + set prediction 让网络绕过 dense BEV 编码，对 scaling 友好；</li>
 <li><strong>“几何由相机参数决定，特征由网络学习”</strong>：把可解释的几何变换与可学习的语义特征解耦，工程上更稳健；</li>
 <li><strong>“逐层迭代 refine 替代 single-shot”</strong>：每层都做”投影 + 采样 + 预测”的循环，是 transformer 头部设计的通用模板。</li>
@@ -367,6 +367,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 <li>推动了多相机 3D 检测从”逐图 + 后处理”向”端到端 + set prediction”的范式迁移；</li>
 <li>在工业界，DETR3D 的”3D query 反投影 + bilinear 采样”模板被广泛用作快速原型搭建的起点，验证某个稀疏感知想法是否值得继续投入时常以它为 baseline。</li>
 </ul>
+
 
             </div>
 

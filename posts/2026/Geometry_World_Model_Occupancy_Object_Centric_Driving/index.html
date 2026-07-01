@@ -55,18 +55,18 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Topic: Driving Representation Stack &#x2F; 4D Geometry &#x2F; World Model<br>Keywords: DVGT, VGGT, D4RT, SparseDrive, DiffusionDrive, Occupancy, BEVFusion, OccWorld, 4D Geometry</p>
+                <p>Topic: Driving Representation Stack &#x2F; 4D Geometry &#x2F; World Model<br>Keywords: <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT</a>, <a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a>, <a href="/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/">D4RT</a>, <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a>, <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a>, Occupancy, <a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>, <a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a>, 4D Geometry</p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="引言：自动驾驶正在从识别物体走向理解三维世界"><a href="#引言：自动驾驶正在从识别物体走向理解三维世界" class="headerlink" title="引言：自动驾驶正在从识别物体走向理解三维世界"></a>引言：自动驾驶正在从识别物体走向理解三维世界</h2><p>自动驾驶不只是识别前方有什么物体，还要判断空间是否可通行、物体如何运动、自车未来应该怎么开。围绕这个目标，近年的技术路线正在从“检测物体”扩展到“理解三维世界”：以 <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a> &#x2F; Sparse4D 为代表的 <strong>Object-centric</strong> 系统，用少量 object &#x2F; map &#x2F; motion queries 表示驾驶场景；以 <a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a>、<a href="/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/">D4RT</a> 和 <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT 系列</a> 为代表的 <strong>Geometry-centric</strong> 方法，把真实尺度 3D &#x2F; 4D 几何放到表示中心；<a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a> &#x2F; <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 将未来世界演化建模在 occupancy 空间中；<a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 则把规划看作多模态动作分布生成。</p>
+<h2 id="引言：自动驾驶正在从识别物体走向理解三维世界"><a href="#引言：自动驾驶正在从识别物体走向理解三维世界" class="headerlink" title="引言：自动驾驶正在从识别物体走向理解三维世界"></a>引言：自动驾驶正在从识别物体走向理解三维世界</h2><p>自动驾驶不只是识别前方有什么物体，还要判断空间是否可通行、物体如何运动、自车未来应该怎么开。围绕这个目标，近年的技术路线正在从“检测物体”扩展到“理解三维世界”：以 SparseDrive &#x2F; <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a> 为代表的 <strong>Object-centric</strong> 系统，用少量 object &#x2F; map &#x2F; motion queries 表示驾驶场景；以 VGGT、D4RT 和 DVGT 系列 为代表的 <strong>Geometry-centric</strong> 方法，把真实尺度 3D &#x2F; 4D 几何放到表示中心；OccWorld &#x2F; <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 将未来世界演化建模在 occupancy 空间中；DiffusionDrive 则把规划看作多模态动作分布生成。</p>
 <p>这些方法都服务同一个最终问题：车该怎么开？但它们解决的是不同层级的问题。Object query 是语义压缩，occupancy 是空间状态，dense geometry 是度量几何，world model 是状态转移，diffusion planner 是动作分布。把它们放到统一状态空间里看，自动驾驶的新表示栈就不再是一堆方法名，而是一组对”当前世界如何压缩、未来世界如何展开、自车动作如何选择”的不同回答。</p>
 <p>这条表示栈与站内已有几条主线互相咬合：</p>
 <ul>
 <li><a href="/posts/2026/Autonomous_Driving_Evolution_From_Perception_to_World_Model/">《自动驾驶的觉醒：从感知像素到重构世界的五次跃迁》</a> 讲完整技术演进，本文专门展开其中的 world model &#x2F; geometry 分支。</li>
 <li><a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">《BEV 与 Transformer 自动驾驶感知方法的统一视角》</a> 讲 BEV、query、occupancy 的统一坐标系，本文补充 4D geometry 的位置。</li>
-<li><a href="/posts/2026/E2E_Autonomous_Driving_Paradigm_Evolution/">《端到端自动驾驶的范式跃迁与路线之争》</a> 讲 UniAD → VAD → SparseDrive → DiffusionDrive 的规划路线，本文补充其与几何世界模型的关系。</li>
+<li><a href="/posts/2026/E2E_Autonomous_Driving_Paradigm_Evolution/">《端到端自动驾驶的范式跃迁与路线之争》</a> 讲 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> → <a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a> → SparseDrive → DiffusionDrive 的规划路线，本文补充其与几何世界模型的关系。</li>
 <li><a href="/posts/2026/Paper_Knowledge_Graph_Autonomous_Driving_Perception/">《自动驾驶感知论文知识图谱》</a> 已整理已有论文笔记之间的传承关系，本文是对新近 world model &#x2F; geometry 方向的概念补边。</li>
 </ul>
 <h2 id="1-从观测到动作：自动驾驶需要什么表示"><a href="#1-从观测到动作：自动驾驶需要什么表示" class="headerlink" title="1. 从观测到动作：自动驾驶需要什么表示"></a>1. 从观测到动作：自动驾驶需要什么表示</h2><p>从状态空间角度看，自动驾驶系统需要从历史观测中估计当前世界状态，再预测未来，并选择动作：</p>
@@ -92,13 +92,13 @@ $$
 <td align="left">BEV-centric</td>
 <td align="left">统一鸟瞰特征</td>
 <td align="left">将多视角、多传感器观测对齐到公共坐标系</td>
-<td align="left">LSS、BEVFormer、<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a></td>
+<td align="left"><a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>、BEVFusion</td>
 </tr>
 <tr>
 <td align="left">Object-centric</td>
 <td align="left">稀疏语义对象和地图元素</td>
 <td align="left">将世界压缩成任务相关的离散实体集合</td>
-<td align="left">Sparse4D、UniAD、VAD、<a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a></td>
+<td align="left">Sparse4D、UniAD、VAD、SparseDrive</td>
 </tr>
 <tr>
 <td align="left">Occupancy-centric</td>
@@ -116,38 +116,38 @@ $$
 <td align="left">World-model-centric</td>
 <td align="left">未来视频、BEV、occupancy、latent state</td>
 <td align="left">建模未来状态转移</td>
-<td align="left">GAIA-1、DriveDreamer、OccWorld、DriveWorld</td>
+<td align="left"><a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a>、<a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer</a>、OccWorld、<a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a></td>
 </tr>
 <tr>
 <td align="left">Action-centric</td>
 <td align="left">未来轨迹或动作分布</td>
 <td align="left">直接建模可行动作集合</td>
-<td align="left">GenAD、DiffusionDrive</td>
+<td align="left"><a href="/posts/2024/papers/2024_ECCV_GenAD_Generative_End_to_End_Autonomous_Driving/">GenAD</a>、DiffusionDrive</td>
 </tr>
 </tbody></table>
 <p>这个表给出一个重要判断：<strong>DiffusionDrive 是生成式规划方法，但不是严格意义上的 World Model</strong>。它建模的是 $p(a\mid o)$ 或轨迹分布；严格的 World Model 更强调 $p(s_{t+1}\mid s_t,a_t)$，即动作条件下世界状态如何变化。二者可以结合，但对应的技术问题不同。</p>
 <p>更紧凑地说：</p>
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">Object tells what matters.</span><br><span class="line">Geometry tells where things really are.</span><br><span class="line">Occupancy tells which space is free, occupied, or unknown.</span><br><span class="line">World model tells how the world may evolve.</span><br><span class="line">Action model proposes what ego can do.</span><br></pre></td></tr></table></figure>
 
-<h2 id="2-表示压缩：BEV、Object-Query-与-Occupancy"><a href="#2-表示压缩：BEV、Object-Query-与-Occupancy" class="headerlink" title="2. 表示压缩：BEV、Object Query 与 Occupancy"></a>2. 表示压缩：BEV、Object Query 与 Occupancy</h2><h3 id="2-1-BEV：先把多传感器放进同一空间"><a href="#2-1-BEV：先把多传感器放进同一空间" class="headerlink" title="2.1 BEV：先把多传感器放进同一空间"></a>2.1 BEV：先把多传感器放进同一空间</h3><p>BEV 路线的贡献是把多相机、多传感器信息对齐到鸟瞰坐标系，使检测、地图、预测和规划共享一个空间语境。<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 进一步说明，多模态特征在共享 BEV 空间中融合，可以同时保留 LiDAR 几何和相机语义，并支持不同 3D 感知任务。</p>
+<h2 id="2-表示压缩：BEV、Object-Query-与-Occupancy"><a href="#2-表示压缩：BEV、Object-Query-与-Occupancy" class="headerlink" title="2. 表示压缩：BEV、Object Query 与 Occupancy"></a>2. 表示压缩：BEV、Object Query 与 Occupancy</h2><h3 id="2-1-BEV：先把多传感器放进同一空间"><a href="#2-1-BEV：先把多传感器放进同一空间" class="headerlink" title="2.1 BEV：先把多传感器放进同一空间"></a>2.1 BEV：先把多传感器放进同一空间</h3><p>BEV 路线的贡献是把多相机、多传感器信息对齐到鸟瞰坐标系，使检测、地图、预测和规划共享一个空间语境。BEVFusion 进一步说明，多模态特征在共享 BEV 空间中融合，可以同时保留 LiDAR 几何和相机语义，并支持不同 3D 感知任务。</p>
 <p>但 BEV 仍然是一种任务特征表示，而不是完整几何模型。它通常压缩高度维、表面形状、点级对应和相机位姿等信息。因此，BEV 适合做统一任务接口，却不天然等价于“真实 3D 世界结构”。</p>
 <h3 id="2-2-Object-Query：把世界压缩成可规划实体"><a href="#2-2-Object-Query：把世界压缩成可规划实体" class="headerlink" title="2.2 Object Query：把世界压缩成可规划实体"></a>2.2 Object Query：把世界压缩成可规划实体</h3><p>SparseDrive 的核心判断是：端到端自动驾驶不一定需要昂贵的 dense BEV 特征，可以用全稀疏 scene representation 统一检测、跟踪、在线建图、运动预测和规划。论文也明确指出，SparseDrive 用 symmetric sparse perception module 学习 fully sparse representation，并用 parallel motion planner 建模预测和规划之间的相似性。</p>
 <p>这种压缩有充分工程理由：object &#x2F; map &#x2F; motion queries 数量有限，计算量低，监督清楚，评测闭环成熟。它的问题不是“没有价值”，而是作为 $\hat{s}_t$ 的近似可能不够充分：对未知障碍、非标准物体、细碎施工设施、路面几何异常、遮挡边界等场景，稀疏语义对象可能不是足够统计量。</p>
-<h3 id="2-3-Occupancy：把空间显式写成占用状态"><a href="#2-3-Occupancy：把空间显式写成占用状态" class="headerlink" title="2.3 Occupancy：把空间显式写成占用状态"></a>2.3 Occupancy：把空间显式写成占用状态</h3><p><a href="/posts/2023/papers/2023_ICCV_OccFormer_Dual_Path_Transformer_3D_Semantic_Occupancy/">OccFormer</a> 代表当前帧 3D semantic occupancy prediction：相比 BEV 平面，3D 语义占用进一步提供高度方向的结构信息。它回答的是“哪些空间被占用，以及语义是什么”。</p>
-<p><a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a> 则往前走一步：它在 3D occupancy 空间中学习 world model，用 GPT-like 时空生成 Transformer 预测 future occupancy 和 ego trajectory。<a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 进一步把视觉中心 4D occupancy forecasting 接到规划，通过 action condition 生成可控的未来 occupancy &#x2F; flow，并用 occupancy-based cost 选择轨迹。</p>
+<h3 id="2-3-Occupancy：把空间显式写成占用状态"><a href="#2-3-Occupancy：把空间显式写成占用状态" class="headerlink" title="2.3 Occupancy：把空间显式写成占用状态"></a>2.3 Occupancy：把空间显式写成占用状态</h3><p>OccFormer 代表当前帧 3D semantic occupancy prediction：相比 BEV 平面，3D 语义占用进一步提供高度方向的结构信息。它回答的是“哪些空间被占用，以及语义是什么”。</p>
+<p>OccWorld 则往前走一步：它在 3D occupancy 空间中学习 world model，用 GPT-like 时空生成 Transformer 预测 future occupancy 和 ego trajectory。Drive-OccWorld 进一步把视觉中心 4D occupancy forecasting 接到规划，通过 action condition 生成可控的未来 occupancy &#x2F; flow，并用 occupancy-based cost 选择轨迹。</p>
 <p>所以更严谨的区分是：</p>
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">Occupancy:</span><br><span class="line">当前或未来世界状态的一种离散空间表示。</span><br><span class="line"></span><br><span class="line">Occupancy World Model:</span><br><span class="line">在 occupancy token / BEV memory / 4D occupancy 上建模未来状态转移。</span><br></pre></td></tr></table></figure>
 
 <h2 id="3-几何增强：从通用-3D-到动态-4D"><a href="#3-几何增强：从通用-3D-到动态-4D" class="headerlink" title="3. 几何增强：从通用 3D 到动态 4D"></a>3. 几何增强：从通用 3D 到动态 4D</h2><p>Geometry-centric 路线的核心不是“再做一个检测器”，而是让模型直接估计真实尺度的空间结构、相机运动和跨时间对应关系。VGGT 和 D4RT 提供通用视觉几何能力，DVGT 系列则把这种能力推进到自动驾驶多相机序列和规划任务中。</p>
-<h3 id="3-1-VGGT：通用视觉几何底座"><a href="#3-1-VGGT：通用视觉几何底座" class="headerlink" title="3.1 VGGT：通用视觉几何底座"></a>3.1 VGGT：通用视觉几何底座</h3><p><a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a> 是一个 feed-forward 视觉几何模型，可以从一张、少量或大量视图中直接推理 camera parameters、point maps、depth maps 和 3D point tracks。它的重要性在于把过去分散在相机估计、深度估计、点云重建、点跟踪中的几何任务统一到一个前向模型里。</p>
+<h3 id="3-1-VGGT：通用视觉几何底座"><a href="#3-1-VGGT：通用视觉几何底座" class="headerlink" title="3.1 VGGT：通用视觉几何底座"></a>3.1 VGGT：通用视觉几何底座</h3><p>VGGT 是一个 feed-forward 视觉几何模型，可以从一张、少量或大量视图中直接推理 camera parameters、point maps、depth maps 和 3D point tracks。它的重要性在于把过去分散在相机估计、深度估计、点云重建、点跟踪中的几何任务统一到一个前向模型里。</p>
 <p>VGGT 本身不是自动驾驶系统，但它给自动驾驶带来一个启发：如果视觉模型能直接输出 point map、depth、pose 和 tracks，那么下游系统不一定只能使用 object boxes 或 BEV features，也可以保留更原始的几何结构。</p>
-<h3 id="3-2-D4RT：把几何从-3D-推到动态-4D"><a href="#3-2-D4RT：把几何从-3D-推到动态-4D" class="headerlink" title="3.2 D4RT：把几何从 3D 推到动态 4D"></a>3.2 D4RT：把几何从 3D 推到动态 4D</h3><p><a href="/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/">D4RT</a> 的全称是 Dynamic 4D Reconstruction and Tracking。它不是自动驾驶专用模型，而是一个面向动态视频场景的 4D 重建与跟踪模型。论文和<a target="_blank" rel="noopener" href="https://d4rt-paper.github.io/">项目页</a>描述的核心能力，是用统一 Transformer 从单段视频中联合推理 depth、spatio-temporal correspondence 和 full camera parameters。</p>
+<h3 id="3-2-D4RT：把几何从-3D-推到动态-4D"><a href="#3-2-D4RT：把几何从-3D-推到动态-4D" class="headerlink" title="3.2 D4RT：把几何从 3D 推到动态 4D"></a>3.2 D4RT：把几何从 3D 推到动态 4D</h3><p>D4RT 的全称是 Dynamic 4D Reconstruction and Tracking。它不是自动驾驶专用模型，而是一个面向动态视频场景的 4D 重建与跟踪模型。论文和<a target="_blank" rel="noopener" href="https://d4rt-paper.github.io/">项目页</a>描述的核心能力，是用统一 Transformer 从单段视频中联合推理 depth、spatio-temporal correspondence 和 full camera parameters。</p>
 <p>D4RT 最有价值的设计，是把 dense per-frame decoding 改成了 query-based decoding。模型先用 encoder 得到全局场景表示，再用轻量 decoder 回答一个具体问题：</p>
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">给定源时刻 t_src 的一个像素 (u, v)，</span><br><span class="line">它在目标时刻 t_tgt、目标相机坐标 t_cam 下的 3D 位置在哪里？</span><br></pre></td></tr></table></figure>
 
 <p>这个接口可以支持 3D point tracking、point cloud reconstruction 和 camera pose estimation。对自动驾驶来说，它的启发不在于“直接拿来规划”，而在于提供了一种更适合动态世界的几何接口：系统不必把每一帧都解码成完整 dense map，而可以在特定像素、时间或视角上查询 4D 几何。</p>
 <p>如果 VGGT 代表通用 3D 视觉几何的前向化，D4RT 则把问题推进到动态场景：不仅要知道“点在哪里”，还要知道“同一个点随时间怎么运动，以及相机自身如何运动”。这正是驾驶场景中遮挡、运动物体、路口交互和非刚体变化带来的核心难点。</p>
-<h3 id="3-3-DVGT-系列：从驾驶-dense-geometry-到-VGA-在线规划"><a href="#3-3-DVGT-系列：从驾驶-dense-geometry-到-VGA-在线规划" class="headerlink" title="3.3 DVGT 系列：从驾驶 dense geometry 到 VGA 在线规划"></a>3.3 DVGT 系列：从驾驶 dense geometry 到 VGA 在线规划</h3><p><a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT 系列</a> 是这条几何路线进入自动驾驶场景后的连续版本。DVGT 面向自动驾驶多视角序列，目标是从未标定位姿的多视角视觉输入中重建全局稠密 3D point map 和 ego poses。论文使用 DINO backbone，并通过 intra-view local attention、cross-view spatial attention 和 cross-frame temporal attention 推理跨图像几何关系，最后解码第一帧 ego 坐标系下的全局 point map 与每帧 ego pose。</p>
+<h3 id="3-3-DVGT-系列：从驾驶-dense-geometry-到-VGA-在线规划"><a href="#3-3-DVGT-系列：从驾驶-dense-geometry-到-VGA-在线规划" class="headerlink" title="3.3 DVGT 系列：从驾驶 dense geometry 到 VGA 在线规划"></a>3.3 DVGT 系列：从驾驶 dense geometry 到 VGA 在线规划</h3><p>DVGT 系列 是这条几何路线进入自动驾驶场景后的连续版本。DVGT 面向自动驾驶多视角序列，目标是从未标定位姿的多视角视觉输入中重建全局稠密 3D point map 和 ego poses。论文使用 DINO backbone，并通过 intra-view local attention、cross-view spatial attention 和 cross-frame temporal attention 推理跨图像几何关系，最后解码第一帧 ego 坐标系下的全局 point map 与每帧 ego pose。</p>
 <p>抽象流程是：</p>
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">unposed multi-view image sequence</span><br><span class="line">        ↓</span><br><span class="line">Driving Visual Geometry Transformer</span><br><span class="line">        ↓</span><br><span class="line">metric dense point map + ego poses</span><br></pre></td></tr></table></figure>
 
@@ -168,7 +168,7 @@ $$
 </tr>
 </thead>
 <tbody><tr>
-<td align="left"><a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a></td>
+<td align="left">SparseDrive</td>
 <td align="left">稀疏场景实体 + 轨迹选择</td>
 <td align="left">sparse scene representation</td>
 <td align="left">Object-centric E2E driving</td>
@@ -180,7 +180,7 @@ $$
 <td align="left">Geometry-centric &#x2F; VGA driving</td>
 </tr>
 <tr>
-<td align="left"><a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Autonomous_Driving/">DiffusionDrive</a></td>
+<td align="left">DiffusionDrive</td>
 <td align="left">多模态驾驶动作分布</td>
 <td align="left">truncated diffusion policy</td>
 <td align="left">Action-centric generative planning</td>
@@ -214,16 +214,16 @@ $$
 </thead>
 <tbody><tr>
 <td align="left">视频生成 &#x2F; 可控仿真</td>
-<td align="left"><a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a>, <a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer</a></td>
+<td align="left">GAIA-1, DriveDreamer</td>
 <td align="left">使用 video &#x2F; text &#x2F; action 或 diffusion 生成未来驾驶视频和可控场景</td>
 </tr>
 <tr>
 <td align="left">Occupancy &#x2F; 4D world model</td>
-<td align="left"><a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a>, <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a>, <a href="/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/">UniWorld</a>, <a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a></td>
+<td align="left">OccWorld, Drive-OccWorld, <a href="/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/">UniWorld</a>, DriveWorld</td>
 <td align="left">在 3D&#x2F;4D occupancy、BEV memory 或 spatio-temporal latent state 上预测未来</td>
 </tr>
 </tbody></table>
-<p>生成式规划与 World Model 相邻，但不完全相同。<a href="/posts/2024/papers/2024_ECCV_GenAD_Generative_End_to_End_Autonomous_Driving/">GenAD</a> 将自动驾驶转为 generative modeling 问题，同时建模 ego 和 surroundings 的未来；DiffusionDrive 更明确地落在 trajectory distribution &#x2F; policy generation。因此本文把 DiffusionDrive 放在 Action-centric，而不是 World-model-centric。</p>
+<p>生成式规划与 World Model 相邻，但不完全相同。GenAD 将自动驾驶转为 generative modeling 问题，同时建模 ego 和 surroundings 的未来；DiffusionDrive 更明确地落在 trajectory distribution &#x2F; policy generation。因此本文把 DiffusionDrive 放在 Action-centric，而不是 World-model-centric。</p>
 <h3 id="5-2-Geometry-World-Model：当前世界的-3D-结构是什么"><a href="#5-2-Geometry-World-Model：当前世界的-3D-结构是什么" class="headerlink" title="5.2 Geometry World Model：当前世界的 3D 结构是什么"></a>5.2 Geometry World Model：当前世界的 3D 结构是什么</h3><p>Geometry World Model 更关心当前或短时窗口内的度量几何状态：</p>
 
 $$
@@ -339,20 +339,20 @@ $$
 <p>最后可以把几条路线放成一张图：</p>
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">                       Driving Representation Stack</span><br><span class="line"></span><br><span class="line">Observation</span><br><span class="line">camera / LiDAR / radar / ego motion</span><br><span class="line">      │</span><br><span class="line">      ├──────────────► BEV-centric feature space</span><br><span class="line">      │                 LSS / BEVFormer / BEVFusion</span><br><span class="line">      │</span><br><span class="line">      ├──────────────► Object-centric queries</span><br><span class="line">      │                 Sparse4D / SparseDrive / UniAD / VAD</span><br><span class="line">      │</span><br><span class="line">      ├──────────────► Occupancy state</span><br><span class="line">      │                 OccFormer / OccWorld / Drive-OccWorld</span><br><span class="line">      │</span><br><span class="line">      └──────────────► Geometry-centric 3D / 4D structure</span><br><span class="line">                        VGGT / D4RT / DVGT / DVGT-2</span><br><span class="line"></span><br><span class="line">World / Action Modeling</span><br><span class="line">      ├── future state transition</span><br><span class="line">      └── trajectory distribution</span><br><span class="line"></span><br><span class="line">Planning</span><br><span class="line">sparse planner / occupancy cost / diffusion trajectory distribution</span><br></pre></td></tr></table></figure>
 
-<p>这也给前面几篇文章补上一条横向线索：<a href="/posts/2026/BEV_Transformer_Perception_Unified_Framework/">BEV</a> 解决统一空间，<a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a> 解决稀疏端到端，<a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 解决多模态动作分布，而 Geometry World Model &#x2F; 4D Geometry 解决的是这些表示背后的 metric 3D grounding 与动态时空结构。</p>
+<p>这也给前面几篇文章补上一条横向线索：BEV 解决统一空间，SparseDrive 解决稀疏端到端，DiffusionDrive 解决多模态动作分布，而 Geometry World Model &#x2F; 4D Geometry 解决的是这些表示背后的 metric 3D grounding 与动态时空结构。</p>
 <h2 id="参考论文"><a href="#参考论文" class="headerlink" title="参考论文"></a>参考论文</h2><ul>
-<li><a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT: Visual Geometry Grounded Transformer</a>：从一张、少量或多视图中前向预测 camera parameters、point maps、depth maps 和 3D point tracks。</li>
-<li><a href="/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/">D4RT: Efficiently Reconstructing Dynamic Scenes One D4RT at a Time</a> 与 <a target="_blank" rel="noopener" href="https://d4rt-paper.github.io/">D4RT project page</a>：用统一 Transformer 与 query decoder 从视频中联合推理 depth、spatio-temporal correspondence 和 camera parameters，支持动态 4D 重建与跟踪。</li>
-<li><a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT &#x2F; DVGT-2: Driving Visual Geometry Transformer Series</a>：从 unposed multi-view driving images 的 metric-scaled dense point map 和 ego poses，推进到 streaming dense geometry reconstruction 与 trajectory planning 联合的在线 VGA 范式。</li>
+<li>VGGT: Visual Geometry Grounded Transformer：从一张、少量或多视图中前向预测 camera parameters、point maps、depth maps 和 3D point tracks。</li>
+<li>D4RT: Efficiently Reconstructing Dynamic Scenes One D4RT at a Time 与 <a target="_blank" rel="noopener" href="https://d4rt-paper.github.io/">D4RT project page</a>：用统一 Transformer 与 query decoder 从视频中联合推理 depth、spatio-temporal correspondence 和 camera parameters，支持动态 4D 重建与跟踪。</li>
+<li>DVGT &#x2F; DVGT-2: Driving Visual Geometry Transformer Series：从 unposed multi-view driving images 的 metric-scaled dense point map 和 ego poses，推进到 streaming dense geometry reconstruction 与 trajectory planning 联合的在线 VGA 范式。</li>
 <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.19620">SparseDrive: End-to-End Autonomous Driving via Sparse Scene Representation</a>：用 fully sparse scene representation 统一感知、预测和规划。</li>
 <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2411.15139">DiffusionDrive: Truncated Diffusion Model for End-to-End Autonomous Driving</a>：用截断扩散策略建模多模态驾驶动作分布。</li>
 <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2205.13542">BEVFusion: Multi-Task Multi-Sensor Fusion with Unified Bird’s-Eye View Representation</a>：在共享 BEV 空间中融合多模态特征，保留几何和语义信息。</li>
 <li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2304.05316">OccFormer: Dual-path Transformer for Vision-based 3D Semantic Occupancy Prediction</a>：将视觉 BEV 表示推进到 3D semantic occupancy prediction。</li>
-<li><a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld: Learning a 3D Occupancy World Model for Autonomous Driving</a>：在 3D occupancy token 上建模未来场景演化和 ego trajectory。</li>
-<li><a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld: Vision-Centric 4D Occupancy Forecasting and Planning via World Models</a>：将 4D occupancy &#x2F; flow forecasting 与 action condition 和 planning cost 结合。</li>
-<li><a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1: A Generative World Model for Autonomous Driving</a>：用 video、text、action 条件生成可控驾驶视频。</li>
-<li><a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer: Towards Real-world-driven World Models for Autonomous Driving</a>：用 diffusion 构建真实驾驶场景世界模型，生成可控驾驶视频和策略。</li>
-<li><a href="/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/">UniWorld: Autonomous Driving Pre-training via World Models</a> 与 <a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a>：将 4D occupancy 或 4D scene dynamics 用作自动驾驶预训练 &#x2F; 表示学习目标。</li>
+<li>OccWorld: Learning a 3D Occupancy World Model for Autonomous Driving：在 3D occupancy token 上建模未来场景演化和 ego trajectory。</li>
+<li>Drive-OccWorld: Vision-Centric 4D Occupancy Forecasting and Planning via World Models：将 4D occupancy &#x2F; flow forecasting 与 action condition 和 planning cost 结合。</li>
+<li>GAIA-1: A Generative World Model for Autonomous Driving：用 video、text、action 条件生成可控驾驶视频。</li>
+<li>DriveDreamer: Towards Real-world-driven World Models for Autonomous Driving：用 diffusion 构建真实驾驶场景世界模型，生成可控驾驶视频和策略。</li>
+<li>UniWorld: Autonomous Driving Pre-training via World Models 与 DriveWorld：将 4D occupancy 或 4D scene dynamics 用作自动驾驶预训练 &#x2F; 表示学习目标。</li>
 </ul>
 
             </div>

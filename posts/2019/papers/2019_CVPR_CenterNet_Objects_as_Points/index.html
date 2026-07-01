@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Object Detection<br>Method: anchor-free, keypoint<br>Venue: CVPR<br>Year: 2019<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1904.07850">https://arxiv.org/abs/1904.07850</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/xingyizhou/CenterNet">https://github.com/xingyizhou/CenterNet</a></p>
+                
+<p>Task: Object Detection<br>Method: anchor-free, keypoint<br>Venue: CVPR<br>Year: 2019<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1904.07850">https://arxiv.org/abs/1904.07850</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/xingyizhou/CenterNet">https://github.com/xingyizhou/CenterNet</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -63,14 +64,14 @@
 <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>检测任务将物体识别为图像中的轴对齐边界框。大多数成功的目标检测器会枚举几乎穷举的潜在物体位置列表并对每个位置进行分类，这种方式既浪费又低效，还需要额外的后处理。本文转换思路，将物体建模为单个点——其边界框的中心点。检测器通过关键点估计定位中心点，并在该点处回归物体的尺寸、3D 位置、方向乃至姿态等属性。这一名为 CenterNet 的方法端到端可微，比基于边界框的检测器更简单、更快、更准确，在 MS COCO 数据集上实现了最佳速度-精度权衡：142 FPS 时达到 28.1% AP，52 FPS 时达到 37.4% AP，多尺度测试下以 1.4 FPS 达到 45.1% AP。同一框架还被成功扩展至 KITTI 基准的 3D 边界框估计与 COCO 关键点数据集的人体姿态估计，性能与复杂的多阶段方法相当，且可实时运行。</p>
 <p><strong>核心论点</strong>：目标检测不需要穷举候选框，用单个中心点表示物体，消除 anchor、proposal、NMS 等复杂设计，反而实现更高精度（45.1% AP）和更快速度（142 FPS）。本质是将检测从”分类+回归”范式转为”关键点检测+属性回归”。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>目标检测的发展中，两大主流方案各有局限：</p>
-<p><strong>两阶段方法</strong>（Faster R-CNN、Mask R-CNN）：</p>
+<p><strong>两阶段方法</strong>（Faster <a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">R-CNN</a>、Mask R-CNN）：</p>
 <ul>
 <li>穷举大量潜在物体位置</li>
 <li>对每个候选框重新计算图像特征</li>
 <li>需要额外后处理（NMS），难以端到端训练</li>
 <li>低效且复杂</li>
 </ul>
-<p><strong>单阶段方法</strong>（SSD、YOLO、RetinaNet）：</p>
+<p><strong>单阶段方法</strong>（<a href="/posts/2016/papers/2016_ECCV_SSD_Single_Shot_MultiBox_Detector/">SSD</a>、<a href="/posts/2018/papers/2018_arXiv_YOLO_Series_Unified_Real_Time_Object_Detection/">YOLO</a>、<a href="/posts/2017/papers/2017_ICCV_RetinaNet_Focal_Loss_Dense_Object_Detection/">RetinaNet</a>）：</p>
 <ul>
 <li>设计复杂的 anchor 排列，在图像上滑动</li>
 <li>需要人工设计 anchor 尺度和比例</li>
@@ -80,7 +81,7 @@
 </ul>
 <p><strong>核心痛点</strong>：通过 bounding box 将目标检测”降维”为分类任务，但这种”降维”引入了额外的设计复杂度和冗余计算。</p>
 <h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><p>CenterNet 基于三个关键观察重新设计检测流程：</p>
-<h3 id="洞察-1：物体-中心点"><a href="#洞察-1：物体-中心点" class="headerlink" title="洞察 1：物体 &#x3D; 中心点"></a>洞察 1：物体 &#x3D; 中心点</h3><p>传统方法用边界框表示物体，需要 4 个自由度 $(x, y, w, h)$ 或 2 个角点。CenterNet 发现：<strong>中心点是物体最稳定的几何表示</strong>。</p>
+<h3 id="洞察-1：物体-中心点"><a href="#洞察-1：物体-中心点" class="headerlink" title="洞察 1：物体 = 中心点"></a>洞察 1：物体 = 中心点</h3><p>传统方法用边界框表示物体，需要 4 个自由度 $(x, y, w, h)$ 或 2 个角点。CenterNet 发现：<strong>中心点是物体最稳定的几何表示</strong>。</p>
 <p><strong>为什么中心点最优</strong>：</p>
 <ul>
 <li><strong>空间稳定性</strong>：物体旋转、形变时，中心点移动最小</li>
@@ -93,15 +94,15 @@
 <li><strong>ExtremeNet</strong>：需要匹配 5 个极值点 → 40.2% AP  </li>
 <li><strong>CenterNet</strong>：单个中心点，无需匹配 → <strong>45.1% AP</strong></li>
 </ul>
-<h3 id="洞察-2：高斯软监督比硬标签更鲁棒"><a href="#洞察-2：高斯软监督比硬标签更鲁棒" class="headerlink" title="洞察 2：高斯软监督比硬标签更鲁棒"></a>洞察 2：高斯软监督比硬标签更鲁棒</h3><p>传统检测器用硬标签（0&#x2F;1）标注 anchor，CenterNet 用高斯核对 heatmap 建模：</p>
-<p>$$Y_{xyc} &#x3D; \exp\left(-\frac{(x-c_x)^2 + (y-c_y)^2}{2\sigma^2}\right)$$</p>
+<h3 id="洞察-2：高斯软监督比硬标签更鲁棒"><a href="#洞察-2：高斯软监督比硬标签更鲁棒" class="headerlink" title="洞察 2：高斯软监督比硬标签更鲁棒"></a>洞察 2：高斯软监督比硬标签更鲁棒</h3><p>传统检测器用硬标签（0/1）标注 anchor，CenterNet 用高斯核对 heatmap 建模：</p>
+<p>$$Y_{xyc} = \exp\left(-\frac{(x-c_x)^2 + (y-c_y)^2}{2\sigma^2}\right)$$</p>
 <p><strong>优势</strong>：</p>
 <ol>
 <li><strong>隐含尺寸信息</strong>：sigma 对应物体尺寸，大物体高斯核范围更广</li>
 <li><strong>对噪声鲁棒</strong>：标注误差±2像素时，硬标签完全错误，高斯核仅轻微偏移</li>
 <li><strong>缓解样本不平衡</strong>：多物体重叠时取最大值，自然融合</li>
 </ol>
-<h3 id="洞察-3：参数共享消除类别冗余"><a href="#洞察-3：参数共享消除类别冗余" class="headerlink" title="洞察 3：参数共享消除类别冗余"></a>洞察 3：参数共享消除类别冗余</h3><p>物体的几何属性（尺寸、偏移）与类别无关，CenterNet 让 Size&#x2F;Offset 预测头<strong>跨类别共享参数</strong>：</p>
+<h3 id="洞察-3：参数共享消除类别冗余"><a href="#洞察-3：参数共享消除类别冗余" class="headerlink" title="洞察 3：参数共享消除类别冗余"></a>洞察 3：参数共享消除类别冗余</h3><p>物体的几何属性（尺寸、偏移）与类别无关，CenterNet 让 Size/Offset 预测头<strong>跨类别共享参数</strong>：</p>
 <table>
 <thead>
 <tr>
@@ -112,17 +113,17 @@
 </thead>
 <tbody><tr>
 <td>Heatmap</td>
-<td>$H&#x2F;4 \times W&#x2F;4 \times 80$</td>
+<td>$H/4 \times W/4 \times 80$</td>
 <td>每类独立</td>
 </tr>
 <tr>
 <td>Size</td>
-<td>$H&#x2F;4 \times W&#x2F;4 \times 2$</td>
+<td>$H/4 \times W/4 \times 2$</td>
 <td><strong>跨类共享</strong></td>
 </tr>
 <tr>
 <td>Offset</td>
-<td>$H&#x2F;4 \times W&#x2F;4 \times 2$</td>
+<td>$H/4 \times W/4 \times 2$</td>
 <td><strong>跨类共享</strong></td>
 </tr>
 </tbody></table>
@@ -133,8 +134,8 @@
 <li><strong>45.1% AP</strong>：Hourglass-104 backbone 在 COCO 上的精度，2019 年当时 SOTA</li>
 <li><strong>0.1%</strong>：中心点碰撞导致的失效率，远低于 Faster R-CNN 的 2% 和 Anchor-based 的 20%</li>
 </ul>
-<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>$$\text{Object Detection} &#x3D; \text{Center Point Detection} + \text{Size Regression}$$</p>
-<p><strong>基本流程</strong>：输入图像 → Backbone（stride&#x3D;4）→ 3 个预测头 → 峰值检测 → 目标框</p>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>$$\text{Object Detection} = \text{Center Point Detection} + \text{Size Regression}$$</p>
+<p><strong>基本流程</strong>：输入图像 → Backbone（stride=4）→ 3 个预测头 → 峰值检测 → 目标框</p>
 <p><strong>三个预测头</strong>：</p>
 <table>
 <thead>
@@ -147,19 +148,19 @@
 </thead>
 <tbody><tr>
 <td><strong>Heatmap</strong></td>
-<td>$H&#x2F;4 \times W&#x2F;4 \times C$</td>
+<td>$H/4 \times W/4 \times C$</td>
 <td>检测目标中心点（每类一通道）</td>
 <td>1.0</td>
 </tr>
 <tr>
 <td><strong>Size</strong></td>
-<td>$H&#x2F;4 \times W&#x2F;4 \times 2$</td>
+<td>$H/4 \times W/4 \times 2$</td>
 <td>预测宽高</td>
 <td>0.1</td>
 </tr>
 <tr>
 <td><strong>Offset</strong></td>
-<td>$H&#x2F;4 \times W&#x2F;4 \times 2$</td>
+<td>$H/4 \times W/4 \times 2$</td>
 <td>修正量化误差（±0.5像素）</td>
 <td>1.0</td>
 </tr>
@@ -168,15 +169,14 @@
 <ul>
 <li><strong>Heatmap</strong>：用高斯核标注中心点，多物体重叠取最大值</li>
 <li><strong>Size</strong>：跨类别共享，直接回归宽高</li>
-<li><strong>Offset</strong>：补偿 stride&#x3D;4 引入的 0-3 像素偏差，提升 1.2% AP</li>
+<li><strong>Offset</strong>：补偿 stride=4 引入的 0-3 像素偏差，提升 1.2% AP</li>
 </ul>
 <h3 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h3><div style="text-align:center; margin: 24px 0;">
   <img src="https://raw.githubusercontent.com/xingyizhou/CenterNet/master/readme/fig2.png" alt="CenterNet 论文原始架构图" style="max-width:100%;">
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-                           输入图像
+<pre>                           输入图像
                               ↓
                           [H, W, 3]
                               ↓
@@ -215,9 +215,9 @@
 </div>
 
 <p><strong>损失函数</strong>：</p>
-<p>$$L &#x3D; L_{heatmap} + 0.1 L_{size} + L_{offset}$$</p>
+<p>$$L = L_{heatmap} + 0.1 L_{size} + L_{offset}$$</p>
 <p>其中 heatmap 使用 focal loss（处理类别不平衡），size 和 offset 使用 L1 loss。</p>
-<p><strong>推理解码流程</strong>（来源：<a href="https://github.com/xingyizhou/CenterNet/blob/master/src/lib/models/decode.py" target="_blank">xingyizhou&#x2F;CenterNet · decode.py</a>）：</p>
+<p><strong>推理解码流程</strong>（来源：<a href="https://github.com/xingyizhou/CenterNet/blob/master/src/lib/models/decode.py" target="_blank">xingyizhou/CenterNet · decode.py</a>）：</p>
 <p>该文件包含 CenterNet 所有任务的解码实现，本文只涉及 2D 检测：</p>
 <table>
 <thead>
@@ -232,21 +232,21 @@
 </tr>
 <tr>
 <td><code>ddd_decode</code></td>
-<td>3D 目标检测（KITTI，输出深度&#x2F;尺寸&#x2F;朝向）</td>
+<td>3D 目标检测（KITTI，输出深度/尺寸/朝向）</td>
 </tr>
 <tr>
 <td><code>multi_pose_decode</code></td>
 <td>人体姿态估计（输出 17 个关键点）</td>
 </tr>
 <tr>
-<td><code>agnex_ct_decode</code> &#x2F; <code>exct_decode</code></td>
-<td>CornerNet&#x2F;ExtremeNet 兼容解码（对比实验用）</td>
+<td><code>agnex_ct_decode</code> / <code>exct_decode</code></td>
+<td>CornerNet/ExtremeNet 兼容解码（对比实验用）</td>
 </tr>
 </tbody></table>
 <details>
 <summary>📄 点击展开 ctdet_decode 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">_nms</span>(<span class="params">heat, kernel=<span class="number">3</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Heatmap NMS：用 max pooling 保留局部最大值，抑制非峰值&quot;&quot;&quot;</span></span><br><span class="line">    pad = (kernel - <span class="number">1</span>) // <span class="number">2</span></span><br><span class="line">    hmax = nn.functional.max_pool2d(</span><br><span class="line">        heat, (kernel, kernel), stride=<span class="number">1</span>, padding=pad)</span><br><span class="line">    keep = (hmax == heat).<span class="built_in">float</span>()</span><br><span class="line">    <span class="keyword">return</span> heat * keep</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">_topk</span>(<span class="params">scores, K=<span class="number">100</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;从所有类别的 heatmap 中提取全局 top-K 峰值&quot;&quot;&quot;</span></span><br><span class="line">    batch, cat, height, width = scores.size()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 每个类别内部先取 top-K</span></span><br><span class="line">    topk_scores, topk_inds = torch.topk(scores.view(batch, cat, -<span class="number">1</span>), K)</span><br><span class="line">    topk_inds = topk_inds % (height * width)</span><br><span class="line">    topk_ys   = (topk_inds / width).<span class="built_in">int</span>().<span class="built_in">float</span>()</span><br><span class="line">    topk_xs   = (topk_inds % width).<span class="built_in">int</span>().<span class="built_in">float</span>()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 跨类别再取全局 top-K</span></span><br><span class="line">    topk_score, topk_ind = torch.topk(topk_scores.view(batch, -<span class="number">1</span>), K)</span><br><span class="line">    topk_clses = (topk_ind / K).<span class="built_in">int</span>()</span><br><span class="line">    topk_inds = _gather_feat(</span><br><span class="line">        topk_inds.view(batch, -<span class="number">1</span>, <span class="number">1</span>), topk_ind).view(batch, K)</span><br><span class="line">    topk_ys = _gather_feat(topk_ys.view(batch, -<span class="number">1</span>, <span class="number">1</span>), topk_ind).view(batch, K)</span><br><span class="line">    topk_xs = _gather_feat(topk_xs.view(batch, -<span class="number">1</span>, <span class="number">1</span>), topk_ind).view(batch, K)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> topk_score, topk_inds, topk_clses, topk_ys, topk_xs</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">ctdet_decode</span>(<span class="params">heat, wh, reg=<span class="literal">None</span>, cat_spec_wh=<span class="literal">False</span>, K=<span class="number">100</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;CenterNet 2D 检测解码：heatmap 峰值 → 检测框&quot;&quot;&quot;</span></span><br><span class="line">    batch, cat, height, width = heat.size()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 1: heatmap NMS（3×3 max pooling 抑制非局部最大值）</span></span><br><span class="line">    heat = _nms(heat)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 2: 提取 top-K 峰值位置、置信度、类别</span></span><br><span class="line">    scores, inds, clses, ys, xs = _topk(heat, K=K)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 3: 读取 offset，修正量化误差（下采样 stride=4 引入）</span></span><br><span class="line">    <span class="keyword">if</span> reg <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        reg = _transpose_and_gather_feat(reg, inds)</span><br><span class="line">        reg = reg.view(batch, K, <span class="number">2</span>)</span><br><span class="line">        xs = xs.view(batch, K, <span class="number">1</span>) + reg[:, :, <span class="number">0</span>:<span class="number">1</span>]</span><br><span class="line">        ys = ys.view(batch, K, <span class="number">1</span>) + reg[:, :, <span class="number">1</span>:<span class="number">2</span>]</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        xs = xs.view(batch, K, <span class="number">1</span>) + <span class="number">0.5</span></span><br><span class="line">        ys = ys.view(batch, K, <span class="number">1</span>) + <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 4: 读取每个峰值对应的宽高</span></span><br><span class="line">    wh = _transpose_and_gather_feat(wh, inds)</span><br><span class="line">    <span class="keyword">if</span> cat_spec_wh:</span><br><span class="line">        wh = wh.view(batch, K, cat, <span class="number">2</span>)</span><br><span class="line">        clses_ind = clses.view(batch, K, <span class="number">1</span>, <span class="number">1</span>).expand(batch, K, <span class="number">1</span>, <span class="number">2</span>).long()</span><br><span class="line">        wh = wh.gather(<span class="number">2</span>, clses_ind).view(batch, K, <span class="number">2</span>)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        wh = wh.view(batch, K, <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">    clses  = clses.view(batch, K, <span class="number">1</span>).<span class="built_in">float</span>()</span><br><span class="line">    scores = scores.view(batch, K, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 5: 由中心点 + 宽高还原边界框（特征图坐标，需乘 stride=4 映射回原图）</span></span><br><span class="line">    bboxes = torch.cat([xs - wh[..., <span class="number">0</span>:<span class="number">1</span>] / <span class="number">2</span>,</span><br><span class="line">                        ys - wh[..., <span class="number">1</span>:<span class="number">2</span>] / <span class="number">2</span>,</span><br><span class="line">                        xs + wh[..., <span class="number">0</span>:<span class="number">1</span>] / <span class="number">2</span>,</span><br><span class="line">                        ys + wh[..., <span class="number">1</span>:<span class="number">2</span>] / <span class="number">2</span>], dim=<span class="number">2</span>)</span><br><span class="line">    detections = torch.cat([bboxes, scores, clses], dim=<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> detections  <span class="comment"># shape: (batch, K, 6)  [x1,y1,x2,y2,score,class]</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">_nms</span>(<span class="params">heat, kernel=<span class="number">3</span></span>):</span><br><span class="line">    <span class="string">"""Heatmap NMS：用 max pooling 保留局部最大值，抑制非峰值"""</span></span><br><span class="line">    pad = (kernel - <span class="number">1</span>) // <span class="number">2</span></span><br><span class="line">    hmax = nn.functional.max_pool2d(</span><br><span class="line">        heat, (kernel, kernel), stride=<span class="number">1</span>, padding=pad)</span><br><span class="line">    keep = (hmax == heat).<span class="built_in">float</span>()</span><br><span class="line">    <span class="keyword">return</span> heat * keep</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">_topk</span>(<span class="params">scores, K=<span class="number">100</span></span>):</span><br><span class="line">    <span class="string">"""从所有类别的 heatmap 中提取全局 top-K 峰值"""</span></span><br><span class="line">    batch, cat, height, width = scores.size()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 每个类别内部先取 top-K</span></span><br><span class="line">    topk_scores, topk_inds = torch.topk(scores.view(batch, cat, -<span class="number">1</span>), K)</span><br><span class="line">    topk_inds = topk_inds % (height * width)</span><br><span class="line">    topk_ys   = (topk_inds / width).<span class="built_in">int</span>().<span class="built_in">float</span>()</span><br><span class="line">    topk_xs   = (topk_inds % width).<span class="built_in">int</span>().<span class="built_in">float</span>()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 跨类别再取全局 top-K</span></span><br><span class="line">    topk_score, topk_ind = torch.topk(topk_scores.view(batch, -<span class="number">1</span>), K)</span><br><span class="line">    topk_clses = (topk_ind / K).<span class="built_in">int</span>()</span><br><span class="line">    topk_inds = _gather_feat(</span><br><span class="line">        topk_inds.view(batch, -<span class="number">1</span>, <span class="number">1</span>), topk_ind).view(batch, K)</span><br><span class="line">    topk_ys = _gather_feat(topk_ys.view(batch, -<span class="number">1</span>, <span class="number">1</span>), topk_ind).view(batch, K)</span><br><span class="line">    topk_xs = _gather_feat(topk_xs.view(batch, -<span class="number">1</span>, <span class="number">1</span>), topk_ind).view(batch, K)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> topk_score, topk_inds, topk_clses, topk_ys, topk_xs</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">ctdet_decode</span>(<span class="params">heat, wh, reg=<span class="literal">None</span>, cat_spec_wh=<span class="literal">False</span>, K=<span class="number">100</span></span>):</span><br><span class="line">    <span class="string">"""CenterNet 2D 检测解码：heatmap 峰值 → 检测框"""</span></span><br><span class="line">    batch, cat, height, width = heat.size()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 1: heatmap NMS（3×3 max pooling 抑制非局部最大值）</span></span><br><span class="line">    heat = _nms(heat)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 2: 提取 top-K 峰值位置、置信度、类别</span></span><br><span class="line">    scores, inds, clses, ys, xs = _topk(heat, K=K)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 3: 读取 offset，修正量化误差（下采样 stride=4 引入）</span></span><br><span class="line">    <span class="keyword">if</span> reg <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        reg = _transpose_and_gather_feat(reg, inds)</span><br><span class="line">        reg = reg.view(batch, K, <span class="number">2</span>)</span><br><span class="line">        xs = xs.view(batch, K, <span class="number">1</span>) + reg[:, :, <span class="number">0</span>:<span class="number">1</span>]</span><br><span class="line">        ys = ys.view(batch, K, <span class="number">1</span>) + reg[:, :, <span class="number">1</span>:<span class="number">2</span>]</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        xs = xs.view(batch, K, <span class="number">1</span>) + <span class="number">0.5</span></span><br><span class="line">        ys = ys.view(batch, K, <span class="number">1</span>) + <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 4: 读取每个峰值对应的宽高</span></span><br><span class="line">    wh = _transpose_and_gather_feat(wh, inds)</span><br><span class="line">    <span class="keyword">if</span> cat_spec_wh:</span><br><span class="line">        wh = wh.view(batch, K, cat, <span class="number">2</span>)</span><br><span class="line">        clses_ind = clses.view(batch, K, <span class="number">1</span>, <span class="number">1</span>).expand(batch, K, <span class="number">1</span>, <span class="number">2</span>).long()</span><br><span class="line">        wh = wh.gather(<span class="number">2</span>, clses_ind).view(batch, K, <span class="number">2</span>)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        wh = wh.view(batch, K, <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">    clses  = clses.view(batch, K, <span class="number">1</span>).<span class="built_in">float</span>()</span><br><span class="line">    scores = scores.view(batch, K, <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Step 5: 由中心点 + 宽高还原边界框（特征图坐标，需乘 stride=4 映射回原图）</span></span><br><span class="line">    bboxes = torch.cat([xs - wh[..., <span class="number">0</span>:<span class="number">1</span>] / <span class="number">2</span>,</span><br><span class="line">                        ys - wh[..., <span class="number">1</span>:<span class="number">2</span>] / <span class="number">2</span>,</span><br><span class="line">                        xs + wh[..., <span class="number">0</span>:<span class="number">1</span>] / <span class="number">2</span>,</span><br><span class="line">                        ys + wh[..., <span class="number">1</span>:<span class="number">2</span>] / <span class="number">2</span>], dim=<span class="number">2</span>)</span><br><span class="line">    detections = torch.cat([bboxes, scores, clses], dim=<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> detections  <span class="comment"># shape: (batch, K, 6)  [x1,y1,x2,y2,score,class]</span></span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -342,7 +342,7 @@
 <td>洞察 #3</td>
 </tr>
 <tr>
-<td>高斯 sigma&#x3D;1 vs 2 vs 3</td>
+<td>高斯 sigma=1 vs 2 vs 3</td>
 <td>36.8 vs <strong>37.4</strong> vs 37.1</td>
 <td>-</td>
 <td>洞察 #2</td>
@@ -352,7 +352,7 @@
 <ol>
 <li>Offset 头虽然参数少，但对精度有明显提升（+0.3 AP，即 +1.2%）</li>
 <li>参数共享不仅减少参数量，精度反而略有提升（更多训练样本）</li>
-<li>高斯 sigma&#x3D;2 最优（与物体平均尺寸相关）</li>
+<li>高斯 sigma=2 最优（与物体平均尺寸相关）</li>
 </ol>
 <h3 id="性能瓶颈分析"><a href="#性能瓶颈分析" class="headerlink" title="性能瓶颈分析"></a>性能瓶颈分析</h3><p><strong>错误来源统计</strong>（用 GT 替换不同模块）：</p>
 <table>
@@ -399,11 +399,11 @@
 <h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><p><strong>中心点碰撞问题</strong>：当两个不同物体中心点完全重合时，CenterNet 无法同时检测两者。论文统计此类碰撞在 COCO 中概率极低（<strong>0.1%</strong>），实际影响可忽略不计。</p>
 <p><strong>其他限制</strong>：</p>
 <ul>
-<li><strong>密集&#x2F;遮挡目标</strong>：多个紧密相邻的物体容易混淆</li>
+<li><strong>密集/遮挡目标</strong>：多个紧密相邻的物体容易混淆</li>
 <li><strong>极端尺度目标</strong>：极小目标（&lt;50px）需要高分辨率输入</li>
 <li><strong>极端长宽比</strong>：细长物体的边界框预测不准确</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone: ResNet-18 / DLA-34 / Hourglass-104</span><br><span class="line">Input: 512×512 (COCO)</span><br><span class="line">Batch: 29</span><br><span class="line">Optimizer: Adam (lr=1.25e-4, decay at epoch 90/120)</span><br><span class="line">Augmentation: 随机翻转、随机裁剪、色彩抖动</span><br><span class="line">Training Time: ~70h (DLA-34, V100)</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone: ResNet-18 / DLA-34 / Hourglass-104</span><br><span class="line">Input: 512×512 (COCO)</span><br><span class="line">Batch: 29</span><br><span class="line">Optimizer: Adam (lr=1.25e-4, decay at epoch 90/120)</span><br><span class="line">Augmentation: 随机翻转、随机裁剪、色彩抖动</span><br><span class="line">Training Time: ~70h (DLA-34, V100)</span><br></pre></td></tr></tbody></table></figure>
 
 <p><strong>参数量与速度</strong>：</p>
 <table>
@@ -413,7 +413,7 @@
 <th>AP</th>
 <th>FPS</th>
 <th>参数量</th>
-<th>内存（训练 batch&#x3D;16）</th>
+<th>内存（训练 batch=16）</th>
 </tr>
 </thead>
 <tbody><tr>
@@ -439,15 +439,15 @@
 </tr>
 </tbody></table>
 <h3 id="多任务扩展"><a href="#多任务扩展" class="headerlink" title="多任务扩展"></a>多任务扩展</h3><p>CenterNet 的预测头设计使多任务扩展极为简便，只需在同一 backbone 上增加预测头：</p>
-<p><strong>3D 目标检测</strong>：新增深度估计（变换 $d &#x3D; \frac{1}{\sigma(\hat{d})} - 1$ 强制正值）、3D 尺寸 $(h, w, l)$、方向（sin&#x2F;cos 对处理周期性）。注意 3D 分支不应用数据增强（裁剪&#x2F;缩放会改变度量真实性）。</p>
+<p><strong>3D 目标检测</strong>：新增深度估计（变换 $d = \frac{1}{\sigma(\hat{d})} - 1$ 强制正值）、3D 尺寸 $(h, w, l)$、方向（sin/cos 对处理周期性）。注意 3D 分支不应用数据增强（裁剪/缩放会改变度量真实性）。</p>
 <p><strong>人体姿态估计</strong>：在 2D 检测基础上为每个人体回归 17 个关键点，性能与专用方法相当，同时兼顾检测与姿态。</p>
-<p>工业部署支持 TensorRT&#x2F;ONNX 格式，应用于监控、机器人感知、自动驾驶等场景。</p>
+<p>工业部署支持 TensorRT/ONNX 格式，应用于监控、机器人感知、自动驾驶等场景。</p>
 <h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
-<li><p><strong>Backbone 初始化</strong>：下采样层用 ImageNet 预训练，上采样层随机初始化。因为下采样层已学到”语义”特征，上采样层需学”几何&#x2F;定位”（ImageNet 没有对应监督）。</p>
+<li><p><strong>Backbone 初始化</strong>：下采样层用 ImageNet 预训练，上采样层随机初始化。因为下采样层已学到”语义”特征，上采样层需学”几何/定位”（ImageNet 没有对应监督）。</p>
 </li>
 <li><p><strong>Heatmap 标签生成</strong>：高斯标准差 sigma 设为 2（1-3 范围最优）。<strong>必须先可视化 GT heatmap</strong> 验证标签正确性，再开始训练。</p>
 </li>
-<li><p><strong>Loss 权重</strong>：heatmap&#x3D;1.0（focal loss 处理不平衡），size&#x3D;0.1，offset&#x3D;1.0。Size 权重设小是因为坐标绝对值远大于 heatmap 值域。</p>
+<li><p><strong>Loss 权重</strong>：heatmap=1.0（focal loss 处理不平衡），size=0.1，offset=1.0。Size 权重设小是因为坐标绝对值远大于 heatmap 值域。</p>
 </li>
 <li><p><strong>峰值检测</strong>：3×3 max pooling 找局部最大值，阈值 0.3，最多保留 100 个峰值。</p>
 </li>
@@ -467,11 +467,11 @@
 <li>单尺度固定分辨率：简化处理流程，适合特定尺度目标的部署场景</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ol>
-<li><p><strong>简化问题定义 &gt; 增加网络复杂度</strong><br>CenterNet 通过重新定义”物体 &#x3D; 中心点”，消除 anchor&#x2F;proposal&#x2F;NMS，反而提升性能。启示：深入理解任务本质，找到最简表示往往比堆叠模块更有效。</p>
+<li><p><strong>简化问题定义 &gt; 增加网络复杂度</strong><br>CenterNet 通过重新定义”物体 = 中心点”，消除 anchor/proposal/NMS，反而提升性能。启示：深入理解任务本质，找到最简表示往往比堆叠模块更有效。</p>
 </li>
 <li><p><strong>软标签 &gt; 硬标签</strong><br>高斯核软监督对标注噪声更鲁棒，且隐式编码了物体尺寸信息（大物体 sigma 更大）。类似思想已被 label smoothing、knowledge distillation 广泛采用。</p>
 </li>
-<li><p><strong>参数共享增加有效训练样本</strong><br>Size&#x2F;Offset 跨类别共享不仅减少参数，反而略微提升精度——因为共享使等效训练样本增加 80 倍。</p>
+<li><p><strong>参数共享增加有效训练样本</strong><br>Size/Offset 跨类别共享不仅减少参数，反而略微提升精度——因为共享使等效训练样本增加 80 倍。</p>
 </li>
 <li><p><strong>性能瓶颈的精确定位</strong><br>通过”将各模块替换为 GT”的消融实验，发现 100% 的性能瓶颈来自中心点检测。这种<strong>精确定位短板</strong>的分析方法比盲目调参高效得多。</p>
 </li>
@@ -485,9 +485,10 @@
 <li><strong>代码开源</strong>：已被 MMDetection 等主流框架集成，复现门槛低</li>
 <li><strong>范式转变</strong>：与 FCOS（同年 ICCV）共同开启 anchor-free 检测主流时代</li>
 <li><strong>多任务框架</strong>：验证了”backbone + 多个轻量预测头”的设计范式，后续 YOLOX 等方案延续这一思路</li>
-<li><strong>直接催生 CenterTrack &#x2F; CenterPoint</strong>：中心点范式从 2D 检测扩展到多目标跟踪（<a href="/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/">CenterTrack</a>，ECCV 2020）和 3D 点云检测+跟踪（<a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a>，CVPR 2021）</li>
+<li><strong>直接催生 <a href="/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/">CenterTrack</a> / <a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a></strong>：中心点范式从 2D 检测扩展到多目标跟踪（CenterTrack，ECCV 2020）和 3D 点云检测+跟踪（CenterPoint，CVPR 2021）</li>
 <li><strong>性能基准</strong>：Hourglass-104 的 45.1% AP 成为 2019 年 COCO 单模型 SOTA</li>
 </ul>
+
 
             </div>
 

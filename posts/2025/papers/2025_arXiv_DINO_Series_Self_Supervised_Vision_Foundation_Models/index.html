@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 自监督视觉表征学习 &#x2F; 视觉基础模型<br>Method: 自蒸馏 + Gram Anchoring + 多尺度蒸馏<br>Venue: ICCV 2021 &#x2F; TMLR 2024 &#x2F; arXiv 2025<br>Year: 2021 → 2023 → 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2104.14294">DINO</a> &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2304.07193">DINOv2</a> &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2508.10104">DINOv3</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dino">facebookresearch&#x2F;dino</a> &#x2F; <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov2">facebookresearch&#x2F;dinov2</a> &#x2F; <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov3">facebookresearch&#x2F;dinov3</a></p>
+                
+<p>Task: 自监督视觉表征学习 / 视觉基础模型<br>Method: 自蒸馏 + Gram Anchoring + 多尺度蒸馏<br>Venue: ICCV 2021 / TMLR 2024 / arXiv 2025<br>Year: 2021 → 2023 → 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2104.14294">DINO</a> / <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2304.07193">DINOv2</a> / <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2508.10104">DINOv3</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dino">facebookresearch/dino</a> / <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov2">facebookresearch/dinov2</a> / <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov3">facebookresearch/dinov3</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p><strong>DINO</strong>（ICCV 2021）首次揭示自监督 Vision Transformer 具备无需标注即可理解图像语义的涌现性质：ViT 的自监督特征隐含语义分割信息，且可直接作为 k-NN 分类器使用（ViT-S 在 ImageNet 上 k-NN 精度达 78.3%）。方法核心是 <strong>自蒸馏（self-distillation with no labels）</strong>：学生网络学习匹配 EMA 教师网络的 softmax 输出，无需任何标签。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p><strong>DINO</strong>（ICCV 2021）首次揭示自监督 Vision Transformer 具备无需标注即可理解图像语义的涌现性质：<a href="/posts/2021/papers/2021_ICLR_ViT_Vision_Transformer_Image_Recognition/">ViT</a> 的自监督特征隐含语义分割信息，且可直接作为 k-NN 分类器使用（ViT-S 在 ImageNet 上 k-NN 精度达 78.3%）。方法核心是 <strong>自蒸馏（self-distillation with no labels）</strong>：学生网络学习匹配 EMA 教师网络的 softmax 输出，无需任何标签。</p>
 <p><strong>DINOv2</strong>（TMLR 2024）将 DINO 扩展至工业级规模：通过自动化数据整理管线构建 LVD-142M 数据集，训练 ViT-g（1.1B 参数），并结合 iBOT 的掩码图像建模损失。DINOv2 首次让自监督模型在各类视觉任务上匹敌甚至超越 OpenCLIP 等弱监督方法，在图像级和像素级任务均提供全能型视觉特征。</p>
 <p><strong>DINOv3</strong>（arXiv 2025）将模型规模推至 ViT-7B（6.7B 参数），训练数据扩充至 LVD-1689M。核心创新 <strong>Gram Anchoring</strong> 解决了长程训练中稠密特征退化的历史难题：通过将学生的 Gram 矩阵（patch 间余弦相似度矩阵）正则化到训练早期教师的 Gram 矩阵，同时保留全局语义表征的持续提升。配合高分辨率适配和多学生蒸馏流水线，DINOv3 在冻结 backbone 条件下刷新了目标检测（COCO mAP 66.1）、语义分割（ADE20k mIoU 63.0）、深度估计等多项 SOTA。</p>
 <p><strong>核心论点</strong>：自监督学习无需任何标注即可产出兼顾全局语义与局部几何的通用视觉特征，Gram Anchoring 突破了稠密表征随训练退化的瓶颈，使 SSL 真正成为视觉基础模型的可扩展范式。</p>
@@ -84,7 +85,7 @@
 <td>弱监督（CLIP）</td>
 <td>OpenCLIP, SigLIP 2</td>
 <td>利用图文配对数据，强零样本能力</td>
-<td>稠密特征质量差（分割&#x2F;深度任务明显落后），依赖元数据</td>
+<td>稠密特征质量差（分割/深度任务明显落后），依赖元数据</td>
 </tr>
 <tr>
 <td>聚合模型</td>
@@ -93,7 +94,7 @@
 <td>本质受限于教师质量，依赖监督标注的 SAM</td>
 </tr>
 <tr>
-<td>自监督（MAE&#x2F;JEPA）</td>
+<td>自监督（MAE/JEPA）</td>
 <td>MAE, I-JEPA</td>
 <td>无需标注</td>
 <td>微调才表现好，冻结特征质量有限</td>
@@ -105,7 +106,7 @@
 <td>DINOv2 之前：稠密特征随长训练退化</td>
 </tr>
 </tbody></table>
-<p><strong>核心痛点</strong>：自监督训练在大模型（&gt;ViT-L）和长训练调度下，全局分类精度持续提升，但稠密特征（patch-level similarity map）会逐渐退化——语义定位变得嘈杂，分割&#x2F;深度估计精度反而下降。这一矛盾在 DINOv2 训练中已被观察到，但一直未被解决。</p>
+<p><strong>核心痛点</strong>：自监督训练在大模型（&gt;ViT-L）和长训练调度下，全局分类精度持续提升，但稠密特征（patch-level similarity map）会逐渐退化——语义定位变得嘈杂，分割/深度估计精度反而下降。这一矛盾在 DINOv2 训练中已被观察到，但一直未被解决。</p>
 <h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：自蒸馏催生涌现属性——无标签即可理解语义"><a href="#洞察-1：自蒸馏催生涌现属性——无标签即可理解语义" class="headerlink" title="洞察 1：自蒸馏催生涌现属性——无标签即可理解语义"></a>洞察 1：自蒸馏催生涌现属性——无标签即可理解语义</h3><p>传统自监督方法（如 SimCLR、MoCo）通过对比学习拉近同一图像不同增强的表征，需要大量负样本。DINO 转而采用 <strong>知识蒸馏</strong> 框架：学生网络学习匹配 EMA 教师网络的输出分布，无需负样本。</p>
 <p>核心公式——DINO 损失（cross-entropy with sharpened softmax）：</p>
 
@@ -114,7 +115,7 @@ $$\mathcal{L}_{\text{DINO}} = -\sum_{x \in \{x_1^g, x_2^g\}} \sum_{\substack{x' 
 
 <p>其中 $P_t(x) = \text{softmax}((g_{\theta_t}(x) - c) / \tau_t)$ 是教师输出（用 centering 和低温度锐化），$P_s(x') = \text{softmax}(g_{\theta_s}(x') / \tau_s)$ 是学生输出。教师权重通过 EMA 更新：$\theta_t \leftarrow m \cdot \theta_t + (1-m) \cdot \theta_s$。</p>
 <p>关键发现：这种自蒸馏使 ViT 的自注意力图自发涌现出与物体边界高度对齐的语义分割能力，这在监督 ViT 中并不出现。</p>
-<h3 id="洞察-2：数据整理-模型规模-通用视觉特征"><a href="#洞察-2：数据整理-模型规模-通用视觉特征" class="headerlink" title="洞察 2：数据整理 + 模型规模 &#x3D; 通用视觉特征"></a>洞察 2：数据整理 + 模型规模 &#x3D; 通用视觉特征</h3><p>DINOv2 的关键突破不在算法创新，而在 <strong>工程规模化</strong>：</p>
+<h3 id="洞察-2：数据整理-模型规模-通用视觉特征"><a href="#洞察-2：数据整理-模型规模-通用视觉特征" class="headerlink" title="洞察 2：数据整理 + 模型规模 = 通用视觉特征"></a>洞察 2：数据整理 + 模型规模 = 通用视觉特征</h3><p>DINOv2 的关键突破不在算法创新，而在 <strong>工程规模化</strong>：</p>
 <ol>
 <li><strong>数据整理</strong>：从公开爬虫数据出发，用层次化 k-means 聚类 + 去重构建 LVD-142M；DINOv3 进一步扩充至 LVD-1689M（17B 原始图像 → 多层过滤）</li>
 <li><strong>模型扩展</strong>：DINOv2 训练 ViT-g（1.1B），DINOv3 推至 ViT-7B（6.7B），40 层 Transformer，embedding 维度 4096</li>
@@ -186,8 +187,7 @@ $$\text{Data} \xrightarrow{\mathcal{L}_{\text{Pre}}} \text{ViT-7B (1M iter)} \xr
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-┌─────────────────────────────────────────────────────────────────────┐
+<pre>┌─────────────────────────────────────────────────────────────────────┐
 │                    DINOv3 训练流水线                                  │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
@@ -350,16 +350,16 @@ $$\text{Data} \xrightarrow{\mathcal{L}_{\text{Pre}}} \text{ViT-7B (1M iter)} \xr
 <details>
 <summary>📄 点击展开 GramLoss.forward 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov3/blob/main/dinov3/loss/gram_loss.py">dinov3&#x2F;loss&#x2F;gram_loss.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">GramLoss</span>(nn.Module):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Gram Anchoring 损失：约束学生与 Gram Teacher 的 patch 相似度结构&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, apply_norm=<span class="literal">True</span>, img_level=<span class="literal">True</span>,</span></span><br><span class="line"><span class="params">                 remove_neg=<span class="literal">True</span>, remove_only_teacher_neg=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.mse_loss = torch.nn.MSELoss()        <span class="comment"># Frobenius 范数等价</span></span><br><span class="line">        <span class="variable language_">self</span>.apply_norm = apply_norm               <span class="comment"># 是否 L2 归一化</span></span><br><span class="line">        <span class="variable language_">self</span>.remove_neg = remove_neg               <span class="comment"># 是否移除负相似度</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, output_feats, target_feats, img_level=<span class="literal">True</span></span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        Args:</span></span><br><span class="line"><span class="string">            output_feats: 学生 patch 特征 (B, N, dim)</span></span><br><span class="line"><span class="string">            target_feats: Gram 教师 patch 特征 (B, N, dim)</span></span><br><span class="line"><span class="string">        Returns:</span></span><br><span class="line"><span class="string">            loss: ‖X_S·X_S^T - X_G·X_G^T‖²_F（标量）</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        output_feats = output_feats.<span class="built_in">float</span>()</span><br><span class="line">        target_feats = target_feats.<span class="built_in">float</span>()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 对教师特征做 L2 归一化</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.apply_norm:</span><br><span class="line">            target_feats = F.normalize(target_feats, dim=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 计算教师 Gram 矩阵：X_G · X_G^T</span></span><br><span class="line">        target_sim = torch.matmul(</span><br><span class="line">            target_feats, target_feats.transpose(-<span class="number">1</span>, -<span class="number">2</span>)</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 对学生特征做 L2 归一化</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.apply_norm:</span><br><span class="line">            output_feats = F.normalize(output_feats, dim=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 计算学生 Gram 矩阵：X_S · X_S^T</span></span><br><span class="line">        student_sim = torch.matmul(</span><br><span class="line">            output_feats, output_feats.transpose(-<span class="number">1</span>, -<span class="number">2</span>)</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 可选：移除负相似度值（保持余弦相似度的正半空间）</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.remove_neg:</span><br><span class="line">            target_sim[target_sim &lt; <span class="number">0</span>] = <span class="number">0.0</span></span><br><span class="line">            student_sim[student_sim &lt; <span class="number">0</span>] = <span class="number">0.0</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 返回 MSE = ‖student_sim - target_sim‖²_F / numel</span></span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">self</span>.mse_loss(student_sim, target_sim)</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov3/blob/main/dinov3/loss/gram_loss.py">dinov3/loss/gram_loss.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">GramLoss</span>(nn.Module):</span><br><span class="line">    <span class="string">"""Gram Anchoring 损失：约束学生与 Gram Teacher 的 patch 相似度结构"""</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, apply_norm=<span class="literal">True</span>, img_level=<span class="literal">True</span>,</span></span><br><span class="line"><span class="params">                 remove_neg=<span class="literal">True</span>, remove_only_teacher_neg=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.mse_loss = torch.nn.MSELoss()        <span class="comment"># Frobenius 范数等价</span></span><br><span class="line">        <span class="variable language_">self</span>.apply_norm = apply_norm               <span class="comment"># 是否 L2 归一化</span></span><br><span class="line">        <span class="variable language_">self</span>.remove_neg = remove_neg               <span class="comment"># 是否移除负相似度</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, output_feats, target_feats, img_level=<span class="literal">True</span></span>):</span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        Args:</span></span><br><span class="line"><span class="string">            output_feats: 学生 patch 特征 (B, N, dim)</span></span><br><span class="line"><span class="string">            target_feats: Gram 教师 patch 特征 (B, N, dim)</span></span><br><span class="line"><span class="string">        Returns:</span></span><br><span class="line"><span class="string">            loss: ‖X_S·X_S^T - X_G·X_G^T‖²_F（标量）</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        output_feats = output_feats.<span class="built_in">float</span>()</span><br><span class="line">        target_feats = target_feats.<span class="built_in">float</span>()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 对教师特征做 L2 归一化</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.apply_norm:</span><br><span class="line">            target_feats = F.normalize(target_feats, dim=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 计算教师 Gram 矩阵：X_G · X_G^T</span></span><br><span class="line">        target_sim = torch.matmul(</span><br><span class="line">            target_feats, target_feats.transpose(-<span class="number">1</span>, -<span class="number">2</span>)</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 对学生特征做 L2 归一化</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.apply_norm:</span><br><span class="line">            output_feats = F.normalize(output_feats, dim=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 计算学生 Gram 矩阵：X_S · X_S^T</span></span><br><span class="line">        student_sim = torch.matmul(</span><br><span class="line">            output_feats, output_feats.transpose(-<span class="number">1</span>, -<span class="number">2</span>)</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 可选：移除负相似度值（保持余弦相似度的正半空间）</span></span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.remove_neg:</span><br><span class="line">            target_sim[target_sim &lt; <span class="number">0</span>] = <span class="number">0.0</span></span><br><span class="line">            student_sim[student_sim &lt; <span class="number">0</span>] = <span class="number">0.0</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 返回 MSE = ‖student_sim - target_sim‖²_F / numel</span></span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">self</span>.mse_loss(student_sim, target_sim)</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <details>
 <summary>📄 点击展开 DINOLoss.forward 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov3/blob/main/dinov3/loss/dino_clstoken_loss.py">dinov3&#x2F;loss&#x2F;dino_clstoken_loss.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DINOLoss</span>(nn.Module):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;DINO 自蒸馏损失：student-teacher 交叉熵&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, out_dim, student_temp=<span class="number">0.1</span>, center_momentum=<span class="number">0.9</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.student_temp = student_temp</span><br><span class="line">        <span class="variable language_">self</span>.center_momentum = center_momentum</span><br><span class="line">        <span class="variable language_">self</span>.register_buffer(<span class="string">&quot;center&quot;</span>, torch.full((<span class="number">1</span>, out_dim), math.nan))</span><br><span class="line"></span><br><span class="line"><span class="meta">    @torch.no_grad()</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">sinkhorn_knopp_teacher</span>(<span class="params">self, teacher_output, teacher_temp, n_iterations=<span class="number">3</span></span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;Sinkhorn-Knopp 归一化替代简单 softmax centering（来自 SwAV）&quot;&quot;&quot;</span></span><br><span class="line">        Q = torch.exp(teacher_output / teacher_temp).t()  <span class="comment"># K × B</span></span><br><span class="line">        B = Q.shape[<span class="number">1</span>] * world_size</span><br><span class="line">        K = Q.shape[<span class="number">0</span>]</span><br><span class="line">        sum_Q = torch.<span class="built_in">sum</span>(Q)</span><br><span class="line">        dist.all_reduce(sum_Q)</span><br><span class="line">        Q /= sum_Q</span><br><span class="line">        <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(n_iterations):</span><br><span class="line">            sum_of_rows = torch.<span class="built_in">sum</span>(Q, dim=<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            dist.all_reduce(sum_of_rows)</span><br><span class="line">            Q /= sum_of_rows</span><br><span class="line">            Q /= K</span><br><span class="line">            Q /= torch.<span class="built_in">sum</span>(Q, dim=<span class="number">0</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            Q /= B</span><br><span class="line">        Q *= B</span><br><span class="line">        <span class="keyword">return</span> Q.t()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, student_logits, teacher_probs, ignore_diagonal=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        student_logits: [student_crops, batch, prototypes]</span></span><br><span class="line"><span class="string">        teacher_probs:  [teacher_crops, batch, prototypes]（已经 softmax）</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span></span><br><span class="line">        student_crops, B, K = student_logits.shape</span><br><span class="line">        teacher_crops, _, _ = teacher_probs.shape</span><br><span class="line">        <span class="comment"># 学生用较高温度的 log_softmax</span></span><br><span class="line">        student_logits = F.log_softmax(</span><br><span class="line">            student_logits.<span class="built_in">float</span>() / <span class="variable language_">self</span>.student_temp, dim=-<span class="number">1</span></span><br><span class="line">        )</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> ignore_diagonal:</span><br><span class="line">            <span class="comment"># 所有 student-teacher crop 对之间的交叉熵</span></span><br><span class="line">            loss = -torch.einsum(<span class="string">&quot;s b k, t b k -&gt; &quot;</span>, student_logits, teacher_probs)</span><br><span class="line">            <span class="keyword">return</span> loss / (B * student_crops * teacher_crops)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="comment"># 排除同一 crop 对（避免退化解）</span></span><br><span class="line">            loss = -torch.einsum(<span class="string">&quot;s b k, t b k -&gt; s t&quot;</span>, student_logits, teacher_probs)</span><br><span class="line">            min_st = <span class="built_in">min</span>(student_crops, teacher_crops)</span><br><span class="line">            loss = torch.diagonal_scatter(loss, loss.new_zeros(min_st))</span><br><span class="line">            <span class="keyword">return</span> loss.<span class="built_in">sum</span>() / (B * student_crops * teacher_crops - B * min_st)</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/dinov3/blob/main/dinov3/loss/dino_clstoken_loss.py">dinov3/loss/dino_clstoken_loss.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DINOLoss</span>(nn.Module):</span><br><span class="line">    <span class="string">"""DINO 自蒸馏损失：student-teacher 交叉熵"""</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, out_dim, student_temp=<span class="number">0.1</span>, center_momentum=<span class="number">0.9</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.student_temp = student_temp</span><br><span class="line">        <span class="variable language_">self</span>.center_momentum = center_momentum</span><br><span class="line">        <span class="variable language_">self</span>.register_buffer(<span class="string">"center"</span>, torch.full((<span class="number">1</span>, out_dim), math.nan))</span><br><span class="line"></span><br><span class="line"><span class="meta">    @torch.no_grad()</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">sinkhorn_knopp_teacher</span>(<span class="params">self, teacher_output, teacher_temp, n_iterations=<span class="number">3</span></span>):</span><br><span class="line">        <span class="string">"""Sinkhorn-Knopp 归一化替代简单 softmax centering（来自 SwAV）"""</span></span><br><span class="line">        Q = torch.exp(teacher_output / teacher_temp).t()  <span class="comment"># K × B</span></span><br><span class="line">        B = Q.shape[<span class="number">1</span>] * world_size</span><br><span class="line">        K = Q.shape[<span class="number">0</span>]</span><br><span class="line">        sum_Q = torch.<span class="built_in">sum</span>(Q)</span><br><span class="line">        dist.all_reduce(sum_Q)</span><br><span class="line">        Q /= sum_Q</span><br><span class="line">        <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(n_iterations):</span><br><span class="line">            sum_of_rows = torch.<span class="built_in">sum</span>(Q, dim=<span class="number">1</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            dist.all_reduce(sum_of_rows)</span><br><span class="line">            Q /= sum_of_rows</span><br><span class="line">            Q /= K</span><br><span class="line">            Q /= torch.<span class="built_in">sum</span>(Q, dim=<span class="number">0</span>, keepdim=<span class="literal">True</span>)</span><br><span class="line">            Q /= B</span><br><span class="line">        Q *= B</span><br><span class="line">        <span class="keyword">return</span> Q.t()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, student_logits, teacher_probs, ignore_diagonal=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        student_logits: [student_crops, batch, prototypes]</span></span><br><span class="line"><span class="string">        teacher_probs:  [teacher_crops, batch, prototypes]（已经 softmax）</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        student_crops, B, K = student_logits.shape</span><br><span class="line">        teacher_crops, _, _ = teacher_probs.shape</span><br><span class="line">        <span class="comment"># 学生用较高温度的 log_softmax</span></span><br><span class="line">        student_logits = F.log_softmax(</span><br><span class="line">            student_logits.<span class="built_in">float</span>() / <span class="variable language_">self</span>.student_temp, dim=-<span class="number">1</span></span><br><span class="line">        )</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> ignore_diagonal:</span><br><span class="line">            <span class="comment"># 所有 student-teacher crop 对之间的交叉熵</span></span><br><span class="line">            loss = -torch.einsum(<span class="string">"s b k, t b k -&gt; "</span>, student_logits, teacher_probs)</span><br><span class="line">            <span class="keyword">return</span> loss / (B * student_crops * teacher_crops)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="comment"># 排除同一 crop 对（避免退化解）</span></span><br><span class="line">            loss = -torch.einsum(<span class="string">"s b k, t b k -&gt; s t"</span>, student_logits, teacher_probs)</span><br><span class="line">            min_st = <span class="built_in">min</span>(student_crops, teacher_crops)</span><br><span class="line">            loss = torch.diagonal_scatter(loss, loss.new_zeros(min_st))</span><br><span class="line">            <span class="keyword">return</span> loss.<span class="built_in">sum</span>() / (B * student_crops * teacher_crops - B * min_st)</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -431,7 +431,7 @@ $$\text{Data} \xrightarrow{\mathcal{L}_{\text{Pre}}} \text{ViT-7B (1M iter)} \xr
 <td>—</td>
 </tr>
 </tbody></table>
-<p><strong>语义分割（ADE20k，冻结 backbone + Mask2Former + ViT-Adapter）</strong>：</p>
+<p><strong>语义分割（ADE20k，冻结 backbone + <a href="/posts/2022/papers/2022_CVPR_Mask2Former_Universal_Image_Segmentation/">Mask2Former</a> + ViT-Adapter）</strong>：</p>
 <table>
 <thead>
 <tr>
@@ -484,28 +484,28 @@ $$\text{Data} \xrightarrow{\mathcal{L}_{\text{Pre}}} \text{ViT-7B (1M iter)} \xr
 </thead>
 <tbody><tr>
 <td>AM-RADIOv2.5</td>
-<td>g&#x2F;14</td>
+<td>g/14</td>
 <td>53.0</td>
 <td>0.340</td>
 <td>78.4</td>
 </tr>
 <tr>
 <td>DINOv2</td>
-<td>g&#x2F;14</td>
+<td>g/14</td>
 <td>49.5</td>
 <td>0.372</td>
 <td>75.6</td>
 </tr>
 <tr>
 <td>Web-DINO</td>
-<td>7B&#x2F;14</td>
+<td>7B/14</td>
 <td>42.7</td>
 <td>0.466</td>
 <td>68.3</td>
 </tr>
 <tr>
 <td><strong>DINOv3</strong></td>
-<td><strong>7B&#x2F;16</strong></td>
+<td><strong>7B/16</strong></td>
 <td><strong>55.9</strong></td>
 <td><strong>0.309</strong></td>
 <td><strong>81.1</strong></td>
@@ -513,7 +513,7 @@ $$\text{Data} \xrightarrow{\mathcal{L}_{\text{Pre}}} \text{ViT-7B (1M iter)} \xr
 </tbody></table>
 <p><strong>关键发现</strong>：</p>
 <ol>
-<li>DINOv3 是首个在冻结 backbone 条件下匹配全部微调 SOTA 的检测&#x2F;分割系统——100M 训练参数 vs 竞品 300M-6B</li>
+<li>DINOv3 是首个在冻结 backbone 条件下匹配全部微调 SOTA 的检测/分割系统——100M 训练参数 vs 竞品 300M-6B</li>
 <li>在 ADE20k 稠密线性探测上，DINOv3 超出 DINOv2 +6.4 mIoU，超出需要 SAM 蒸馏的 AM-RADIOv2.5 +2.9 mIoU</li>
 <li>Web-DINO（同样 7B 规模但未用 Gram Anchoring）在稠密任务上大幅落后（42.7 vs 55.9），验证了 Gram Anchoring 的不可替代性</li>
 </ol>
@@ -620,18 +620,18 @@ $$\text{Data} \xrightarrow{\mathcal{L}_{\text{Pre}}} \text{ViT-7B (1M iter)} \xr
 <p><strong>自蒸馏涌现验证（洞察 1）</strong>：DINOv3 ViT-7B 的无监督物体发现（TokenCut）在 VOC07 上达到 66.1 CorLoc，超出原始 DINO ViT-B（60.1）和 DINOv2 ViT-g（55.6），证明自蒸馏的涌现属性在规模化后更加显著。</p>
 <h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
 <li><strong>主要瓶颈在于 patch 大小</strong>：ViT-7B 使用 patch size 16，在 896×896 输入下仅产出 56×56 的特征图，对精细边界预测不利——这是语义分割仍需 ViT-Adapter + Mask2Former 等重解码器的原因</li>
-<li><strong>全局任务仍略逊弱监督</strong>：ImageNet 线性探测 88.4% vs SigLIP 2 的 89.1%，差距主要来自 SSL 未利用任何文本&#x2F;类别信息</li>
+<li><strong>全局任务仍略逊弱监督</strong>：ImageNet 线性探测 88.4% vs SigLIP 2 的 89.1%，差距主要来自 SSL 未利用任何文本/类别信息</li>
 <li><strong>OCR 场景差距明显</strong>：在文字识别相关数据集上，DINOv3 显著落后于 PE-core（训练中接触过图文配对数据）</li>
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
-<li><strong>文字&#x2F;符号理解</strong>：由于纯视觉自监督训练不涉及文本监督，DINOv3 在 OCR 密集型数据集上远弱于 CLIP 衍生模型</li>
+<li><strong>文字/符号理解</strong>：由于纯视觉自监督训练不涉及文本监督，DINOv3 在 OCR 密集型数据集上远弱于 CLIP 衍生模型</li>
 <li><strong>超长训练未配合 Gram 的场景</strong>：论文明确展示 ViT-7B 在 1M 迭代无 Gram 条件下，分割性能降至低于 200k 迭代时的水平（Fig. 5）</li>
 <li><strong>低分辨率适配后 OOD 退化</strong>：高分辨率适配在提升高分辨率表现的同时，ObjectNet 等 OOD 任务在低分辨率下出现轻微退化（Fig. 11）</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:         ViT-7B/16 (40 blocks, dim=4096, SwiGLU FFN 8192)</span><br><span class="line">Input:            全局裁剪 256×256, 局部裁剪 112×112 (2+8 multi-crop)</span><br><span class="line">Batch:            4096 images, 256 GPUs (H100-SXM5)</span><br><span class="line">Optimizer:        AdamW, lr=0.0004 (恒定, warmup 100k), weight_decay=0.04</span><br><span class="line">Precision:        bfloat16 + FP8 矩阵乘法</span><br><span class="line">EMA momentum:     0.999</span><br><span class="line">Training:         1M 迭代预训练 → Gram (w_Gram=2, 每 10k 步更新, 最多 3 次)</span><br><span class="line">                  → 高分辨率适配 10k 迭代 → 蒸馏 1M+250k 迭代</span><br><span class="line">Training Time:    ~47 MWh (约 61,440 GPU 小时 H100)</span><br><span class="line">Carbon Footprint: ~18 tCO2eq</span><br></pre></td></tr></table></figure>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:         ViT-7B/16 (40 blocks, dim=4096, SwiGLU FFN 8192)</span><br><span class="line">Input:            全局裁剪 256×256, 局部裁剪 112×112 (2+8 multi-crop)</span><br><span class="line">Batch:            4096 images, 256 GPUs (H100-SXM5)</span><br><span class="line">Optimizer:        AdamW, lr=0.0004 (恒定, warmup 100k), weight_decay=0.04</span><br><span class="line">Precision:        bfloat16 + FP8 矩阵乘法</span><br><span class="line">EMA momentum:     0.999</span><br><span class="line">Training:         1M 迭代预训练 → Gram (w_Gram=2, 每 10k 步更新, 最多 3 次)</span><br><span class="line">                  → 高分辨率适配 10k 迭代 → 蒸馏 1M+250k 迭代</span><br><span class="line">Training Time:    ~47 MWh (约 61,440 GPU 小时 H100)</span><br><span class="line">Carbon Footprint: ~18 tCO2eq</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>RoPE Box Jittering</strong>：坐标框 $[-1, 1]$ 随机缩放至 $[-s, s]$（$s \in [0.5, 2]$），增强对分辨率&#x2F;尺度&#x2F;宽高比的鲁棒性</li>
+<li><strong>RoPE Box Jittering</strong>：坐标框 $[-1, 1]$ 随机缩放至 $[-s, s]$（$s \in [0.5, 2]$），增强对分辨率/尺度/宽高比的鲁棒性</li>
 <li><strong>Register Tokens 不可省略</strong>：4 个 register token 消除高范数 patch 异常值，否则特征图出现伪影</li>
 <li><strong>Gram Teacher 选择窗口</strong>：100k-200k 迭代的教师效果最优；太晚（1M）的教师本身 patch 一致性已退化</li>
 <li><strong>特征维度异常值</strong>：7B 模型的个别特征维度会出现异常大值，需对中间层特征施加 Batch Normalization</li>
@@ -651,20 +651,21 @@ $$\text{Data} \xrightarrow{\mathcal{L}_{\text{Pre}}} \text{ViT-7B (1M iter)} \xr
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
 <li><strong>Gram 矩阵正则化可泛化到其他 SSL 任务</strong>：约束特征结构而非特征值，允许表征自由演化的同时保持局部一致性，可应用于视频 SSL、多模态预训练</li>
 <li><strong>“先大后小”的蒸馏范式</strong>：训练一个极大模型，再蒸馏出一整个家族，比直接训练小模型效果更好——ViT-H+（840M）性能接近 ViT-7B</li>
-<li><strong>冻结 backbone 作为评估标准</strong>：DINOv3 证明高质量 SSL backbone 无需微调即可做检测&#x2F;分割&#x2F;深度估计，这支持”一次编码、多任务复用”的实际部署模式</li>
+<li><strong>冻结 backbone 作为评估标准</strong>：DINOv3 证明高质量 SSL backbone 无需微调即可做检测/分割/深度估计，这支持”一次编码、多任务复用”的实际部署模式</li>
 <li><strong>跨域通用性</strong>：同一训练管线直接应用于卫星遥感图像（SAT-493M），在 GEO-Bench 上超越专门的遥感模型</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
-<li>训练成本极高（47 MWh &#x2F; ~18 吨 CO₂），难以被学术机构复现</li>
-<li>缺乏文本对齐能力，零样本分类&#x2F;检索弱于 CLIP 系方法（需额外 dino.txt 阶段弥补）</li>
+<li>训练成本极高（47 MWh / ~18 吨 CO₂），难以被学术机构复现</li>
+<li>缺乏文本对齐能力，零样本分类/检索弱于 CLIP 系方法（需额外 dino.txt 阶段弥补）</li>
 <li>Patch size 16 限制了像素级精度，对极精细任务（如实例边界）仍需重解码器</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li><strong>打破”SSL 不适合 dense tasks”的成见</strong>：DINOv3 首次在稠密任务上全面超越弱监督和聚合方法</li>
-<li><strong>定义视觉基础模型新范式</strong>：单一冻结 backbone 支撑检测&#x2F;分割&#x2F;深度&#x2F;3D&#x2F;视频多任务，颠覆”每个任务微调一个模型”的传统流程</li>
+<li><strong>定义视觉基础模型新范式</strong>：单一冻结 backbone 支撑检测/分割/深度/3D/视频多任务，颠覆”每个任务微调一个模型”的传统流程</li>
 <li><strong>推动多模态下游应用</strong>：高质量冻结视觉特征可直接嫁接 LLM（如 PaliGemma、LLaVA），降低多模态模型训练成本</li>
 <li><strong>遥感领域破圈</strong>：首次证明通用 SSL 模型在卫星图像上可超越专门预训练的遥感基础模型（如 Prithvi-v2）</li>
 </ul>
+
 
             </div>
 

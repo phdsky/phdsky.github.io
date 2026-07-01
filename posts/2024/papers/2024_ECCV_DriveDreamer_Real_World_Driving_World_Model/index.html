@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Real-world Driving World Model<br>Method: Diffusion World Model, Two-stage Training, ActionFormer, Auto-DM<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2309.09777">https://arxiv.org/abs/2309.09777</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/JeffWang987/DriveDreamer">https://github.com/JeffWang987/DriveDreamer</a></p>
+                
+<p>Task: Real-world Driving World Model<br>Method: Diffusion World Model, Two-stage Training, ActionFormer, Auto-DM<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2309.09777">https://arxiv.org/abs/2309.09777</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/JeffWang987/DriveDreamer">https://github.com/JeffWang987/DriveDreamer</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -98,8 +99,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-reference frame + HDMap + 3D boxes
+<pre>reference frame + HDMap + 3D boxes
         │
         ▼
 ActionFormer predicts future structural features
@@ -114,10 +114,9 @@ action head predicts future driving actions
 
 <p>DriveDreamer 的架构可以理解为“结构条件控制 + diffusion 生成 + driving policy 约束”的组合：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-DriveDreamer detailed generation pipeline
+<pre>DriveDreamer detailed generation pipeline
 
-<p>Inputs &#x2F; conditions:<br>  historical driving frames<br>  HD map &#x2F; road structure<br>  3D boxes or traffic participants<br>  ego action &#x2F; trajectory condition</p>
+<p>Inputs / conditions:<br>  historical driving frames<br>  HD map / road structure<br>  3D boxes or traffic participants<br>  ego action / trajectory condition</p>
 <pre><code>    ┌──────────────────────────────────────────┐
     │  1. Structured Condition Encoder         │
     │  map, boxes, action -&gt; control features  │
@@ -145,7 +144,7 @@ DriveDreamer detailed generation pipeline
     │  supports simulation and policy testing  │
     └──────────────────────────────────────────┘
 </code></pre>
-<p></pre></p>
+<p></p></pre><p></p>
 </div>
 
 <p>和 GAIA-1 相比，DriveDreamer 更强调真实道路结构约束。它不是只让模型“像视频模型一样续写画面”，而是把地图、目标和动作条件放进生成过程，减少世界模型偏离交通结构的风险。</p>
@@ -217,14 +216,14 @@ DriveDreamer detailed generation pipeline
 </tr>
 <tr>
 <td align="left">Action head</td>
-<td align="left">generated future &#x2F; latent state</td>
+<td align="left">generated future / latent state</td>
 <td align="left">future action</td>
 <td align="left">检验生成未来是否与可行动作一致</td>
 </tr>
 </tbody></table>
 <p>这个分工让 DriveDreamer 比纯视频扩散更适合驾驶：生成器不需要从噪声中凭空猜道路结构，而是在 ActionFormer 给出的结构约束下补全未来画面。</p>
 <h3 id="4-5-条件扩散的信息流"><a href="#4-5-条件扩散的信息流" class="headerlink" title="4.5 条件扩散的信息流"></a>4.5 条件扩散的信息流</h3><p>DriveDreamer 的推理过程可以理解成“先生成可行结构，再生成视觉未来”：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">reference frame + HDMap + 3D boxes + action</span><br><span class="line">        ↓</span><br><span class="line">ActionFormer</span><br><span class="line">        ↓</span><br><span class="line">future traffic structure / latent condition</span><br><span class="line">        ↓</span><br><span class="line">Auto-DM denoising</span><br><span class="line">        ↓</span><br><span class="line">future driving video</span><br><span class="line">        ↓</span><br><span class="line">action prediction / interaction analysis</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">reference frame + HDMap + 3D boxes + action</span><br><span class="line">        ↓</span><br><span class="line">ActionFormer</span><br><span class="line">        ↓</span><br><span class="line">future traffic structure / latent condition</span><br><span class="line">        ↓</span><br><span class="line">Auto-DM denoising</span><br><span class="line">        ↓</span><br><span class="line">future driving video</span><br><span class="line">        ↓</span><br><span class="line">action prediction / interaction analysis</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这条链路比普通 video diffusion 多了一层交通结构约束。ActionFormer 相当于先规定未来世界的骨架，Auto-DM 再在这个骨架上生成画面；因此它的生成质量不能只看图像真实感，还要看结构条件是否被遵守。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上验证 DriveDreamer 可以生成与文本提示、结构约束和动作交互一致的未来视频，并能预测 future driving actions。其重点是 world model 的真实驾驶场景生成能力，而不是传统检测或规划表格指标。</p>
@@ -246,18 +245,18 @@ DriveDreamer detailed generation pipeline
 </tr>
 <tr>
 <td align="left">Driving action generation</td>
-<td align="left">world model 与策略&#x2F;动作空间存在接口</td>
+<td align="left">world model 与策略/动作空间存在接口</td>
 </tr>
 </tbody></table>
 <p>这三类证据对应 DriveDreamer 的三层目标：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">traffic structure is controllable</span><br><span class="line">        ↓</span><br><span class="line">future visual world is realistic</span><br><span class="line">        ↓</span><br><span class="line">future action can be inferred or conditioned</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">traffic structure is controllable</span><br><span class="line">        ↓</span><br><span class="line">future visual world is realistic</span><br><span class="line">        ↓</span><br><span class="line">future action can be inferred or conditioned</span><br></pre></td></tr></tbody></table></figure>
 
 <p>第一层保证生成过程不脱离道路和目标框，第二层保证结果仍像真实驾驶视频，第三层才把 world model 和行动空间连起来。若缺少第一层，扩散模型容易生成漂亮但交通结构错误的视频；若缺少第三层，它又只能作为视频生成器，难以服务交互式驾驶推演。</p>
 <p>这些结果说明 DriveDreamer 更接近 learned simulator 的方向，但还不能直接等价于闭环驾驶系统。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>2 阶段训练</strong>：先结构约束，再未来状态。</li>
-<li><strong>3 类结构&#x2F;控制输入</strong>：reference frame、HDMap、3D box。</li>
+<li><strong>3 类结构/控制输入</strong>：reference frame、HDMap、3D box。</li>
 <li><strong>4 类展示能力</strong>：多样视频、文本控制、动作交互、动作生成。</li>
 </ul>
 <h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DriveDreamer 可作为驾驶视频生成和场景交互模拟工具。工程使用时要关注：</p>
@@ -270,7 +269,7 @@ DriveDreamer detailed generation pipeline
 <p>这解释了为什么 <a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 会转向 4D occupancy：它希望让 world model 的输出更接近规划代价。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DriveDreamer 说明真实驾驶 world model 不能只追求视觉真实感，还要显式建模交通结构和动作后果。它把 GAIA-1 式生成路线推进到更具体的真实数据和交通约束场景。</p>
 <p>从路线关系看：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">GAIA-1: video / text / action 条件生成</span><br><span class="line">        ↓</span><br><span class="line">DriveDreamer: diffusion + 真实道路结构约束</span><br><span class="line">        ↓</span><br><span class="line">Drive-OccWorld: 4D occupancy + planning cost</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">GAIA-1: video / text / action 条件生成</span><br><span class="line">        ↓</span><br><span class="line">DriveDreamer: diffusion + 真实道路结构约束</span><br><span class="line">        ↓</span><br><span class="line">Drive-OccWorld: 4D occupancy + planning cost</span><br></pre></td></tr></tbody></table></figure>
 
 <p>DriveDreamer 的位置是承上启下：它保留视频生成的直观性，又把生成过程拉回到真实驾驶结构和动作条件上。</p>
 <h2 id="8-方法边界与站内关系"><a href="#8-方法边界与站内关系" class="headerlink" title="8. 方法边界与站内关系"></a>8. 方法边界与站内关系</h2><p>DriveDreamer 最容易被误读成“自动驾驶视频版 Stable Diffusion”。这个理解太浅，因为它真正解决的问题不是单纯生成好看的未来帧，而是在生成过程中注入 HDMap、3D box 和 action，让视频未来服从交通结构。</p>
@@ -284,7 +283,7 @@ DriveDreamer detailed generation pipeline
 </tr>
 </thead>
 <tbody><tr>
-<td align="left"><a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a></td>
+<td align="left">GAIA-1</td>
 <td align="left">同属可控驾驶视频生成</td>
 <td align="left">DriveDreamer 更强调真实道路结构和动作交互</td>
 </tr>
@@ -294,12 +293,13 @@ DriveDreamer detailed generation pipeline
 <td align="left">OccWorld 把状态空间换成 3D occupancy</td>
 </tr>
 <tr>
-<td align="left"><a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a></td>
+<td align="left">Drive-OccWorld</td>
 <td align="left">同样关心动作后果</td>
 <td align="left">Drive-OccWorld 直接把未来 occupancy 接到 planning cost</td>
 </tr>
 </tbody></table>
 <p>所以 DriveDreamer 的记忆点不是“扩散模型用于驾驶”，而是“视频生成路线必须被交通结构和动作条件约束”。它提醒后续方法：世界模型若要进入驾驶系统，生成未来只是第一步，更关键的是未来能否被控制、被验证、被规划器消费。</p>
+
 
             </div>
 

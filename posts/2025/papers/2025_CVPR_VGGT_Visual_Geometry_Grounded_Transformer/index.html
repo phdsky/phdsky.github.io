@@ -55,16 +55,17 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Visual Geometry Estimation<br>Method: Feed-forward Geometry Transformer, Point Maps, Depth Maps, Camera Parameters, 3D Tracks<br>Venue: CVPR 2025<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2503.11651">https://arxiv.org/abs/2503.11651</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/vggt">https://github.com/facebookresearch/vggt</a></p>
+                
+<p>Task: Visual Geometry Estimation<br>Method: Feed-forward Geometry Transformer, Point Maps, Depth Maps, Camera Parameters, 3D Tracks<br>Venue: CVPR 2025<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2503.11651">https://arxiv.org/abs/2503.11651</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/vggt">https://github.com/facebookresearch/vggt</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
 <h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>VGGT 是一个前向式视觉几何模型，目标是把过去分散的 camera parameter estimation、depth estimation、point cloud reconstruction 和 3D point tracking 统一到同一个网络中。给定一张、少量或大量图像，模型直接输出 camera parameters、point maps、depth maps 和 3D point tracks。</p>
-<p>VGGT 最重要的变化，不是“又做了一个深度估计模型”，而是把视觉几何从传统的多阶段优化流程推进为一个统一前向接口。过去 SfM &#x2F; MVS &#x2F; SLAM 往往需要特征匹配、几何验证、BA 优化和任务专用模块；VGGT 则试图让一个模型直接预测主要几何属性。</p>
+<p>VGGT 最重要的变化，不是“又做了一个深度估计模型”，而是把视觉几何从传统的多阶段优化流程推进为一个统一前向接口。过去 SfM / MVS / SLAM 往往需要特征匹配、几何验证、BA 优化和任务专用模块；VGGT 则试图让一个模型直接预测主要几何属性。</p>
 <p>对自动驾驶来说，VGGT 本身不是闭环驾驶系统，但它提供了一个重要信号：未来感知系统不一定只能从 object boxes 或 BEV features 出发，也可以保留更底层的 metric geometry。</p>
 <p><strong>核心论点</strong>：视觉几何正在从“优化管线”走向“前向基础模型”，VGGT 的价值在于给多个几何任务提供统一接口，而不是只优化某一个单点任务。</p>
-<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>传统 SfM &#x2F; MVS &#x2F; SLAM 系统通常依赖特征匹配、几何优化和任务专用模块。它们精度高，但流程复杂，对输入条件敏感，且难以作为深度模型的通用 backbone。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>传统 SfM / MVS / SLAM 系统通常依赖特征匹配、几何优化和任务专用模块。它们精度高，但流程复杂，对输入条件敏感，且难以作为深度模型的通用 backbone。</p>
 <table>
 <thead>
 <tr>
@@ -81,7 +82,7 @@
 <td align="left">需要多阶段几何验证和优化</td>
 </tr>
 <tr>
-<td align="left">深度 &#x2F; 点云重建</td>
+<td align="left">深度 / 点云重建</td>
 <td align="left">往往依赖任务专用算法</td>
 </tr>
 <tr>
@@ -105,8 +106,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-input views
+<pre>input views
     │
     ▼
 shared visual geometry transformer
@@ -120,10 +120,9 @@ shared visual geometry transformer
 
 <p>VGGT 的架构价值在于把多个过去分散的几何任务放到同一个前向模型里，而不是为每个任务单独堆 pipeline：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-VGGT detailed architecture
+<pre>VGGT detailed architecture
 
-<p>Input:<br>  one view, few views, or many views<br>  unordered &#x2F; variable number of images</p>
+<p>Input:<br>  one view, few views, or many views<br>  unordered / variable number of images</p>
 <pre><code>    ┌─────────────────────────────────────────┐
     │  1. Shared Image Token Encoder          │
     │  each view -&gt; visual tokens             │
@@ -140,10 +139,10 @@ VGGT detailed architecture
       ┌───────────────┼────────────────┬───────────────┐
       ▼               ▼                ▼               ▼
 </code></pre>
-<p>┌────────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐<br>│ Camera Head    │ │ Depth Head   │ │ Point Map    │ │ Track Head   │<br>│ intr&#x2F;extrinsic │ │ per-view z   │ │ 3D points    │ │ 3D tracks    │<br>└────────────────┘ └──────────────┘ └──────────────┘ └──────────────┘<br></pre></p>
+<p>┌────────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐<br>│ Camera Head    │ │ Depth Head   │ │ Point Map    │ │ Track Head   │<br>│ intr/extrinsic │ │ per-view z   │ │ 3D points    │ │ 3D tracks    │<br>└────────────────┘ └──────────────┘ └──────────────┘ └──────────────┘<br></p></pre><p></p>
 </div>
 
-<p>这张图也解释了为什么 VGGT 是 DVGT 的上游启发：当 camera、depth、point map、track 能由同一个模型统一前向预测时，自动驾驶就可以把几何能力从离线 SfM &#x2F; MVS 管线中抽出来，变成可学习的中间表示。</p>
+<p>这张图也解释了为什么 VGGT 是 <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT</a> 的上游启发：当 camera、depth、point map、track 能由同一个模型统一前向预测时，自动驾驶就可以把几何能力从离线 SfM / MVS 管线中抽出来，变成可学习的中间表示。</p>
 <h3 id="4-2-关键组件"><a href="#4-2-关键组件" class="headerlink" title="4.2 关键组件"></a>4.2 关键组件</h3><table>
 <thead>
 <tr>
@@ -184,7 +183,7 @@ VGGT detailed architecture
 <tr>
 <td align="left">Depth maps</td>
 <td align="left">每个像素沿视线方向的距离</td>
-<td align="left">单视图 &#x2F; 多视图深度理解</td>
+<td align="left">单视图 / 多视图深度理解</td>
 </tr>
 <tr>
 <td align="left">Point maps</td>
@@ -193,7 +192,7 @@ VGGT detailed architecture
 </tr>
 <tr>
 <td align="left">3D point tracks</td>
-<td align="left">点在多帧 &#x2F; 多视图中的对应</td>
+<td align="left">点在多帧 / 多视图中的对应</td>
 <td align="left">动态几何、跟踪、运动理解</td>
 </tr>
 </tbody></table>
@@ -209,7 +208,7 @@ VGGT detailed architecture
 </thead>
 <tbody><tr>
 <td align="left">Camera estimation</td>
-<td align="left">与 depth &#x2F; point map 不一致</td>
+<td align="left">与 depth / point map 不一致</td>
 <td align="left">视图关系和深度共同约束</td>
 </tr>
 <tr>
@@ -230,7 +229,7 @@ VGGT detailed architecture
 </tbody></table>
 <p>这个共享接口也是 DVGT 系列的前提：如果通用模型能统一视觉几何任务，驾驶场景就可以在此基础上加入多相机、ego motion 和规划接口。</p>
 <h3 id="4-5-多头几何输出的信息流"><a href="#4-5-多头几何输出的信息流" class="headerlink" title="4.5 多头几何输出的信息流"></a>4.5 多头几何输出的信息流</h3><p>VGGT 的结构可以理解成一个共享几何 encoder 加多个几何 head：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">one or more input images</span><br><span class="line">        ↓</span><br><span class="line">shared visual geometry transformer</span><br><span class="line">        ↓</span><br><span class="line">global geometry representation</span><br><span class="line">        ├── camera parameter head</span><br><span class="line">        ├── depth map head</span><br><span class="line">        ├── point map head</span><br><span class="line">        └── 3D point tracking head</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">one or more input images</span><br><span class="line">        ↓</span><br><span class="line">shared visual geometry transformer</span><br><span class="line">        ↓</span><br><span class="line">global geometry representation</span><br><span class="line">        ├── camera parameter head</span><br><span class="line">        ├── depth map head</span><br><span class="line">        ├── point map head</span><br><span class="line">        └── 3D point tracking head</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这条信息流的关键，是所有 head 都从同一几何表示读取信息。camera、depth、point map、track 不再是四个割裂任务，而是同一空间理解能力的不同出口。对驾驶而言，这种统一接口有助于减少“深度看起来对、相机关系却不一致”之类的模块间矛盾。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 camera parameter estimation、multi-view depth estimation、dense point cloud reconstruction 和 3D point tracking 等任务上报告了领先结果。这里不展开未逐表核验的细节分数，重点保留方法层面的结论：VGGT 的优势在于用统一模型覆盖多个视觉几何任务，并且推理无需传统几何优化后处理。</p>
@@ -256,7 +255,7 @@ VGGT detailed architecture
 </tr>
 <tr>
 <td align="left">3D tracking</td>
-<td align="left">几何表示是否可跨时间&#x2F;视图对应</td>
+<td align="left">几何表示是否可跨时间/视图对应</td>
 </tr>
 </tbody></table>
 <p>这些任务组合在一起，验证的是同一个问题：一个前向 transformer 是否能替代传统几何系统中分散的优化步骤。</p>
@@ -275,7 +274,7 @@ VGGT detailed architecture
 </tr>
 <tr>
 <td align="left">稠密深度估计</td>
-<td align="left">depth &#x2F; point map heads</td>
+<td align="left">depth / point map heads</td>
 <td align="left">从单任务模型变成共享几何表示</td>
 </tr>
 <tr>
@@ -302,11 +301,11 @@ VGGT detailed architecture
 <li><strong>多相机标定与同步</strong>：车载相机阵列和通用多视图输入并不完全相同；</li>
 <li><strong>动态物体</strong>：驾驶场景中大量对象在运动，静态几何假设会被破坏；</li>
 <li><strong>实时延迟</strong>：前向几何模型仍需满足车端计算预算；</li>
-<li><strong>任务接口</strong>：point map &#x2F; depth 需要转成 BEV、occupancy 或 planning 可用的约束。</li>
+<li><strong>任务接口</strong>：point map / depth 需要转成 BEV、occupancy 或 planning 可用的约束。</li>
 </ul>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>VGGT 的启示是：视觉几何正在从“优化管线”走向“前向基础模型”。对自动驾驶而言，它提供的是上游几何能力，不等同于闭环驾驶系统；真正的挑战在于如何把 dense geometry 稳定接入在线感知、预测和规划。</p>
 <p>路线关系可以这样看：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">VGGT: 通用前向视觉几何</span><br><span class="line">        ↓</span><br><span class="line">D4RT: 动态 4D 重建与查询接口</span><br><span class="line">        ↓</span><br><span class="line">DVGT: 驾驶多相机 dense geometry</span><br><span class="line">        ↓</span><br><span class="line">DVGT-2: streaming geometry + planning</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">VGGT: 通用前向视觉几何</span><br><span class="line">        ↓</span><br><span class="line">D4RT: 动态 4D 重建与查询接口</span><br><span class="line">        ↓</span><br><span class="line">DVGT: 驾驶多相机 dense geometry</span><br><span class="line">        ↓</span><br><span class="line">DVGT-2: streaming geometry + planning</span><br></pre></td></tr></tbody></table></figure>
 
 <p>因此，VGGT 是 geometry-centric 自动驾驶路线的“几何底座”，不是终点。</p>
 <h2 id="8-方法边界与站内关系"><a href="#8-方法边界与站内关系" class="headerlink" title="8. 方法边界与站内关系"></a>8. 方法边界与站内关系</h2><p>VGGT 的边界在于：它强在通用视觉几何，不强在驾驶闭环。它可以给自动驾驶提供 camera、depth、point map、track 这类基础几何能力，但还没有处理车载多相机拓扑、在线时序缓存、ego motion 分解和规划代价。</p>
@@ -322,7 +321,7 @@ VGGT detailed architecture
 <tbody><tr>
 <td align="left">VGGT</td>
 <td align="left">通用多视图几何</td>
-<td align="left">输出 camera &#x2F; depth &#x2F; point &#x2F; track</td>
+<td align="left">输出 camera / depth / point / track</td>
 </tr>
 <tr>
 <td align="left"><a href="/posts/2025/papers/2025_arXiv_D4RT_Efficiently_Reconstructing_Dynamic_Scenes/">D4RT</a></td>
@@ -330,13 +329,14 @@ VGGT detailed architecture
 <td align="left">通过 query 读取时空对应</td>
 </tr>
 <tr>
-<td align="left"><a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT 系列</a></td>
+<td align="left">DVGT 系列</td>
 <td align="left">驾驶 dense geometry</td>
 <td align="left">先做驾驶场景几何，再走向 streaming 和 planning</td>
 </tr>
 </tbody></table>
 <p>VGGT 对自动驾驶最大的启发，不是“直接拿来替代 BEV backbone”，而是让几何接口变得统一。过去 camera estimation、depth、reconstruction、tracking 往往需要各自的模块和后处理；VGGT 证明这些任务可以从同一个 transformer 表示中读出。DVGT 系列的价值，则是在这个通用几何趋势上继续回答：车载多相机、实时约束和规划接口该怎样纳入同一套几何表征。</p>
 <p>所以读 VGGT 时应抓住一句话：它把视觉几何从优化系统推向前向基础模型，但驾驶系统还需要把这个几何基础模型变成在线、时序、可决策的世界表示。</p>
+
 
             </div>
 

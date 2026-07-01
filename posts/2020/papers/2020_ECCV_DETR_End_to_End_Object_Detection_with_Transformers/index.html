@@ -55,13 +55,14 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Object Detection<br>Method: Transformer, Set Prediction, Bipartite Matching<br>Venue: ECCV<br>Year: 2020<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2005.12872">https://arxiv.org/abs/2005.12872</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr">https://github.com/facebookresearch/detr</a></p>
+                
+<p>Task: Object Detection<br>Method: Transformer, Set Prediction, Bipartite Matching<br>Venue: ECCV<br>Year: 2020<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2005.12872">https://arxiv.org/abs/2005.12872</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr">https://github.com/facebookresearch/detr</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文提出了一种全新的目标检测方法，将检测任务视为直接的集合预测问题。该方法简化了检测流程，有效地移除了许多手工设计的组件——如非极大值抑制（NMS）和 anchor 生成等需要显式编码先验知识的模块。新框架称为 DEtection TRansformer（DETR），其核心包含两个关键要素：一是基于二分图匹配的集合预测损失函数，强制预测结果具有唯一性；二是 Transformer 编码器-解码器架构。给定固定数量的可学习 object queries，DETR 通过推理物体之间的关系和全局图像上下文，以并行方式直接输出最终的预测集合。该模型概念简洁，不需要专门的库支持。在 COCO 数据集上，DETR 达到了与经过大量优化的 Faster R-CNN 基线相当的精度和推理速度。此外，DETR 可以简单地扩展到全景分割任务，并在该任务上显著超越竞争基线。</p>
-<p><strong>核心论点</strong>：目标检测本质上是集合预测问题，用 Transformer 的全局注意力机制 + 二分图匹配损失替代 anchor&#x2F;proposal&#x2F;NMS 等手工组件，实现真正端到端的检测。这一范式转变将检测从”基于先验的局部匹配”推向”基于全局推理的集合预测”。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文提出了一种全新的目标检测方法，将检测任务视为直接的集合预测问题。该方法简化了检测流程，有效地移除了许多手工设计的组件——如非极大值抑制（NMS）和 anchor 生成等需要显式编码先验知识的模块。新框架称为 DEtection TRansformer（DETR），其核心包含两个关键要素：一是基于二分图匹配的集合预测损失函数，强制预测结果具有唯一性；二是 Transformer 编码器-解码器架构。给定固定数量的可学习 object queries，DETR 通过推理物体之间的关系和全局图像上下文，以并行方式直接输出最终的预测集合。该模型概念简洁，不需要专门的库支持。在 COCO 数据集上，DETR 达到了与经过大量优化的 Faster <a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">R-CNN</a> 基线相当的精度和推理速度。此外，DETR 可以简单地扩展到全景分割任务，并在该任务上显著超越竞争基线。</p>
+<p><strong>核心论点</strong>：目标检测本质上是集合预测问题，用 Transformer 的全局注意力机制 + 二分图匹配损失替代 anchor/proposal/NMS 等手工组件，实现真正端到端的检测。这一范式转变将检测从”基于先验的局部匹配”推向”基于全局推理的集合预测”。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>目标检测的目标是预测一组边界框和类别标签。现有方法通过 <strong>间接方式</strong> 处理这个集合预测任务：</p>
 <table>
 <thead>
@@ -80,15 +81,15 @@
 </tr>
 <tr>
 <td>单阶段-anchor</td>
-<td>RetinaNet</td>
+<td><a href="/posts/2017/papers/2017_ICCV_RetinaNet_Focal_Loss_Dense_Object_Detection/">RetinaNet</a></td>
 <td>anchor 设计复杂，正负样本不平衡</td>
 <td>40.1</td>
 </tr>
 <tr>
 <td>Anchor-free</td>
-<td>FCOS &#x2F; CenterNet</td>
+<td>FCOS / <a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a></td>
 <td>仍需 NMS 后处理</td>
-<td>41.0 &#x2F; 42.1</td>
+<td>41.0 / 42.1</td>
 </tr>
 <tr>
 <td>集合预测（RNN）</td>
@@ -100,13 +101,13 @@
 <p><strong>三个无法调和的矛盾</strong>：</p>
 <ol>
 <li><strong>端到端训练</strong> vs NMS 不可微分（所有主流方法都依赖 NMS）</li>
-<li><strong>无先验假设</strong> vs anchor&#x2F;proposal 设计（需要人工编码尺度、比例等先验）</li>
+<li><strong>无先验假设</strong> vs anchor/proposal 设计（需要人工编码尺度、比例等先验）</li>
 <li><strong>全局推理</strong> vs 局部特征匹配（CNN 感受野有限，难以建模物体间关系）</li>
 </ol>
 <p><strong>核心痛点</strong>：现有检测器的性能严重依赖后处理步骤（NMS）、anchor 集合设计和目标框与 anchor 的匹配启发式规则，无法实现真正的端到端检测。</p>
 <h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><p>DETR 基于三个关键观察重新设计检测流程：</p>
 <h3 id="洞察-1：集合预测替代分类回归"><a href="#洞察-1：集合预测替代分类回归" class="headerlink" title="洞察 1：集合预测替代分类回归"></a>洞察 1：集合预测替代分类回归</h3><p>传统方法将检测分解为”在大量候选位置上做分类 + 回归”，而 DETR 直接预测一个固定大小的集合。</p>
-<p><strong>传统做法</strong>：生成数千个 anchor&#x2F;proposal → 逐个分类 + 回归 → NMS 去重<br><strong>DETR 做法</strong>：固定 $N&#x3D;100$ 个预测槽位 → 通过二分图匹配与 GT 建立一对一对应 → 无需去重</p>
+<p><strong>传统做法</strong>：生成数千个 anchor/proposal → 逐个分类 + 回归 → NMS 去重<br><strong>DETR 做法</strong>：固定 $N=100$ 个预测槽位 → 通过二分图匹配与 GT 建立一对一对应 → 无需去重</p>
 <p>匈牙利匹配的核心公式：</p>
 
 $$\hat{\sigma} = \arg\min_{\sigma \in \mathfrak{S}_N} \sum_{i}^{N} \mathcal{L}_{\text{match}}(y_i, \hat{y}_{\sigma(i)})$$
@@ -118,7 +119,7 @@ $$\mathcal{L}_{\text{match}}(y_i, \hat{y}_{\sigma(i)}) = -\mathbb{1}_{\{c_i \neq
 
 
 <p><strong>为什么更优</strong>：一对一匹配从根本上消除了重复预测，使 NMS 完全不再需要。</p>
-<h3 id="洞察-2：Transformer-全局建模分离实例"><a href="#洞察-2：Transformer-全局建模分离实例" class="headerlink" title="洞察 2：Transformer 全局建模分离实例"></a>洞察 2：Transformer 全局建模分离实例</h3><p>CNN 的局部感受野难以建模物体间的全局关系，导致重叠&#x2F;遮挡场景下容易产生重复检测。</p>
+<h3 id="洞察-2：Transformer-全局建模分离实例"><a href="#洞察-2：Transformer-全局建模分离实例" class="headerlink" title="洞察 2：Transformer 全局建模分离实例"></a>洞察 2：Transformer 全局建模分离实例</h3><p>CNN 的局部感受野难以建模物体间的全局关系，导致重叠/遮挡场景下容易产生重复检测。</p>
 <p><strong>传统做法</strong>：CNN 提取局部特征 → 后处理阶段通过 NMS 消除重复<br><strong>DETR 做法</strong>：Transformer 编码器的自注意力在特征提取阶段就建模全局关系 → 编码器输出已初步分离实例</p>
 <p>论文可视化表明，经过 Transformer 编码器后，每个物体的注意力已经能很好地聚焦在对应区域，即编码器在特征层面就完成了实例分离。解码器的交叉注意力则关注物体的极值点（头、腿、边界），精确提取类别和边界信息。</p>
 <p><strong>关键优势</strong>：编码器的全局自注意力使 DETR 在大物体检测上远超 Faster R-CNN（$AP_L$ 高出 7.8 个点），因为大物体更依赖全局上下文。</p>
@@ -131,15 +132,14 @@ $$\mathcal{L}_{\text{match}}(y_i, \hat{y}_{\sigma(i)}) = -\mathbb{1}_{\{c_i \neq
 <li><strong>+7.8 AP$_L$</strong>：大物体检测精度远超 Faster R-CNN（61.1 vs 53.4）</li>
 <li><strong>500 epochs</strong>：DETR 需要极长的训练周期（传统检测器通常 12-36 epochs）</li>
 </ul>
-<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>$$\text{Object Detection} &#x3D; \text{CNN Backbone} + \text{Transformer Encoder-Decoder} + \text{Set Prediction Loss}$$</p>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p>$$\text{Object Detection} = \text{CNN Backbone} + \text{Transformer Encoder-Decoder} + \text{Set Prediction Loss}$$</p>
 <div style="text-align:center; margin: 24px 0;">
   <img src="https://raw.githubusercontent.com/facebookresearch/detr/main/.github/DETR.png" alt="DETR 论文原始架构图" style="max-width:100%;">
   <p style="color:#888; font-size:0.9em;">论文 Figure 2 — DETR 整体架构（图源论文）</p>
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-                           输入图像
+<pre>                           输入图像
                               ↓
                          [3, H₀, W₀]
                               ↓
@@ -240,59 +240,59 @@ $$\mathcal{L}_{\text{Hungarian}}(y, \hat{y}) = \sum_{i=1}^{N} \left[ -\log \hat{
 $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mathcal{L}_{\text{iou}}(b_i, \hat{b}_{\sigma(i)}) + \lambda_{L1} \| b_i - \hat{b}_{\sigma(i)} \|_1$$
 
 
-<p>其中 $\lambda_{L1} &#x3D; 5$，$\lambda_{\text{iou}} &#x3D; 2$。</p>
+<p>其中 $\lambda_{L1} = 5$，$\lambda_{\text{iou}} = 2$。</p>
 <p>辅助解码损失：在每个解码器层后添加共享的预测 FFN 和匈牙利损失，帮助模型学习正确的物体数量。</p>
 <h3 id="关键代码"><a href="#关键代码" class="headerlink" title="关键代码"></a>关键代码</h3><p>核心代码来自官方 GitHub 仓库，以下是关键模块及对应文件：</p>
 <table>
 <thead>
 <tr>
-<th>函数&#x2F;类</th>
+<th>函数/类</th>
 <th>文件</th>
 <th>功能</th>
 </tr>
 </thead>
 <tbody><tr>
 <td><code>DETR</code></td>
-<td>models&#x2F;detr.py</td>
+<td>models/detr.py</td>
 <td>主模型：backbone + transformer + 预测头</td>
 </tr>
 <tr>
 <td><code>SetCriterion</code></td>
-<td>models&#x2F;detr.py</td>
+<td>models/detr.py</td>
 <td>匈牙利匹配 + 损失计算</td>
 </tr>
 <tr>
 <td><code>HungarianMatcher</code></td>
-<td>models&#x2F;matcher.py</td>
+<td>models/matcher.py</td>
 <td>二分图匹配（scipy.linear_sum_assignment）</td>
 </tr>
 <tr>
 <td><code>Transformer</code></td>
-<td>models&#x2F;transformer.py</td>
+<td>models/transformer.py</td>
 <td>编码器-解码器 Transformer</td>
 </tr>
 </tbody></table>
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr/blob/main/models/detr.py">models&#x2F;detr.py</a>）</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr/blob/main/models/detr.py">models/detr.py</a>）</p>
 <details>
 <summary>📄 点击展开 DETR forward 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DETR</span>(nn.Module):</span><br><span class="line">    <span class="string">&quot;&quot;&quot; DETR 目标检测模型 &quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, backbone, transformer, num_classes, num_queries, aux_loss=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.num_queries = num_queries           <span class="comment"># 100 个 object queries</span></span><br><span class="line">        <span class="variable language_">self</span>.transformer = transformer</span><br><span class="line">        hidden_dim = transformer.d_model         <span class="comment"># 256</span></span><br><span class="line">        <span class="comment"># 分类头：输出 num_classes + 1（含&quot;无物体&quot;类）</span></span><br><span class="line">        <span class="variable language_">self</span>.class_embed = nn.Linear(hidden_dim, num_classes + <span class="number">1</span>)</span><br><span class="line">        <span class="comment"># 边界框头：3 层 MLP，输出归一化的 (cx, cy, w, h)</span></span><br><span class="line">        <span class="variable language_">self</span>.bbox_embed = MLP(hidden_dim, hidden_dim, <span class="number">4</span>, <span class="number">3</span>)</span><br><span class="line">        <span class="comment"># 可学习的 object queries</span></span><br><span class="line">        <span class="variable language_">self</span>.query_embed = nn.Embedding(num_queries, hidden_dim)</span><br><span class="line">        <span class="comment"># 1×1 卷积将 backbone 输出通道从 2048 降到 256</span></span><br><span class="line">        <span class="variable language_">self</span>.input_proj = nn.Conv2d(backbone.num_channels, hidden_dim, kernel_size=<span class="number">1</span>)</span><br><span class="line">        <span class="variable language_">self</span>.backbone = backbone</span><br><span class="line">        <span class="variable language_">self</span>.aux_loss = aux_loss</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, samples: NestedTensor</span>):</span><br><span class="line">        <span class="comment"># Step 1: CNN backbone 提取特征 + 位置编码</span></span><br><span class="line">        features, pos = <span class="variable language_">self</span>.backbone(samples)</span><br><span class="line">        src, mask = features[-<span class="number">1</span>].decompose()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Step 2: 1×1 降维 + Transformer 编码器-解码器</span></span><br><span class="line">        hs = <span class="variable language_">self</span>.transformer(<span class="variable language_">self</span>.input_proj(src), mask,</span><br><span class="line">                              <span class="variable language_">self</span>.query_embed.weight, pos[-<span class="number">1</span>])[<span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Step 3: 并行预测所有 100 个检测结果</span></span><br><span class="line">        outputs_class = <span class="variable language_">self</span>.class_embed(hs)          <span class="comment"># 分类 logits</span></span><br><span class="line">        outputs_coord = <span class="variable language_">self</span>.bbox_embed(hs).sigmoid()  <span class="comment"># 归一化边界框</span></span><br><span class="line"></span><br><span class="line">        out = &#123;<span class="string">&#x27;pred_logits&#x27;</span>: outputs_class[-<span class="number">1</span>],</span><br><span class="line">               <span class="string">&#x27;pred_boxes&#x27;</span>: outputs_coord[-<span class="number">1</span>]&#125;</span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.aux_loss:</span><br><span class="line">            <span class="comment"># 辅助损失：每个解码器层都产生预测</span></span><br><span class="line">            out[<span class="string">&#x27;aux_outputs&#x27;</span>] = <span class="variable language_">self</span>._set_aux_loss(outputs_class, outputs_coord)</span><br><span class="line">        <span class="keyword">return</span> out</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">DETR</span>(nn.Module):</span><br><span class="line">    <span class="string">""" DETR 目标检测模型 """</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, backbone, transformer, num_classes, num_queries, aux_loss=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.num_queries = num_queries           <span class="comment"># 100 个 object queries</span></span><br><span class="line">        <span class="variable language_">self</span>.transformer = transformer</span><br><span class="line">        hidden_dim = transformer.d_model         <span class="comment"># 256</span></span><br><span class="line">        <span class="comment"># 分类头：输出 num_classes + 1（含"无物体"类）</span></span><br><span class="line">        <span class="variable language_">self</span>.class_embed = nn.Linear(hidden_dim, num_classes + <span class="number">1</span>)</span><br><span class="line">        <span class="comment"># 边界框头：3 层 MLP，输出归一化的 (cx, cy, w, h)</span></span><br><span class="line">        <span class="variable language_">self</span>.bbox_embed = MLP(hidden_dim, hidden_dim, <span class="number">4</span>, <span class="number">3</span>)</span><br><span class="line">        <span class="comment"># 可学习的 object queries</span></span><br><span class="line">        <span class="variable language_">self</span>.query_embed = nn.Embedding(num_queries, hidden_dim)</span><br><span class="line">        <span class="comment"># 1×1 卷积将 backbone 输出通道从 2048 降到 256</span></span><br><span class="line">        <span class="variable language_">self</span>.input_proj = nn.Conv2d(backbone.num_channels, hidden_dim, kernel_size=<span class="number">1</span>)</span><br><span class="line">        <span class="variable language_">self</span>.backbone = backbone</span><br><span class="line">        <span class="variable language_">self</span>.aux_loss = aux_loss</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, samples: NestedTensor</span>):</span><br><span class="line">        <span class="comment"># Step 1: CNN backbone 提取特征 + 位置编码</span></span><br><span class="line">        features, pos = <span class="variable language_">self</span>.backbone(samples)</span><br><span class="line">        src, mask = features[-<span class="number">1</span>].decompose()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Step 2: 1×1 降维 + Transformer 编码器-解码器</span></span><br><span class="line">        hs = <span class="variable language_">self</span>.transformer(<span class="variable language_">self</span>.input_proj(src), mask,</span><br><span class="line">                              <span class="variable language_">self</span>.query_embed.weight, pos[-<span class="number">1</span>])[<span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Step 3: 并行预测所有 100 个检测结果</span></span><br><span class="line">        outputs_class = <span class="variable language_">self</span>.class_embed(hs)          <span class="comment"># 分类 logits</span></span><br><span class="line">        outputs_coord = <span class="variable language_">self</span>.bbox_embed(hs).sigmoid()  <span class="comment"># 归一化边界框</span></span><br><span class="line"></span><br><span class="line">        out = {<span class="string">'pred_logits'</span>: outputs_class[-<span class="number">1</span>],</span><br><span class="line">               <span class="string">'pred_boxes'</span>: outputs_coord[-<span class="number">1</span>]}</span><br><span class="line">        <span class="keyword">if</span> <span class="variable language_">self</span>.aux_loss:</span><br><span class="line">            <span class="comment"># 辅助损失：每个解码器层都产生预测</span></span><br><span class="line">            out[<span class="string">'aux_outputs'</span>] = <span class="variable language_">self</span>._set_aux_loss(outputs_class, outputs_coord)</span><br><span class="line">        <span class="keyword">return</span> out</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr/blob/main/models/matcher.py">models&#x2F;matcher.py</a>）</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr/blob/main/models/matcher.py">models/matcher.py</a>）</p>
 <details>
 <summary>📄 点击展开 HungarianMatcher 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">HungarianMatcher</span>(nn.Module):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;二分图匹配：为每张图像找到预测与 GT 的最优一对一匹配&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, cost_class: <span class="built_in">float</span> = <span class="number">1</span>, cost_bbox: <span class="built_in">float</span> = <span class="number">1</span>, cost_giou: <span class="built_in">float</span> = <span class="number">1</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.cost_class = cost_class</span><br><span class="line">        <span class="variable language_">self</span>.cost_bbox = cost_bbox</span><br><span class="line">        <span class="variable language_">self</span>.cost_giou = cost_giou</span><br><span class="line"></span><br><span class="line"><span class="meta">    @torch.no_grad()</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, outputs, targets</span>):</span><br><span class="line">        bs, num_queries = outputs[<span class="string">&quot;pred_logits&quot;</span>].shape[:<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 展平 batch 维度，计算所有预测-GT 对的代价</span></span><br><span class="line">        out_prob = outputs[<span class="string">&quot;pred_logits&quot;</span>].flatten(<span class="number">0</span>, <span class="number">1</span>).softmax(-<span class="number">1</span>)  <span class="comment"># [bs*100, 92]</span></span><br><span class="line">        out_bbox = outputs[<span class="string">&quot;pred_boxes&quot;</span>].flatten(<span class="number">0</span>, <span class="number">1</span>)               <span class="comment"># [bs*100, 4]</span></span><br><span class="line"></span><br><span class="line">        tgt_ids = torch.cat([v[<span class="string">&quot;labels&quot;</span>] <span class="keyword">for</span> v <span class="keyword">in</span> targets])</span><br><span class="line">        tgt_bbox = torch.cat([v[<span class="string">&quot;boxes&quot;</span>] <span class="keyword">for</span> v <span class="keyword">in</span> targets])</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 分类代价：1 - p(target_class)</span></span><br><span class="line">        cost_class = -out_prob[:, tgt_ids]</span><br><span class="line">        <span class="comment"># L1 边界框代价</span></span><br><span class="line">        cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=<span class="number">1</span>)</span><br><span class="line">        <span class="comment"># GIoU 代价</span></span><br><span class="line">        cost_giou = -generalized_box_iou(</span><br><span class="line">            box_cxcywh_to_xyxy(out_bbox), box_cxcywh_to_xyxy(tgt_bbox))</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 组合代价矩阵</span></span><br><span class="line">        C = <span class="variable language_">self</span>.cost_bbox * cost_bbox + <span class="variable language_">self</span>.cost_class * cost_class \</span><br><span class="line">            + <span class="variable language_">self</span>.cost_giou * cost_giou</span><br><span class="line">        C = C.view(bs, num_queries, -<span class="number">1</span>).cpu()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 匈牙利算法求解最优匹配</span></span><br><span class="line">        sizes = [<span class="built_in">len</span>(v[<span class="string">&quot;boxes&quot;</span>]) <span class="keyword">for</span> v <span class="keyword">in</span> targets]</span><br><span class="line">        indices = [linear_sum_assignment(c[i])</span><br><span class="line">                   <span class="keyword">for</span> i, c <span class="keyword">in</span> <span class="built_in">enumerate</span>(C.split(sizes, -<span class="number">1</span>))]</span><br><span class="line">        <span class="keyword">return</span> [(torch.as_tensor(i, dtype=torch.int64),</span><br><span class="line">                 torch.as_tensor(j, dtype=torch.int64)) <span class="keyword">for</span> i, j <span class="keyword">in</span> indices]</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">HungarianMatcher</span>(nn.Module):</span><br><span class="line">    <span class="string">"""二分图匹配：为每张图像找到预测与 GT 的最优一对一匹配"""</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, cost_class: <span class="built_in">float</span> = <span class="number">1</span>, cost_bbox: <span class="built_in">float</span> = <span class="number">1</span>, cost_giou: <span class="built_in">float</span> = <span class="number">1</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.cost_class = cost_class</span><br><span class="line">        <span class="variable language_">self</span>.cost_bbox = cost_bbox</span><br><span class="line">        <span class="variable language_">self</span>.cost_giou = cost_giou</span><br><span class="line"></span><br><span class="line"><span class="meta">    @torch.no_grad()</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, outputs, targets</span>):</span><br><span class="line">        bs, num_queries = outputs[<span class="string">"pred_logits"</span>].shape[:<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 展平 batch 维度，计算所有预测-GT 对的代价</span></span><br><span class="line">        out_prob = outputs[<span class="string">"pred_logits"</span>].flatten(<span class="number">0</span>, <span class="number">1</span>).softmax(-<span class="number">1</span>)  <span class="comment"># [bs*100, 92]</span></span><br><span class="line">        out_bbox = outputs[<span class="string">"pred_boxes"</span>].flatten(<span class="number">0</span>, <span class="number">1</span>)               <span class="comment"># [bs*100, 4]</span></span><br><span class="line"></span><br><span class="line">        tgt_ids = torch.cat([v[<span class="string">"labels"</span>] <span class="keyword">for</span> v <span class="keyword">in</span> targets])</span><br><span class="line">        tgt_bbox = torch.cat([v[<span class="string">"boxes"</span>] <span class="keyword">for</span> v <span class="keyword">in</span> targets])</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 分类代价：1 - p(target_class)</span></span><br><span class="line">        cost_class = -out_prob[:, tgt_ids]</span><br><span class="line">        <span class="comment"># L1 边界框代价</span></span><br><span class="line">        cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=<span class="number">1</span>)</span><br><span class="line">        <span class="comment"># GIoU 代价</span></span><br><span class="line">        cost_giou = -generalized_box_iou(</span><br><span class="line">            box_cxcywh_to_xyxy(out_bbox), box_cxcywh_to_xyxy(tgt_bbox))</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 组合代价矩阵</span></span><br><span class="line">        C = <span class="variable language_">self</span>.cost_bbox * cost_bbox + <span class="variable language_">self</span>.cost_class * cost_class \</span><br><span class="line">            + <span class="variable language_">self</span>.cost_giou * cost_giou</span><br><span class="line">        C = C.view(bs, num_queries, -<span class="number">1</span>).cpu()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 匈牙利算法求解最优匹配</span></span><br><span class="line">        sizes = [<span class="built_in">len</span>(v[<span class="string">"boxes"</span>]) <span class="keyword">for</span> v <span class="keyword">in</span> targets]</span><br><span class="line">        indices = [linear_sum_assignment(c[i])</span><br><span class="line">                   <span class="keyword">for</span> i, c <span class="keyword">in</span> <span class="built_in">enumerate</span>(C.split(sizes, -<span class="number">1</span>))]</span><br><span class="line">        <span class="keyword">return</span> [(torch.as_tensor(i, dtype=torch.int64),</span><br><span class="line">                 torch.as_tensor(j, dtype=torch.int64)) <span class="keyword">for</span> i, j <span class="keyword">in</span> indices]</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr/blob/main/models/transformer.py">models&#x2F;transformer.py</a>）</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/facebookresearch/detr/blob/main/models/transformer.py">models/transformer.py</a>）</p>
 <details>
 <summary>📄 点击展开 Transformer forward 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Transformer</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, d_model=<span class="number">256</span>, nhead=<span class="number">8</span>, num_encoder_layers=<span class="number">6</span>,</span></span><br><span class="line"><span class="params">                 num_decoder_layers=<span class="number">6</span>, dim_feedforward=<span class="number">2048</span>, dropout=<span class="number">0.1</span>,</span></span><br><span class="line"><span class="params">                 activation=<span class="string">&quot;relu&quot;</span>, normalize_before=<span class="literal">False</span>,</span></span><br><span class="line"><span class="params">                 return_intermediate_dec=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="comment"># 编码器：6 层 self-attention + FFN</span></span><br><span class="line">        encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward,</span><br><span class="line">                                                dropout, activation, normalize_before)</span><br><span class="line">        <span class="variable language_">self</span>.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)</span><br><span class="line">        <span class="comment"># 解码器：6 层 self-attention + cross-attention + FFN</span></span><br><span class="line">        decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward,</span><br><span class="line">                                                dropout, activation, normalize_before)</span><br><span class="line">        <span class="variable language_">self</span>.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,</span><br><span class="line">                                         return_intermediate=return_intermediate_dec)</span><br><span class="line">        <span class="variable language_">self</span>.d_model = d_model</span><br><span class="line">        <span class="variable language_">self</span>.nhead = nhead</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, src, mask, query_embed, pos_embed</span>):</span><br><span class="line">        <span class="comment"># 将空间特征展平为序列：[N, C, H, W] → [HW, N, C]</span></span><br><span class="line">        bs, c, h, w = src.shape</span><br><span class="line">        src = src.flatten(<span class="number">2</span>).permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line">        pos_embed = pos_embed.flatten(<span class="number">2</span>).permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line">        query_embed = query_embed.unsqueeze(<span class="number">1</span>).repeat(<span class="number">1</span>, bs, <span class="number">1</span>)  <span class="comment"># [100, N, 256]</span></span><br><span class="line">        mask = mask.flatten(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 解码器输入初始化为全零</span></span><br><span class="line">        tgt = torch.zeros_like(query_embed)</span><br><span class="line">        <span class="comment"># 编码器：全局自注意力建模</span></span><br><span class="line">        memory = <span class="variable language_">self</span>.encoder(src, src_key_padding_mask=mask, pos=pos_embed)</span><br><span class="line">        <span class="comment"># 解码器：object queries 通过交叉注意力从编码器记忆中提取信息</span></span><br><span class="line">        hs = <span class="variable language_">self</span>.decoder(tgt, memory, memory_key_padding_mask=mask,</span><br><span class="line">                          pos=pos_embed, query_pos=query_embed)</span><br><span class="line">        <span class="keyword">return</span> hs.transpose(<span class="number">1</span>, <span class="number">2</span>), memory.permute(<span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>).view(bs, c, h, w)</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Transformer</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, d_model=<span class="number">256</span>, nhead=<span class="number">8</span>, num_encoder_layers=<span class="number">6</span>,</span></span><br><span class="line"><span class="params">                 num_decoder_layers=<span class="number">6</span>, dim_feedforward=<span class="number">2048</span>, dropout=<span class="number">0.1</span>,</span></span><br><span class="line"><span class="params">                 activation=<span class="string">"relu"</span>, normalize_before=<span class="literal">False</span>,</span></span><br><span class="line"><span class="params">                 return_intermediate_dec=<span class="literal">False</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="comment"># 编码器：6 层 self-attention + FFN</span></span><br><span class="line">        encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward,</span><br><span class="line">                                                dropout, activation, normalize_before)</span><br><span class="line">        <span class="variable language_">self</span>.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)</span><br><span class="line">        <span class="comment"># 解码器：6 层 self-attention + cross-attention + FFN</span></span><br><span class="line">        decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward,</span><br><span class="line">                                                dropout, activation, normalize_before)</span><br><span class="line">        <span class="variable language_">self</span>.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,</span><br><span class="line">                                         return_intermediate=return_intermediate_dec)</span><br><span class="line">        <span class="variable language_">self</span>.d_model = d_model</span><br><span class="line">        <span class="variable language_">self</span>.nhead = nhead</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, src, mask, query_embed, pos_embed</span>):</span><br><span class="line">        <span class="comment"># 将空间特征展平为序列：[N, C, H, W] → [HW, N, C]</span></span><br><span class="line">        bs, c, h, w = src.shape</span><br><span class="line">        src = src.flatten(<span class="number">2</span>).permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line">        pos_embed = pos_embed.flatten(<span class="number">2</span>).permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>)</span><br><span class="line">        query_embed = query_embed.unsqueeze(<span class="number">1</span>).repeat(<span class="number">1</span>, bs, <span class="number">1</span>)  <span class="comment"># [100, N, 256]</span></span><br><span class="line">        mask = mask.flatten(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 解码器输入初始化为全零</span></span><br><span class="line">        tgt = torch.zeros_like(query_embed)</span><br><span class="line">        <span class="comment"># 编码器：全局自注意力建模</span></span><br><span class="line">        memory = <span class="variable language_">self</span>.encoder(src, src_key_padding_mask=mask, pos=pos_embed)</span><br><span class="line">        <span class="comment"># 解码器：object queries 通过交叉注意力从编码器记忆中提取信息</span></span><br><span class="line">        hs = <span class="variable language_">self</span>.decoder(tgt, memory, memory_key_padding_mask=mask,</span><br><span class="line">                          pos=pos_embed, query_pos=query_embed)</span><br><span class="line">        <span class="keyword">return</span> hs.transpose(<span class="number">1</span>, <span class="number">2</span>), memory.permute(<span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>).view(bs, c, h, w)</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -568,7 +568,7 @@ $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mat
 <blockquote>
 <p>注：第 1 层 AP 为从 Figure 4 折线图读取的近似值，论文未给出逐层精确数值表。</p>
 </blockquote>
-<p>AP 从第 1 层到第 6 层累计提升 +8.2 AP &#x2F; +9.5 AP$_{50}$。这同时验证了两个洞察：</p>
+<p>AP 从第 1 层到第 6 层累计提升 +8.2 AP / +9.5 AP$_{50}$。这同时验证了两个洞察：</p>
 <p>(1) NMS 从”有益”变为”有害”的渐变过程证明一对一匹配使 NMS 天然多余（洞察 #1）；<br>(2) 这一渐变的根本原因是多层解码器的自注意力逐步抑制重复预测，是全局建模在解码侧的延续（洞察 #2）。</p>
 <p><strong>FFN 的重要性</strong>（架构通用验证）：移除 FFN 导致 AP 下降 2.3（参数量从 41.3M 降到 28.7M）。FFN 可视为 $1 \times 1$ 卷积，为注意力层输出提供逐位置的非线性变换能力，是 Transformer 各组件中不可或缺的一环。该实验与上述编码器、解码器、位置编码消融共同支撑论文的整体结论：<strong>全局自注意力、FFN、多层解码器、位置编码四者缺一不可</strong>。</p>
 <h3 id="性能瓶颈分析"><a href="#性能瓶颈分析" class="headerlink" title="性能瓶颈分析"></a>性能瓶颈分析</h3><p>DETR 的主要性能差距体现在小物体上：</p>
@@ -602,9 +602,9 @@ $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mat
 </tbody></table>
 <p>小物体性能差的根本原因：</p>
 <ul>
-<li><strong>低分辨率特征图</strong>：ResNet-50 stride&#x3D;32 后特征图尺寸很小（如 800×1066 输入仅得 25×34），小物体信息严重丢失</li>
+<li><strong>低分辨率特征图</strong>：ResNet-50 stride=32 后特征图尺寸很小（如 800×1066 输入仅得 25×34），小物体信息严重丢失</li>
 <li><strong>自注意力计算代价与分辨率平方成正比</strong>：提高分辨率（DC5 方案）可部分缓解（$AP_S$ 从 20.5 提升至 22.5），但计算量翻倍</li>
-<li>作者预期类似 FPN 的多尺度方案可解决此问题（后续 Deformable DETR 证实了这一点）</li>
+<li>作者预期类似 FPN 的多尺度方案可解决此问题（后续 <a href="/posts/2021/papers/2021_ICLR_Deformable_DETR_Deformable_Transformers/">Deformable DETR</a> 证实了这一点）</li>
 </ul>
 <p>另一瓶颈是<strong>训练收敛极慢</strong>：DETR 需要 500 epochs（约 5-7 天，16 块 V100），远超传统检测器。</p>
 <h3 id="失效场景分析"><a href="#失效场景分析" class="headerlink" title="失效场景分析"></a>失效场景分析</h3><ul>
@@ -612,12 +612,12 @@ $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mat
 <li><strong>极端物体数量</strong>：当单张图像中同类物体数量接近 100（query 数量上限）时，模型开始饱和，遗漏率上升。论文实验显示，50 个以内物体几乎可全部检测，但 100 个物体时仅检测到约 30 个</li>
 <li><strong>遮挡重叠场景</strong>：虽然全局注意力在一定程度上缓解了遮挡问题（解码器可视化显示能区分重叠的大象和斑马的各个部位），但多个高度重叠的同类物体仍可能混淆</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone: ResNet-50 / ResNet-101（ImageNet 预训练，冻结 BN）</span><br><span class="line">Input: 短边 480-800，长边最大 1333</span><br><span class="line">Batch: 64（16 GPU × 4 images/GPU）</span><br><span class="line">Optimizer: AdamW (backbone lr=1e-5, transformer lr=1e-4, weight_decay=1e-4)</span><br><span class="line">Augmentation: 随机尺度缩放、随机裁剪（概率 0.5）</span><br><span class="line">Training Time: ~3 天（300 epochs）/ ~5 天（500 epochs），16 × V100</span><br><span class="line">Dropout: 0.1</span><br><span class="line">Grad Clip: 0.1</span><br><span class="line">Object Queries: N=100</span><br><span class="line">Loss Weights: λ_L1=5, λ_iou=2, eos_coef=0.1</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone: ResNet-50 / ResNet-101（ImageNet 预训练，冻结 BN）</span><br><span class="line">Input: 短边 480-800，长边最大 1333</span><br><span class="line">Batch: 64（16 GPU × 4 images/GPU）</span><br><span class="line">Optimizer: AdamW (backbone lr=1e-5, transformer lr=1e-4, weight_decay=1e-4)</span><br><span class="line">Augmentation: 随机尺度缩放、随机裁剪（概率 0.5）</span><br><span class="line">Training Time: ~3 天（300 epochs）/ ~5 天（500 epochs），16 × V100</span><br><span class="line">Dropout: 0.1</span><br><span class="line">Grad Clip: 0.1</span><br><span class="line">Object Queries: N=100</span><br><span class="line">Loss Weights: λ_L1=5, λ_iou=2, eos_coef=0.1</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
 <li><p><strong>学习率分离</strong>：backbone 学习率必须比 transformer <strong>低一个数量级</strong>（1e-5 vs 1e-4），否则训练初期不稳定。这是因为 backbone 已有 ImageNet 预训练权重，只需微调。</p>
 </li>
-<li><p><strong>长训练周期</strong>：300 epochs 为最低要求，500 epochs 可额外获得 +1.5 AP。训练初期收敛非常缓慢，不要过早终止。学习率在 200&#x2F;400 epoch 处衰减 10 倍。</p>
+<li><p><strong>长训练周期</strong>：300 epochs 为最低要求，500 epochs 可额外获得 +1.5 AP。训练初期收敛非常缓慢，不要过早终止。学习率在 200/400 epoch 处衰减 10 倍。</p>
 </li>
 <li><p><strong>“无物体”类降权</strong>：$\varnothing$ 类在损失中降权 10 倍（<code>eos_coef=0.1</code>），类似 Faster R-CNN 中正负样本平衡的子采样策略。不降权会导致模型过度预测”无物体”。</p>
 </li>
@@ -641,9 +641,9 @@ $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mat
 <li>减少训练 epochs：通过更好的匹配策略（如 DN-DETR 的去噪训练）加速收敛，将训练周期从 500 缩短至 50 epochs</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ol>
-<li><p><strong>用集合预测替代后处理</strong><br>DETR 证明了通过二分图匹配建立一对一对应，可以完全消除 NMS 等不可微分的后处理。这一思想可迁移至目标跟踪（TrackFormer）、实例分割（Mask2Former）等需要处理重复预测的任务。</p>
+<li><p><strong>用集合预测替代后处理</strong><br>DETR 证明了通过二分图匹配建立一对一对应，可以完全消除 NMS 等不可微分的后处理。这一思想可迁移至目标跟踪（TrackFormer）、实例分割（<a href="/posts/2022/papers/2022_CVPR_Mask2Former_Universal_Image_Segmentation/">Mask2Former</a>）等需要处理重复预测的任务。</p>
 </li>
-<li><p><strong>Transformer 的全局建模能力适合物体关系推理</strong><br>编码器的自注意力使模型在特征提取阶段就能分离实例，这在处理遮挡、拥挤场景时尤为关键。类似思路已被用于 3D 检测（DETR3D）、点云处理等任务。</p>
+<li><p><strong>Transformer 的全局建模能力适合物体关系推理</strong><br>编码器的自注意力使模型在特征提取阶段就能分离实例，这在处理遮挡、拥挤场景时尤为关键。类似思路已被用于 3D 检测（<a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a>）、点云处理等任务。</p>
 </li>
 <li><p><strong>可学习 query 替代手工先验</strong><br>Object queries 证明了”让模型自己学习在哪里找目标”优于人工设计 anchor。这启发了后续工作用类似的可学习 query 处理语义分割（MaskFormer）、视频理解（VisTR）等任务。</p>
 </li>
@@ -653,7 +653,7 @@ $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mat
 <h3 id="方法局限"><a href="#方法局限" class="headerlink" title="方法局限"></a>方法局限</h3><ul>
 <li><strong>小物体检测性能不足</strong>：$AP_S$ 低于 Faster R-CNN 约 6 个点，根本原因是 Transformer 自注意力在高分辨率特征图上计算代价过高</li>
 <li><strong>训练收敛极慢</strong>：需要 500 epochs（约 5 天），是传统检测器训练时间的 10-50 倍</li>
-<li><strong>query 数量限制了最大检测数</strong>：固定 $N&#x3D;100$ 个 query 在极端密集场景下成为瓶颈</li>
+<li><strong>query 数量限制了最大检测数</strong>：固定 $N=100$ 个 query 在极端密集场景下成为瓶颈</li>
 </ul>
 <h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
 <li><strong>范式转变</strong>：开启了 Transformer 在目标检测中的应用浪潮，后续 Deformable DETR、DAB-DETR、DN-DETR、DINO 等工作逐步解决了训练慢和小物体检测差的问题</li>
@@ -661,6 +661,7 @@ $$\mathcal{L}_{\text{box}}(b_i, \hat{b}_{\sigma(i)}) = \lambda_{\text{iou}} \mat
 <li><strong>代码开源</strong>：GitHub 获 15.1k stars，成为 Transformer 检测领域最广泛引用的代码库之一</li>
 <li><strong>工业影响</strong>：DETR 系列方法已被 Hugging Face Transformers、MMDetection 等主流框架集成，推动了端到端检测在工业界的落地</li>
 </ul>
+
 
             </div>
 

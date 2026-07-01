@@ -55,7 +55,7 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Topic: Autonomous Driving Technology Evolution<br>Keywords: BEV, MapTR, Occupancy, UniAD, VAD, VADv2, SparseDrive, SparseDriveV2, DiffusionDrive, World Model</p>
+                <p>Topic: Autonomous Driving Technology Evolution<br>Keywords: BEV, <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a>, Occupancy, <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a>, <a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a>, VADv2, <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a>, SparseDriveV2, <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a>, World Model</p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -72,15 +72,15 @@
 </ul>
 <p>这种”各自为战”的局面，推动研究者思考一个根本问题：<strong>能不能给所有模块一个统一的空间语境？</strong></p>
 <h2 id="2-第二幕：空间的重构——BEV-带来的”上帝视角”"><a href="#2-第二幕：空间的重构——BEV-带来的”上帝视角”" class="headerlink" title="2. 第二幕：空间的重构——BEV 带来的”上帝视角”"></a>2. 第二幕：空间的重构——BEV 带来的”上帝视角”</h2><p>技术的第一次真正觉醒，源于智能体获得了<strong>空间感</strong>。</p>
-<p>研究者意识到，车是开在 3D 物理世界里的，而非 2D 照片里——在 2D 特征空间中直接回归 3D 坐标本身就是一个病态问题（ill-posed）。以 <strong>LSS (Lift-Splat-Shoot)</strong> 为代表的方案解决了从平面到空间的跨越，将 2D 图像特征”举起”到 3D 空间并”拍扁”成 BEV 视图；而 <strong>BEVFormer</strong> 则通过 Transformer 建立了统一的鸟瞰图空间表示。与此同时，<strong>DETR3D → PETR → StreamPETR</strong> 这条 query-based 路线也在 BEV 空间上平行展开，引入了跨帧传播的时序建模能力，最终汇入 SparseDrive 的稀疏表示范式。</p>
+<p>研究者意识到，车是开在 3D 物理世界里的，而非 2D 照片里——在 2D 特征空间中直接回归 3D 坐标本身就是一个病态问题（ill-posed）。以 <strong><a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> (Lift-Splat-Shoot)</strong> 为代表的方案解决了从平面到空间的跨越，将 2D 图像特征”举起”到 3D 空间并”拍扁”成 BEV 视图；而 <strong><a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a></strong> 则通过 Transformer 建立了统一的鸟瞰图空间表示。与此同时，**<a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a> → <a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a> → <a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a>** 这条 query-based 路线也在 BEV 空间上平行展开，引入了跨帧传播的时序建模能力，最终汇入 SparseDrive 的稀疏表示范式。</p>
 <p>在这个统一的空间沙盘上，<strong>MapTR</strong> 登场了。传统方法通常通过像素分割识别车道区域，但道路结构本身具有明显的几何形态——车道线本质是一条曲线。MapTR 不再满足于像素级的分割，而是引入了矢量化建模的思路：</p>
 <ul>
 <li><strong>核心思想</strong>：直接预测一组地图元素（车道线、道路边界、斑马线），每个元素由一条折线或曲线表示。</li>
 <li><strong>排列不变性建模</strong>（Permutation-invariant modeling）：消除点集排列顺序对训练的干扰。</li>
 <li><strong>表示形式的转变</strong>：从密集像素表示（Dense Pixel）转向稀疏结构表示（Vector Element）。</li>
 </ul>
-<p>值得注意的是，BEV 时代还催生了一条平行路线：<strong>BEVFusion</strong>（2022）证明了将激光雷达点云和摄像头图像统一到 BEV 空间后进行特征融合，可以显著提升检测精度和鲁棒性。这条”纯视觉 vs 多传感器”的技术分叉至今仍是工业落地中的核心决策点。</p>
-<p>这一阶段的突破在于：系统不再只是”看”图像，而是在大脑中”重建”地图。感知输出开始具备明确的几何与拓扑意义。有了这种确定性的空间结构，自动驾驶才真正告别了平面感知的原始阶段。至此，技术完成了从<strong>感知 1.0</strong>（YOLO &#x2F; Faster R-CNN，解决”那是什么”）到<strong>感知 2.0</strong>（LSS &#x2F; BEVFormer，解决”在哪儿”）再到<strong>表示 1.0</strong>（MapTR，解决”路怎么走”）的三连跳。</p>
+<p>值得注意的是，BEV 时代还催生了一条平行路线：**<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a>**（2022）证明了将激光雷达点云和摄像头图像统一到 BEV 空间后进行特征融合，可以显著提升检测精度和鲁棒性。这条”纯视觉 vs 多传感器”的技术分叉至今仍是工业落地中的核心决策点。</p>
+<p>这一阶段的突破在于：系统不再只是”看”图像，而是在大脑中”重建”地图。感知输出开始具备明确的几何与拓扑意义。有了这种确定性的空间结构，自动驾驶才真正告别了平面感知的原始阶段。至此，技术完成了从<strong>感知 1.0</strong>（<a href="/posts/2018/papers/2018_arXiv_YOLO_Series_Unified_Real_Time_Object_Detection/">YOLO</a> &#x2F; Faster <a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">R-CNN</a>，解决”那是什么”）到<strong>感知 2.0</strong>（LSS &#x2F; BEVFormer，解决”在哪儿”）再到<strong>表示 1.0</strong>（MapTR，解决”路怎么走”）的三连跳。</p>
 <h2 id="3-第三幕：隐形的防线——Occupancy-Network-对”未知”的征服"><a href="#3-第三幕：隐形的防线——Occupancy-Network-对”未知”的征服" class="headerlink" title="3. 第三幕：隐形的防线——Occupancy Network 对”未知”的征服"></a>3. 第三幕：隐形的防线——Occupancy Network 对”未知”的征服</h2><p>即便有了矢量地图和车辆检测，系统仍会被”未知的未知”击败——比如路面上翻倒的货车、散落的纸箱、甚至姿势怪异的异形物体。这些没见过、无法分类的障碍物，是传统检测框架的盲区。</p>
 <p>2022 年前后，<strong>Occupancy Network（占用网络）</strong> 的普及填补了这一空白。它不再纠结于”那个物体是什么”，而是回归物理本质：<strong>那个空间是否被占用？</strong></p>
 <ul>
@@ -117,7 +117,7 @@
 <p>如果问题仅仅是”词表不够密”，那解法就变得优雅：将一条完整轨迹拆成<strong>几何路径</strong>（”车往哪走”）和<strong>速度轮廓</strong>（”以多快的节奏走”）的自由组合。1024 条路径 × 256 种速度 &#x3D; 262,144 条候选，是传统方案的 32 倍密度。再配合粗到细的两级评分，从 26 万条候选中层层筛选到 400 条精细打分，SparseDriveV2 以 <strong>92.0 PDMS</strong> 刷新了 NAVSIM 纪录——超越了所有生成式方法。</p>
 <p>这一结果让行业意识到：规划范式的选择不是非此即彼。DiffusionDrive 系列（及后续的 DiffusionDriveV2、GoalFlow）代表了<strong>生成派</strong>——用连续去噪&#x2F;流匹配探索动作空间；SparseDriveV2 代表了<strong>评分派</strong>——用超密静态词表加层级筛选覆盖动作空间。两条路线正在并行推进，各有所长。</p>
 <h3 id="5-2-世界模型：学习物理规律"><a href="#5-2-世界模型：学习物理规律" class="headerlink" title="5.2 世界模型：学习物理规律"></a>5.2 世界模型：学习物理规律</h3><p>但生成轨迹仍然只是解决问题的一部分。真正决定驾驶安全的，是对未来交通场景整体变化的理解。如果系统能够预测未来几秒内整个交通环境会如何演化，那么规划就可以在这些预测场景中进行决策。</p>
-<p>正是在这种思路下，<strong>世界模型（World Model）</strong> 成为新的研究方向。以 <strong>GAIA-1</strong> 和 <strong>DriveDreamer</strong> 为代表，系统通过海量视频学习物理世界的运行逻辑：</p>
+<p>正是在这种思路下，<strong>世界模型（World Model）</strong> 成为新的研究方向。以 <strong><a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a></strong> 和 <strong><a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer</a></strong> 为代表，系统通过海量视频学习物理世界的运行逻辑：</p>
 <ul>
 <li><strong>动作条件生成</strong>：系统会问——“如果我左转，世界会变成什么样？”然后生成对应的未来场景视频或 BEV 演化。</li>
 <li><strong>Occupancy 的进阶</strong>：通过预测 3D 空间的占用变化，处理那些无法归类的异形物体。</li>
@@ -166,7 +166,7 @@
 <td align="left"><strong>感知 2.0+</strong></td>
 <td align="left">BEV 空间重构</td>
 <td align="left">“在哪儿” (3D Localization)</td>
-<td align="left">LSS, BEVFormer, BEVDet</td>
+<td align="left">LSS, BEVFormer, <a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a></td>
 <td align="left">3D BEV 空间</td>
 </tr>
 <tr>

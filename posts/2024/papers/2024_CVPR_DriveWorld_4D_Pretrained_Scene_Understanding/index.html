@@ -55,14 +55,15 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 4D Autonomous Driving Scene Understanding Pre-training<br>Method: Memory State-Space Model, Dynamic Memory Bank, Static Scene Propagation, Task Prompt<br>Venue: CVPR 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.04390">https://arxiv.org/abs/2405.04390</a><br>Code: N&#x2F;A</p>
+                
+<p>Task: 4D Autonomous Driving Scene Understanding Pre-training<br>Method: Memory State-Space Model, Dynamic Memory Bank, Static Scene Propagation, Task Prompt<br>Venue: CVPR 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2405.04390">https://arxiv.org/abs/2405.04390</a><br>Code: N/A</p>
 <span id="more"></span>
 
 <!-- toc -->
 
 <h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>DriveWorld 提出基于 world model 的 4D autonomous driving representation learning。它的出发点很直接：自动驾驶不是静态图片理解，也不是单帧 3D 感知，而是一个持续演化的 4D 场景理解问题。如果预训练只让模型学 2D 外观或单帧 3D 几何，就会漏掉驾驶系统最需要的时间动态。</p>
 <p>方法上，DriveWorld 使用 <strong>Memory State-Space Model</strong>。其中，Dynamic Memory Bank 学习 temporal-aware latent dynamics，Static Scene Propagation 学习 spatial-aware latent statics，Task Prompt 则引导同一预训练表示适配不同下游任务。</p>
-<p>和 <a href="/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/">UniWorld</a> 相比，DriveWorld 更强调 memory-based 4D latent dynamics：前者以 4D geometric occupancy 为预训练状态，后者则把世界演化建模放进动态&#x2F;静态记忆结构里。</p>
+<p>和 <a href="/posts/2023/papers/2023_arXiv_UniWorld_Autonomous_Driving_Pretraining_World_Models/">UniWorld</a> 相比，DriveWorld 更强调 memory-based 4D latent dynamics：前者以 4D geometric occupancy 为预训练状态，后者则把世界演化建模放进动态/静态记忆结构里。</p>
 <p><strong>核心论点</strong>：自动驾驶预训练应当从“单帧视觉表征”升级为“4D 世界状态表征”，让模型在预训练阶段就学习场景随时间变化的规律。</p>
 <h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>自动驾驶模型通常依赖大规模预训练，但常见预训练目标往往偏离驾驶任务本身：</p>
 <table>
@@ -106,8 +107,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-multi-camera driving videos
+<pre>multi-camera driving videos
         │
         ▼
 4D pre-training framework
@@ -126,8 +126,7 @@ downstream driving tasks
 
 <p>更细地看，DriveWorld 的 Memory State-Space Model 把“动态”和“静态”拆成两条互相补充的记忆路径：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-DriveWorld detailed architecture
+<pre>DriveWorld detailed architecture
 
 <p>Input sequence:<br>  multi-frame driving observations<br>  task prompt for downstream adaptation</p>
 <pre><code>    ┌────────────────────────────────────────────┐
@@ -139,7 +138,7 @@ DriveWorld detailed architecture
        ┌─────────────┴─────────────┐
        ▼                           ▼
 </code></pre>
-<p>┌──────────────────────┐     ┌────────────────────────┐<br>│ Dynamic Memory Bank  │     │ Static Scene Propagation│<br>│ temporal latent flow │     │ stable road&#x2F;background  │<br>│ motion and evolution │     │ spatial layout memory   │<br>└──────────────────────┘     └────────────────────────┘<br>           │                           │<br>           └─────────────┬─────────────┘<br>                         ▼<br>        ┌────────────────────────────────────────────┐<br>        │  2. Memory State-Space Fusion              │<br>        │  combine dynamic state + static scene      │<br>        │  form 4D driving representation            │<br>        └────────────────────────────────────────────┘<br>                         │<br>                         ▼<br>        ┌────────────────────────────────────────────┐<br>        │  3. Task Prompt Adapter                    │<br>        │  task-conditioned decoding                 │<br>        │  detection &#x2F; motion &#x2F; scene understanding  │<br>        └────────────────────────────────────────────┘<br></pre></p>
+<p>┌──────────────────────┐     ┌────────────────────────┐<br>│ Dynamic Memory Bank  │     │ Static Scene Propagation│<br>│ temporal latent flow │     │ stable road/background  │<br>│ motion and evolution │     │ spatial layout memory   │<br>└──────────────────────┘     └────────────────────────┘<br>           │                           │<br>           └─────────────┬─────────────┘<br>                         ▼<br>        ┌────────────────────────────────────────────┐<br>        │  2. Memory State-Space Fusion              │<br>        │  combine dynamic state + static scene      │<br>        │  form 4D driving representation            │<br>        └────────────────────────────────────────────┘<br>                         │<br>                         ▼<br>        ┌────────────────────────────────────────────┐<br>        │  3. Task Prompt Adapter                    │<br>        │  task-conditioned decoding                 │<br>        │  detection / motion / scene understanding  │<br>        └────────────────────────────────────────────┘<br></p></pre><p></p>
 </div>
 
 <p>这张图里最重要的是分工：动态 memory 负责“什么在变”，静态传播负责“什么应保持稳定”，task prompt 再告诉同一套 4D 表示当前要服务哪个下游任务。这样 DriveWorld 才能避免每个任务单独训练一套割裂的时序模型。</p>
@@ -167,7 +166,7 @@ DriveWorld detailed architecture
 <td align="left">从多相机视频学习时空表示</td>
 </tr>
 </tbody></table>
-<h3 id="4-3-动态-静态记忆的作用链"><a href="#4-3-动态-静态记忆的作用链" class="headerlink" title="4.3 动态&#x2F;静态记忆的作用链"></a>4.3 动态&#x2F;静态记忆的作用链</h3><p>DriveWorld 可以被理解成一条状态空间建模链：</p>
+<h3 id="4-3-动态-静态记忆的作用链"><a href="#4-3-动态-静态记忆的作用链" class="headerlink" title="4.3 动态/静态记忆的作用链"></a>4.3 动态/静态记忆的作用链</h3><p>DriveWorld 可以被理解成一条状态空间建模链：</p>
 
 $$
 o_{1:t} \rightarrow z_t^{\text{static}}, z_t^{\text{dynamic}}
@@ -188,7 +187,7 @@ $$
 </thead>
 <tbody><tr>
 <td align="left">指定静态结构输出</td>
-<td align="left">map &#x2F; scene layout</td>
+<td align="left">map / scene layout</td>
 <td align="left">强调道路拓扑和背景稳定性</td>
 </tr>
 <tr>
@@ -198,7 +197,7 @@ $$
 </tr>
 <tr>
 <td align="left">指定空间理解输出</td>
-<td align="left">3D perception &#x2F; occupancy</td>
+<td align="left">3D perception / occupancy</td>
 <td align="left">强调几何与语义对齐</td>
 </tr>
 <tr>
@@ -209,7 +208,7 @@ $$
 </tbody></table>
 <p>换句话说，DriveWorld 的核心不是“记忆模块越多越好”，而是动态记忆、静态传播和 task prompt 三者共同把 4D scene understanding 变成可复用的预训练接口。</p>
 <h3 id="4-5-训练和下游适配的信息流"><a href="#4-5-训练和下游适配的信息流" class="headerlink" title="4.5 训练和下游适配的信息流"></a>4.5 训练和下游适配的信息流</h3><p>DriveWorld 的信息流可以拆成“先学世界状态，再按任务读取状态”：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">pre-training:</span><br><span class="line">  multi-frame driving observations</span><br><span class="line">        -&gt; dynamic memory + static propagation</span><br><span class="line">        -&gt; 4D scene representation</span><br><span class="line"></span><br><span class="line">task adaptation:</span><br><span class="line">  4D scene representation + task prompt</span><br><span class="line">        -&gt; task-conditioned features</span><br><span class="line">        -&gt; detection / mapping / prediction / planning</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">pre-training:</span><br><span class="line">  multi-frame driving observations</span><br><span class="line">        -&gt; dynamic memory + static propagation</span><br><span class="line">        -&gt; 4D scene representation</span><br><span class="line"></span><br><span class="line">task adaptation:</span><br><span class="line">  4D scene representation + task prompt</span><br><span class="line">        -&gt; task-conditioned features</span><br><span class="line">        -&gt; detection / mapping / prediction / planning</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这样设计的重点，是避免每个下游任务重新学习一遍时序世界。dynamic memory 负责把历史变化带进表示，static propagation 负责保持道路结构稳定，task prompt 负责把同一表示读成不同任务需要的信息。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文报告在 OpenScene 预训练后，DriveWorld 在多个下游自动驾驶任务上提升，包括 3D detection、online mapping、tracking、motion forecasting、occupancy prediction 和 planning。</p>
@@ -279,20 +278,21 @@ $$
 <li><strong>5.0% AMOTA</strong>：multi-object tracking 提升。</li>
 <li><strong>0.34m</strong>：planning average L2 error 降低。</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DriveWorld 的工程重点是多相机视频预训练、动态&#x2F;静态 memory 的维护，以及不同 task prompt 的配置。由于论文没有在 arXiv 页面公开代码链接，复现时需要依赖论文细节和后续实现。</p>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>DriveWorld 的工程重点是多相机视频预训练、动态/静态 memory 的维护，以及不同 task prompt 的配置。由于论文没有在 arXiv 页面公开代码链接，复现时需要依赖论文细节和后续实现。</p>
 <p>落地时有几个容易踩坑的地方：</p>
 <ul>
 <li><strong>数据规模与时序长度</strong>：4D pre-training 比单帧预训练更吃视频数据和时间窗口设计。</li>
 <li><strong>memory 更新策略</strong>：动态 memory 太短会丢历史，太长会引入陈旧信息和算力压力。</li>
 <li><strong>任务 prompt 设计</strong>：prompt 如果无法真正区分任务需求，就会退化成普通多任务学习。</li>
-<li><strong>训练&#x2F;推理一致性</strong>：预训练时使用完整序列，部署时往往是 streaming 输入，需要关注 gap。</li>
+<li><strong>训练/推理一致性</strong>：预训练时使用完整序列，部署时往往是 streaming 输入，需要关注 gap。</li>
 </ul>
-<p>这也是 DriveWorld 和 DVGT-2 这类 streaming geometry 方法之间的共同工程主题：时序表征必须能在线使用。</p>
+<p>这也是 DriveWorld 和 <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT-2</a> 这类 streaming geometry 方法之间的共同工程主题：时序表征必须能在线使用。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>DriveWorld 把 world model 预训练从 occupancy token 推向更一般的 4D scene understanding。它说明自动驾驶预训练的核心不只是“看懂一帧”，而是学会场景如何随时间演化。</p>
 <p>放回 world-model 分支，DriveWorld 和几篇相邻论文的关系可以这样看：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">UniWorld: 4D occupancy as pre-training target</span><br><span class="line">        ↓</span><br><span class="line">DriveWorld: memory-based 4D scene understanding</span><br><span class="line">        ↓</span><br><span class="line">DVGT-2: streaming geometry + online planning</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">UniWorld: 4D occupancy as pre-training target</span><br><span class="line">        ↓</span><br><span class="line">DriveWorld: memory-based 4D scene understanding</span><br><span class="line">        ↓</span><br><span class="line">DVGT-2: streaming geometry + online planning</span><br></pre></td></tr></tbody></table></figure>
 
 <p>DriveWorld 的启示是：自动驾驶基础模型不能只靠更大的 backbone 或更多图片，它需要面向驾驶本身的时空任务。真正有用的预训练，应当让模型学到“世界如何持续变化”，而不只是“当前帧里有什么”。</p>
+
 
             </div>
 

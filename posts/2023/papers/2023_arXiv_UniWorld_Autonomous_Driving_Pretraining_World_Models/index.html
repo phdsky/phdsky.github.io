@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Autonomous Driving Pre-training<br>Method: 4D Geometric Occupancy, Label-free Image-LiDAR Pre-training<br>Venue: arXiv<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.07234">https://arxiv.org/abs/2308.07234</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/chaytonmin/UniWorld">https://github.com/chaytonmin/UniWorld</a></p>
+                
+<p>Task: Autonomous Driving Pre-training<br>Method: 4D Geometric Occupancy, Label-free Image-LiDAR Pre-training<br>Venue: arXiv<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.07234">https://arxiv.org/abs/2308.07234</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/chaytonmin/UniWorld">https://github.com/chaytonmin/UniWorld</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -70,7 +71,7 @@
 <li><strong>任务表示割裂</strong>：检测模型学 box，预测模型学 motion，场景补全模型学 voxel，不同任务之间共享的世界结构没有被充分利用。</li>
 </ol>
 <p>如果每个任务都依赖专门标注和专门训练，系统很难随着数据规模增长而自然变强。UniWorld 的动机是把预训练目标换成更接近自动驾驶本质的 4D world state：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">image-LiDAR pairs</span><br><span class="line">        ↓</span><br><span class="line">4D geometric occupancy</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal representation</span><br><span class="line">        ↓</span><br><span class="line">multiple downstream driving tasks</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">image-LiDAR pairs</span><br><span class="line">        ↓</span><br><span class="line">4D geometric occupancy</span><br><span class="line">        ↓</span><br><span class="line">spatial-temporal representation</span><br><span class="line">        ↓</span><br><span class="line">multiple downstream driving tasks</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这里的“4D”不是装饰词，而是强调模型需要同时理解三维空间和时间演化。只有这样，预训练表示才可能同时迁移到 motion prediction、3D detection 和 semantic scene completion。</p>
 <h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：occupancy-grid-可以作为世界模型状态"><a href="#洞察-1：occupancy-grid-可以作为世界模型状态" class="headerlink" title="洞察 1：occupancy grid 可以作为世界模型状态"></a>洞察 1：occupancy grid 可以作为世界模型状态</h3><p>UniWorld 借鉴 occupancy grid 的机器人传统，把 4D geometric occupancy 作为世界状态表达。相比 3D boxes，occupancy 更接近“空间是否被占用”这一物理问题；相比纯图像 token，occupancy 更容易与驾驶安全、free space 和下游规划连接。</p>
@@ -84,8 +85,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-image-LiDAR pairs
+<pre>image-LiDAR pairs
       │
       ▼
 label-free 4D occupancy pre-training
@@ -101,8 +101,7 @@ spatial-temporal world representation
 
 <p>把这条链拆开，UniWorld 的架构重点在于“用 LiDAR 构造几何监督，用图像学习可迁移表示”：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-UniWorld detailed pre-training pipeline
+<pre>UniWorld detailed pre-training pipeline
 
 <p>Raw data:<br>  synchronized images<br>  paired LiDAR sweeps<br>  no expensive task-specific 3D labels</p>
 <pre><code>    ┌─────────────────────────────────────────┐
@@ -132,7 +131,7 @@ UniWorld detailed pre-training pipeline
     │  reuse pre-trained world features       │
     └─────────────────────────────────────────┘
 </code></pre>
-<p></pre></p>
+<p></p></pre><p></p>
 </div>
 
 <p>这套设计和视频生成式 world model 的差别很明显：UniWorld 不追求输出“看起来像未来”的 RGB 视频，而是让模型先学会空间占用和时间演化。它把 world model 当成预训练任务，而不是直接当成规划器或渲染器。</p>
@@ -202,7 +201,7 @@ UniWorld detailed pre-training pipeline
 </tr>
 <tr>
 <td align="left">多帧序列</td>
-<td align="left">4D occupancy &#x2F; temporal change</td>
+<td align="left">4D occupancy / temporal change</td>
 <td align="left">时间演化和动态结构</td>
 </tr>
 <tr>
@@ -212,13 +211,13 @@ UniWorld detailed pre-training pipeline
 </tr>
 <tr>
 <td align="left">下游微调</td>
-<td align="left">detection &#x2F; motion &#x2F; completion loss</td>
+<td align="left">detection / motion / completion loss</td>
 <td align="left">任务适配能力</td>
 </tr>
 </tbody></table>
 <p>这套监督的优势是可扩展：只要车队采集图像和 LiDAR，就能持续构造预训练目标。限制也同样清楚：预训练目标仍依赖传感器覆盖和几何投影质量，若 LiDAR 稀疏或时间同步不准，world representation 会带入系统误差。</p>
 <h3 id="4-5-预训练到下游的接口"><a href="#4-5-预训练到下游的接口" class="headerlink" title="4.5 预训练到下游的接口"></a>4.5 预训练到下游的接口</h3><p>UniWorld 的关键不是把 occupancy 当作最终任务，而是把它作为预训练时的世界状态接口。训练阶段用 image-LiDAR pair 构造 4D occupancy 监督；迁移阶段保留视觉 backbone，再接不同任务 head。</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">pre-training:</span><br><span class="line">  image sequence + LiDAR-derived geometry</span><br><span class="line">        -&gt; 4D occupancy objective</span><br><span class="line">        -&gt; world-aware visual representation</span><br><span class="line"></span><br><span class="line">fine-tuning:</span><br><span class="line">  image sequence</span><br><span class="line">        -&gt; pretrained representation</span><br><span class="line">        -&gt; detection / motion / completion head</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">pre-training:</span><br><span class="line">  image sequence + LiDAR-derived geometry</span><br><span class="line">        -&gt; 4D occupancy objective</span><br><span class="line">        -&gt; world-aware visual representation</span><br><span class="line"></span><br><span class="line">fine-tuning:</span><br><span class="line">  image sequence</span><br><span class="line">        -&gt; pretrained representation</span><br><span class="line">        -&gt; detection / motion / completion head</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这种分工使 UniWorld 和纯 occupancy 方法不同：occupancy 在这里是“教模型理解世界”的老师，而不是部署时必须保留的唯一输出形式。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上报告了相对 monocular pre-training 的多任务改进：motion prediction、3D object detection 和 semantic scene completion 均获得提升，并指出可降低 3D training annotation costs。</p>
@@ -248,7 +247,7 @@ UniWorld detailed pre-training pipeline
 </tr>
 </tbody></table>
 <p>可以把 UniWorld 的实验看成一条从“几何监督”到“任务迁移”的证据链：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">image-LiDAR pair</span><br><span class="line">        ↓</span><br><span class="line">label-free 4D occupancy pre-training</span><br><span class="line">        ↓</span><br><span class="line">shared driving representation</span><br><span class="line">        ↓</span><br><span class="line">motion / detection / completion improvement</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">image-LiDAR pair</span><br><span class="line">        ↓</span><br><span class="line">label-free 4D occupancy pre-training</span><br><span class="line">        ↓</span><br><span class="line">shared driving representation</span><br><span class="line">        ↓</span><br><span class="line">motion / detection / completion improvement</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这条链路成立，才说明 4D occupancy 不是一个孤立的中间输出，而是一种能迁移到多个驾驶任务的表征学习目标。反过来，如果只在 semantic scene completion 上有效，却不能迁移到 detection 或 motion prediction，那么 UniWorld 的主张就会退化成“占用补全预训练”，而不是“统一驾驶世界预训练”。</p>
 <p>因此，UniWorld 的实验重点不是某个 benchmark 的单点 SOTA，而是同一预训练目标能否跨任务稳定带来收益。</p>
@@ -261,11 +260,11 @@ UniWorld detailed pre-training pipeline
 <h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>UniWorld 适合用于自动驾驶预训练，而不是单独作为规划器。工程落地时最重要的是数据和接口：</p>
 <ul>
 <li><strong>数据侧</strong>：需要稳定的 image-LiDAR pair，同步、标定和时间对齐质量会直接影响预训练信号。</li>
-<li><strong>表示侧</strong>：occupancy 分辨率、时间窗口和可见&#x2F;不可见区域处理会影响任务迁移。</li>
-<li><strong>迁移侧</strong>：不同下游任务需要不同 decoder&#x2F;head，预训练 backbone 与任务头之间要保持清晰边界。</li>
+<li><strong>表示侧</strong>：occupancy 分辨率、时间窗口和可见/不可见区域处理会影响任务迁移。</li>
+<li><strong>迁移侧</strong>：不同下游任务需要不同 decoder/head，预训练 backbone 与任务头之间要保持清晰边界。</li>
 <li><strong>评估侧</strong>：不能只用一个任务判断预训练效果，应同时看检测、预测、场景补全等多个方向。</li>
 </ul>
-<p>如果把 UniWorld 放入本站路线图，它更像 <a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a> 的前置节点：二者都把 world model 视为预训练&#x2F;表征学习手段，而不是只做生成展示。</p>
+<p>如果把 UniWorld 放入本站路线图，它更像 <a href="/posts/2024/papers/2024_CVPR_DriveWorld_4D_Pretrained_Scene_Understanding/">DriveWorld</a> 的前置节点：二者都把 world model 视为预训练/表征学习手段，而不是只做生成展示。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>UniWorld 说明 world model 不只是生成未来，也可以作为预训练目标。它把 occupancy、未来预测和多任务迁移连接起来，为后续 DriveWorld 的 4D scene understanding 预训练提供了前置思路。</p>
 <p>更进一步看，它给自动驾驶预训练提出了一个判断标准：好的预训练任务不只是让图像特征更强，还应该让模型更理解驾驶世界的 <strong>空间、时间和可通行性</strong>。</p>
 <p>这也解释了为什么 world model 路线会分化成几条不同分支：</p>
@@ -276,6 +275,7 @@ UniWorld detailed pre-training pipeline
 <li><a href="/posts/2025/papers/2025_AAAI_Drive_OccWorld_4D_Occupancy_Forecasting_Planning/">Drive-OccWorld</a> 进一步把 occupancy forecast 接到规划代价。</li>
 </ul>
 <p>UniWorld 的位置在于：它把“世界模型”从最终生成器提前到预训练阶段，强调先学会世界结构，再适配具体任务。</p>
+
 
             </div>
 

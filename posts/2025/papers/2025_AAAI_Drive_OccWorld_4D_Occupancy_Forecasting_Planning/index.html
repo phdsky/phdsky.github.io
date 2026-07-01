@@ -55,13 +55,14 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 4D Occupancy Forecasting and End-to-End Planning<br>Method: Semantic and Motion-Conditional Normalization, Action-Conditioned World Decoder, Occupancy-Based Cost<br>Venue: AAAI 2025<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.14197">https://arxiv.org/abs/2408.14197</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/yuyang-cloud/Drive-OccWorld">https://github.com/yuyang-cloud/Drive-OccWorld</a></p>
+                
+<p>Task: 4D Occupancy Forecasting and End-to-End Planning<br>Method: Semantic and Motion-Conditional Normalization, Action-Conditioned World Decoder, Occupancy-Based Cost<br>Venue: AAAI 2025<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2408.14197">https://arxiv.org/abs/2408.14197</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/yuyang-cloud/Drive-OccWorld">https://github.com/yuyang-cloud/Drive-OccWorld</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
 <h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>Drive-OccWorld 将 vision-centric <strong>4D occupancy forecasting</strong> 接入端到端规划。它用历史 BEV embeddings 构建 memory，并通过 semantic and motion-conditional normalization 聚合语义和动态信息；world decoder 在 action conditions 下预测未来 occupancy 和 flow；最后用 occupancy-based cost 选择轨迹。</p>
-<p>相比只做数据生成或预训练的 world model，Drive-OccWorld 更直接地把世界模型用于规划。它不是只问“未来世界会怎样”，而是进一步问：“如果 ego 采取某个动作，未来 occupancy &#x2F; flow 会怎样变化，这个变化对应的轨迹代价是多少？”</p>
+<p>相比只做数据生成或预训练的 world model，Drive-OccWorld 更直接地把世界模型用于规划。它不是只问“未来世界会怎样”，而是进一步问：“如果 ego 采取某个动作，未来 occupancy / flow 会怎样变化，这个变化对应的轨迹代价是多少？”</p>
 <p>这使它成为 <a href="/posts/2024/papers/2024_ECCV_OccWorld_3D_Occupancy_World_Model_Autonomous_Driving/">OccWorld</a> 的自然后续：OccWorld 把未来预测放进 3D occupancy token，Drive-OccWorld 则把 occupancy forecast 和 action-conditioned planning cost 连起来。</p>
 <p><strong>核心论点</strong>：world model 真正进入规划链路时，输出状态必须能被动作条件控制，并能转化为可比较的轨迹代价。</p>
 <h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>World model 的核心能力是回答“如果自车采取某个动作，未来世界会怎样”。但许多驾驶 world model 偏向视频生成或表征预训练，和规划之间还有距离：</p>
@@ -95,7 +96,7 @@
 </tr>
 </tbody></table>
 <p>Drive-OccWorld 选择 4D occupancy，是为了让未来预测直接服务 collision、free-space 和 trajectory cost。它的关键不是预测未来本身，而是让未来预测具有动作条件和规划用途。</p>
-<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：历史-BEV-memory-需要语义和运动条件化"><a href="#洞察-1：历史-BEV-memory-需要语义和运动条件化" class="headerlink" title="洞察 1：历史 BEV memory 需要语义和运动条件化"></a>洞察 1：历史 BEV memory 需要语义和运动条件化</h3><p>仅堆叠历史特征不足以表达动态演化。Drive-OccWorld 在 memory 中引入 semantic &#x2F; motion conditional normalization，强化语义与运动线索。</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：历史-BEV-memory-需要语义和运动条件化"><a href="#洞察-1：历史-BEV-memory-需要语义和运动条件化" class="headerlink" title="洞察 1：历史 BEV memory 需要语义和运动条件化"></a>洞察 1：历史 BEV memory 需要语义和运动条件化</h3><p>仅堆叠历史特征不足以表达动态演化。Drive-OccWorld 在 memory 中引入 semantic / motion conditional normalization，强化语义与运动线索。</p>
 <p>这条设计背后的判断是：未来 occupancy 不是由几何位置单独决定的，还取决于语义类别和运动趋势。静态路面、行人、车辆、骑行者虽然都占用空间，但它们的未来演化规律完全不同。</p>
 <h3 id="洞察-2：action-condition-让-world-model-可控"><a href="#洞察-2：action-condition-让-world-model-可控" class="headerlink" title="洞察 2：action condition 让 world model 可控"></a>洞察 2：action condition 让 world model 可控</h3><p>模型注入 velocity、steering angle、trajectory、commands 等动作条件，使未来 occupancy 生成不只是被动预测，而是可以回答不同自车动作下的未来。</p>
 <p>这使它更接近规划需要的 world model 形式：</p>
@@ -107,17 +108,16 @@ $$
 
 <p>其中 $O$ 表示 occupancy，$F$ 表示 flow，$a$ 表示动作条件。没有 action condition 的 future prediction，只能告诉系统“可能会发生什么”；有 action condition 后，模型才开始回答“这样开会发生什么”。</p>
 <h3 id="洞察-3：4D-occupancy-可以直接接规划代价"><a href="#洞察-3：4D-occupancy-可以直接接规划代价" class="headerlink" title="洞察 3：4D occupancy 可以直接接规划代价"></a>洞察 3：4D occupancy 可以直接接规划代价</h3><p>未来 occupancy 和 flow 可以转成 occupancy-based cost，用于连续 forecasting 和 trajectory selection。也就是说，world model 的输出不再停留在可视化，而是进入轨迹选择的代价函数。</p>
-<p>这条洞察让 Drive-OccWorld 和 DriveDreamer &#x2F; GAIA-1 拉开距离：后者强调生成可控未来，前者强调生成结果如何变成 planning cost。</p>
+<p>这条洞察让 Drive-OccWorld 和 <a href="/posts/2024/papers/2024_ECCV_DriveDreamer_Real_World_Driving_World_Model/">DriveDreamer</a> / <a href="/posts/2023/papers/2023_arXiv_GAIA1_Generative_World_Model_Autonomous_Driving/">GAIA-1</a> 拉开距离：后者强调生成可控未来，前者强调生成结果如何变成 planning cost。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
   <img src="https://ar5iv.labs.arxiv.org/html/2408.14197/assets/x1.png" alt="Drive-OccWorld 架构图" style="max-width:100%;">
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-multi-view images
+<pre>multi-view images
       │
       ▼
-history encoder -> BEV embeddings
+history encoder -&gt; BEV embeddings
       │
       ▼
 semantic / motion conditional memory
@@ -133,10 +133,9 @@ action-conditioned world decoder
 
 <p>Drive-OccWorld 比 OccWorld 多走了一步：未来 occupancy 不只是被预测出来，还要在候选动作条件下转成规划代价。</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-Drive-OccWorld detailed architecture
+<pre>Drive-OccWorld detailed architecture
 
-<p>Input:<br>  multi-view camera history<br>  candidate ego actions &#x2F; trajectories<br>  semantic and motion context</p>
+<p>Input:<br>  multi-view camera history<br>  candidate ego actions / trajectories<br>  semantic and motion context</p>
 <pre><code>    ┌──────────────────────────────────────────┐
     │  1. History Encoder                      │
     │  images -&gt; historical BEV embeddings     │
@@ -165,7 +164,7 @@ Drive-OccWorld detailed architecture
     │  choose lower-cost trajectory            │
     └──────────────────────────────────────────┘
 </code></pre>
-<p></pre></p>
+<p></p></pre><p></p>
 </div>
 
 <p>这里的 action condition 是关键：world model 不再只回答“未来会怎样”，而是回答“如果 ego 这么开，未来 occupancy 和 flow 会怎样”。规划器比较的也不只是轨迹几何，而是轨迹诱发的未来空间风险。</p>
@@ -186,7 +185,7 @@ Drive-OccWorld detailed architecture
 </tr>
 <tr>
 <td align="left">Action-conditioned decoder</td>
-<td align="left">生成动作条件下的未来 occupancy &#x2F; flow</td>
+<td align="left">生成动作条件下的未来 occupancy / flow</td>
 </tr>
 <tr>
 <td align="left">Planning cost</td>
@@ -194,10 +193,10 @@ Drive-OccWorld detailed architecture
 </tr>
 </tbody></table>
 <h3 id="4-3-从预测到规划的接口"><a href="#4-3-从预测到规划的接口" class="headerlink" title="4.3 从预测到规划的接口"></a>4.3 从预测到规划的接口</h3><p>Drive-OccWorld 的关键链路是：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">history BEV memory</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned future occupancy / flow</span><br><span class="line">        ↓</span><br><span class="line">occupancy-based cost</span><br><span class="line">        ↓</span><br><span class="line">trajectory selection</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">history BEV memory</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned future occupancy / flow</span><br><span class="line">        ↓</span><br><span class="line">occupancy-based cost</span><br><span class="line">        ↓</span><br><span class="line">trajectory selection</span><br></pre></td></tr></tbody></table></figure>
 
 <p>其中，occupancy 提供未来空间约束，flow 提供动态演化线索，action condition 让系统可以比较多个候选动作的未来后果。</p>
-<h3 id="4-4-cost-的信息来源"><a href="#4-4-cost-的信息来源" class="headerlink" title="4.4 cost 的信息来源"></a>4.4 cost 的信息来源</h3><p>Drive-OccWorld 的 planning cost 不是一个孤立规则，而是来自 action-conditioned future occupancy &#x2F; flow。它把候选动作放进世界模型中，让每条候选轨迹都有对应的未来空间风险。</p>
+<h3 id="4-4-cost-的信息来源"><a href="#4-4-cost-的信息来源" class="headerlink" title="4.4 cost 的信息来源"></a>4.4 cost 的信息来源</h3><p>Drive-OccWorld 的 planning cost 不是一个孤立规则，而是来自 action-conditioned future occupancy / flow。它把候选动作放进世界模型中，让每条候选轨迹都有对应的未来空间风险。</p>
 <table>
 <thead>
 <tr>
@@ -229,9 +228,9 @@ Drive-OccWorld detailed architecture
 </tbody></table>
 <p>因此 Drive-OccWorld 比 OccWorld 更接近闭环规划：OccWorld 证明 occupancy 可以作为未来 world state，Drive-OccWorld 则把“不同 ego action 下的 future occupancy”转成轨迹选择依据。</p>
 <h3 id="4-5-反事实未来的信息流"><a href="#4-5-反事实未来的信息流" class="headerlink" title="4.5 反事实未来的信息流"></a>4.5 反事实未来的信息流</h3><p>Drive-OccWorld 的关键是把候选动作放进世界模型，而不是只在模型输出之后再打分：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">history multi-view observations</span><br><span class="line">        ↓</span><br><span class="line">BEV history memory</span><br><span class="line">        ↓</span><br><span class="line">candidate ego action / trajectory</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned occupancy and flow decoder</span><br><span class="line">        ↓</span><br><span class="line">future occupancy / flow under this action</span><br><span class="line">        ↓</span><br><span class="line">planning cost and trajectory ranking</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">history multi-view observations</span><br><span class="line">        ↓</span><br><span class="line">BEV history memory</span><br><span class="line">        ↓</span><br><span class="line">candidate ego action / trajectory</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned occupancy and flow decoder</span><br><span class="line">        ↓</span><br><span class="line">future occupancy / flow under this action</span><br><span class="line">        ↓</span><br><span class="line">planning cost and trajectory ranking</span><br></pre></td></tr></tbody></table></figure>
 
-<p>这个信息流让 world model 具备反事实能力：同一段历史下，不同 ego action 会对应不同未来 occupancy &#x2F; flow。规划器真正需要的正是这种“如果我这样开，世界会怎样变化”的接口。</p>
+<p>这个信息流让 world model 具备反事实能力：同一段历史下，不同 ego action 会对应不同未来 occupancy / flow。规划器真正需要的正是这种“如果我这样开，世界会怎样变化”的接口。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes、nuScenes-Occupancy 和 Lyft-Level5 上评估 4D occupancy generation 与 planning。关键结论是：world model 的生成能力可以和规划结合，但生成目标需要贴近几何和碰撞约束。</p>
 <p>实验可以按两条线理解：</p>
 <table>
@@ -242,7 +241,7 @@ Drive-OccWorld detailed architecture
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">4D occupancy &#x2F; flow forecasting</td>
+<td align="left">4D occupancy / flow forecasting</td>
 <td align="left">world model 是否能预测未来空间状态</td>
 </tr>
 <tr>
@@ -251,19 +250,19 @@ Drive-OccWorld detailed architecture
 </tr>
 </tbody></table>
 <p>两条评估线之间的连接，是 Drive-OccWorld 最值得记住的地方：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">candidate ego action</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned future occupancy / flow</span><br><span class="line">        ↓</span><br><span class="line">occupancy-based planning cost</span><br><span class="line">        ↓</span><br><span class="line">trajectory ranking</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">candidate ego action</span><br><span class="line">        ↓</span><br><span class="line">action-conditioned future occupancy / flow</span><br><span class="line">        ↓</span><br><span class="line">occupancy-based planning cost</span><br><span class="line">        ↓</span><br><span class="line">trajectory ranking</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这个链条使实验不再只是“未来预测准不准”，而是进一步追问“预测结果是否会改变动作选择”。如果 action condition 只是作为额外输入，却没有影响未来 occupancy 或 planning cost，那么方法就不能真正称为 action-conditioned world model。</p>
 <p>如果只看第一条线，Drive-OccWorld 是 occupancy forecasting；只有加上第二条线，它才真正体现“world model via planning”的价值。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>4D</strong>：预测对象是时空 occupancy &#x2F; flow。</li>
+<li><strong>4D</strong>：预测对象是时空 occupancy / flow。</li>
 <li><strong>4 类 action conditions</strong>：velocity、steering angle、trajectory、commands。</li>
 <li><strong>3 个数据集</strong>：nuScenes、nuScenes-Occupancy、Lyft-Level5。</li>
 </ul>
 <h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>Drive-OccWorld 的实现重点是历史 BEV memory、动作条件注入和基于 occupancy 的轨迹代价。工程上需要处理：</p>
 <ul>
-<li><strong>未来预测误差累积</strong>：预测 horizon 越长，occupancy &#x2F; flow 越容易漂移。</li>
+<li><strong>未来预测误差累积</strong>：预测 horizon 越长，occupancy / flow 越容易漂移。</li>
 <li><strong>占用分辨率</strong>：分辨率决定小障碍表达能力和计算成本。</li>
 <li><strong>动作采样范围</strong>：候选动作覆盖不足会限制 planning 上限。</li>
 <li><strong>闭环稳定性</strong>：规划输出反过来影响下一时刻观测，开环好不等于闭环稳。</li>
@@ -272,9 +271,10 @@ Drive-OccWorld detailed architecture
 <p>因此，Drive-OccWorld 更像一个规划世界模型组件，而不是完整自动驾驶系统的最终形态。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>Drive-OccWorld 说明 occupancy world model 可以从“预测未来”进一步走到“比较动作后果”。这是从感知世界模型走向规划世界模型的重要一步。</p>
 <p>路线关系可以压成一句话：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">OccWorld 让模型知道未来空间会如何占用；</span><br><span class="line">Drive-OccWorld 让模型比较不同动作下未来空间会如何占用。</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">OccWorld 让模型知道未来空间会如何占用；</span><br><span class="line">Drive-OccWorld 让模型比较不同动作下未来空间会如何占用。</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这也是自动驾驶 world model 是否有用的关键门槛：如果模型只能生成未来，却不能帮助动作选择，它更像生成器；如果模型能把未来状态转成规划代价，它才真正进入决策链路。</p>
+
 
             </div>
 

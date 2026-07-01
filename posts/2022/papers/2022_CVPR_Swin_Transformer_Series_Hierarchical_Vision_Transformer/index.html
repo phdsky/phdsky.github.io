@@ -55,13 +55,14 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Image Classification &#x2F; Object Detection &#x2F; Semantic Segmentation<br>Method: Shifted Window Self-Attention &#x2F; Hierarchical Feature Maps<br>Venue: ICCV 2021 (V1) &#x2F; CVPR 2022 (V2)<br>Year: 2021 &#x2F; 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2103.14030">https://arxiv.org/abs/2103.14030</a> &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2111.09883">https://arxiv.org/abs/2111.09883</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer">https://github.com/microsoft/Swin-Transformer</a></p>
+                
+<p>Task: Image Classification / Object Detection / Semantic Segmentation<br>Method: Shifted Window Self-Attention / Hierarchical Feature Maps<br>Venue: ICCV 2021 (V1) / CVPR 2022 (V2)<br>Year: 2021 / 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2103.14030">https://arxiv.org/abs/2103.14030</a> / <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2111.09883">https://arxiv.org/abs/2111.09883</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer">https://github.com/microsoft/Swin-Transformer</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Swin Transformer 提出了一种<strong>基于移位窗口的层级视觉 Transformer 架构</strong>，首次让 Transformer 在图像分类、目标检测和语义分割三个任务上全面超越 CNN 和先前的 ViT 方案。核心设计包括：(1) 将自注意力限制在不重叠的局部窗口内，使计算复杂度从全局二次降到图像尺寸的<strong>线性</strong>；(2) 通过窗口移位在相邻层之间建立跨窗口连接；(3) 通过 patch merging 构建 4 阶段层级特征图，天然兼容 FPN、UperNet 等密集预测框架。</p>
-<p>Swin Transformer V2 在此基础上解决了大规模训练的三个关键问题：(1) <strong>residual-post-norm + scaled cosine attention</strong> 稳定深层激活值，使模型可扩展到 30 亿参数；(2) <strong>log-spaced continuous position bias (Log-CPB)</strong> 实现窗口分辨率的平滑迁移；(3) 结合 <strong>SimMIM</strong> 自监督预训练，用 1&#x2F;40 的标注数据和 1&#x2F;40 的训练时间达到 SOTA。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Swin Transformer 提出了一种<strong>基于移位窗口的层级视觉 Transformer 架构</strong>，首次让 Transformer 在图像分类、目标检测和语义分割三个任务上全面超越 CNN 和先前的 <a href="/posts/2021/papers/2021_ICLR_ViT_Vision_Transformer_Image_Recognition/">ViT</a> 方案。核心设计包括：(1) 将自注意力限制在不重叠的局部窗口内，使计算复杂度从全局二次降到图像尺寸的<strong>线性</strong>；(2) 通过窗口移位在相邻层之间建立跨窗口连接；(3) 通过 patch merging 构建 4 阶段层级特征图，天然兼容 FPN、UperNet 等密集预测框架。</p>
+<p>Swin Transformer V2 在此基础上解决了大规模训练的三个关键问题：(1) <strong>residual-post-norm + scaled cosine attention</strong> 稳定深层激活值，使模型可扩展到 30 亿参数；(2) <strong>log-spaced continuous position bias (Log-CPB)</strong> 实现窗口分辨率的平滑迁移；(3) 结合 <strong>SimMIM</strong> 自监督预训练，用 1/40 的标注数据和 1/40 的训练时间达到 SOTA。</p>
 <p><strong>核心论点</strong>：将局部性（窗口注意力）和层级结构（patch merging）这两个 CNN 归纳偏置引入 Transformer，在保留强建模能力的同时获得线性复杂度和多尺度特征，使 Transformer 真正成为视觉通用骨干网络。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>ViT 将 Transformer 引入视觉领域取得了令人瞩目的分类结果，但在密集预测任务上存在根本性限制：</p>
 <table>
@@ -75,7 +76,7 @@
 <tbody><tr>
 <td>全局 ViT</td>
 <td>ViT, DeiT</td>
-<td>单一分辨率特征图，复杂度 $O(n^2)$，无法直接用于检测&#x2F;分割</td>
+<td>单一分辨率特征图，复杂度 $O(n^2)$，无法直接用于检测/分割</td>
 </tr>
 <tr>
 <td>局部注意力 CNN</td>
@@ -84,18 +85,18 @@
 </tr>
 <tr>
 <td>CNN 骨干</td>
-<td>ResNet, EfficientNet</td>
+<td><a href="/posts/2016/papers/2016_CVPR_ResNet_Deep_Residual_Learning/">ResNet</a>, EfficientNet</td>
 <td>准确度接近饱和，缺少长距离建模能力</td>
 </tr>
 </tbody></table>
 <p><strong>核心痛点</strong>：ViT 的全局自注意力在高分辨率图像上计算量无法承受（$O(n^2)$），且其单尺度特征图无法直接服务目标检测和语义分割等需要多尺度特征的密集预测任务。</p>
-<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：窗口注意力-移位策略-线性复杂度-跨窗口连接"><a href="#洞察-1：窗口注意力-移位策略-线性复杂度-跨窗口连接" class="headerlink" title="洞察 1：窗口注意力 + 移位策略 &#x3D; 线性复杂度 + 跨窗口连接"></a>洞察 1：窗口注意力 + 移位策略 &#x3D; 线性复杂度 + 跨窗口连接</h3><p><strong>传统做法</strong>：ViT 对所有 token 计算全局自注意力，复杂度为 $\Omega(\text{MSA}) = 4hwC^2 + 2(hw)^2C$，在高分辨率图像上不可行。</p>
-<p><strong>本文做法</strong>：将自注意力限制在 $M \times M$（默认 $M&#x3D;7$）的不重叠局部窗口内：</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：窗口注意力-移位策略-线性复杂度-跨窗口连接"><a href="#洞察-1：窗口注意力-移位策略-线性复杂度-跨窗口连接" class="headerlink" title="洞察 1：窗口注意力 + 移位策略 = 线性复杂度 + 跨窗口连接"></a>洞察 1：窗口注意力 + 移位策略 = 线性复杂度 + 跨窗口连接</h3><p><strong>传统做法</strong>：ViT 对所有 token 计算全局自注意力，复杂度为 $\Omega(\text{MSA}) = 4hwC^2 + 2(hw)^2C$，在高分辨率图像上不可行。</p>
+<p><strong>本文做法</strong>：将自注意力限制在 $M \times M$（默认 $M=7$）的不重叠局部窗口内：</p>
 
 $$\Omega(\text{W-MSA}) = 4hwC^2 + 2M^2 hwC$$
 
 
-<p>复杂度从 $(hw)^2$ 降为 $M^2 \cdot hw$，当 $M$ 固定时关于图像尺寸线性。为解决窗口间信息隔离问题，相邻两层交替使用常规窗口（W-MSA）和移位窗口（SW-MSA），移位偏移量为 $(\lfloor M&#x2F;2 \rfloor, \lfloor M&#x2F;2 \rfloor)$：</p>
+<p>复杂度从 $(hw)^2$ 降为 $M^2 \cdot hw$，当 $M$ 固定时关于图像尺寸线性。为解决窗口间信息隔离问题，相邻两层交替使用常规窗口（W-MSA）和移位窗口（SW-MSA），移位偏移量为 $(\lfloor M/2 \rfloor, \lfloor M/2 \rfloor)$：</p>
 
 $$\hat{\mathbf{z}}^l = \text{W-MSA}(\text{LN}(\mathbf{z}^{l-1})) + \mathbf{z}^{l-1}, \quad \mathbf{z}^l = \text{MLP}(\text{LN}(\hat{\mathbf{z}}^l)) + \hat{\mathbf{z}}^l$$
 $$\hat{\mathbf{z}}^{l+1} = \text{SW-MSA}(\text{LN}(\mathbf{z}^l)) + \mathbf{z}^l, \quad \mathbf{z}^{l+1} = \text{MLP}(\text{LN}(\hat{\mathbf{z}}^{l+1})) + \hat{\mathbf{z}}^{l+1}$$
@@ -148,8 +149,8 @@ $$\hat{\mathbf{z}}^{l+1} = \text{SW-MSA}(\text{LN}(\mathbf{z}^l)) + \mathbf{z}^l
 <td>87.3%（22K）</td>
 </tr>
 </tbody></table>
-<p>这一层级设计使 Swin Transformer 可以无缝替换 ResNet 骨干，接入 Cascade Mask R-CNN、HTC++、UperNet 等框架。</p>
-<h3 id="洞察-3：V2-—-Post-Norm-Cosine-Attention-Log-CPB-解决大规模训练的三大障碍"><a href="#洞察-3：V2-—-Post-Norm-Cosine-Attention-Log-CPB-解决大规模训练的三大障碍" class="headerlink" title="洞察 3：V2 — Post-Norm + Cosine Attention + Log-CPB 解决大规模训练的三大障碍"></a>洞察 3：V2 — Post-Norm + Cosine Attention + Log-CPB 解决大规模训练的三大障碍</h3><p><strong>障碍 1 — 训练不稳定</strong>：原始 pre-norm 配置中残差输出直接回加主干，激活值逐层累积，在 Large 模型上最高&#x2F;最低层振幅差达 $10^4$，Huge 模型直接崩溃。</p>
+<p>这一层级设计使 Swin Transformer 可以无缝替换 ResNet 骨干，接入 Cascade <a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">Mask R-CNN</a>、HTC++、UperNet 等框架。</p>
+<h3 id="洞察-3：V2-—-Post-Norm-Cosine-Attention-Log-CPB-解决大规模训练的三大障碍"><a href="#洞察-3：V2-—-Post-Norm-Cosine-Attention-Log-CPB-解决大规模训练的三大障碍" class="headerlink" title="洞察 3：V2 — Post-Norm + Cosine Attention + Log-CPB 解决大规模训练的三大障碍"></a>洞察 3：V2 — Post-Norm + Cosine Attention + Log-CPB 解决大规模训练的三大障碍</h3><p><strong>障碍 1 — 训练不稳定</strong>：原始 pre-norm 配置中残差输出直接回加主干，激活值逐层累积，在 Large 模型上最高/最低层振幅差达 $10^4$，Huge 模型直接崩溃。</p>
 <p><strong>解决 — Residual-post-norm + Scaled cosine attention</strong>：将 LayerNorm 移至残差分支末尾（post-norm），激活值不再累积；将 dot-product attention 替换为基于余弦相似度的 scaled cosine attention：</p>
 
 $$\text{Sim}(\mathbf{q}_i, \mathbf{k}_j) = \frac{\cos(\mathbf{q}_i, \mathbf{k}_j)}{\tau} + B_{ij}$$
@@ -157,18 +158,18 @@ $$\text{Sim}(\mathbf{q}_i, \mathbf{k}_j) = \frac{\cos(\mathbf{q}_i, \mathbf{k}_j
 
 <p>其中 $\tau$ 为可学习标量（$\tau &gt; 0.01$），每头每层独立。余弦函数天然归一化，不受输入振幅影响。</p>
 <p><strong>障碍 2 — 跨分辨率迁移困难</strong>：原始参数化位置偏置在窗口尺寸变化时用双三次插值，效果差。</p>
-<p>**解决 — Log-spaced Continuous Position Bias (Log-CPB)**：用小型 MLP $\mathcal{G}$（2 层 + ReLU）从相对坐标生成偏置值 $B(\Delta x, \Delta y) &#x3D; \mathcal{G}(\widehat{\Delta x}, \widehat{\Delta y})$，并对坐标取对数：</p>
+<p>**解决 — Log-spaced Continuous Position Bias (Log-CPB)**：用小型 MLP $\mathcal{G}$（2 层 + ReLU）从相对坐标生成偏置值 $B(\Delta x, \Delta y) = \mathcal{G}(\widehat{\Delta x}, \widehat{\Delta y})$，并对坐标取对数：</p>
 
 $$\widehat{\Delta x} = \text{sign}(\Delta x) \cdot \log(1 + |\Delta x|)$$
 
 
 <p>窗口从 $8 \times 8$ 迁移到 $16 \times 16$ 时，外推比从原始 1.14× 降至 0.33×（约 4× 更小的外推范围），显著改善迁移准确率。</p>
-<p><strong>障碍 3 — 标注数据需求大</strong>：V2 结合 SimMIM 自监督预训练，仅用 7000 万张图像（JFT-3B 的 1&#x2F;40）。</p>
+<p><strong>障碍 3 — 标注数据需求大</strong>：V2 结合 SimMIM 自监督预训练，仅用 7000 万张图像（JFT-3B 的 1/40）。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>58.7 &#x2F; 51.1 AP</strong>：Swin-L 在 COCO test-dev 上的 box &#x2F; mask AP，分别超越前 SOTA +2.7 &#x2F; +2.6</li>
+<li><strong>58.7 / 51.1 AP</strong>：Swin-L 在 COCO test-dev 上的 box / mask AP，分别超越前 SOTA +2.7 / +2.6</li>
 <li><strong>87.3% top-1</strong>：Swin-L（ImageNet-22K 预训练）在 ImageNet-1K 上的分类准确率</li>
-<li><strong>63.1 &#x2F; 54.4 AP</strong>：SwinV2-G（3B 参数）在 COCO test-dev 上的 box &#x2F; mask AP，超越前 SOTA +1.8 &#x2F; +1.4</li>
+<li><strong>63.1 / 54.4 AP</strong>：SwinV2-G（3B 参数）在 COCO test-dev 上的 box / mask AP，超越前 SOTA +1.8 / +1.4</li>
 </ul>
 <h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>核心流程：</p>
 
@@ -180,8 +181,7 @@ $$\text{Image} \xrightarrow{\text{Patch Partition}} \text{Tokens}_{H/4 \times W/
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-Input Image (H×W×3)
+<pre>Input Image (H×W×3)
        │
        ▼
 ┌─────────────────┐
@@ -263,8 +263,8 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 </tr>
 <tr>
 <td>注意力计算</td>
-<td>Dot-product &#x2F; √d</td>
-<td>Cosine &#x2F; τ（可学习）</td>
+<td>Dot-product / √d</td>
+<td>Cosine / τ（可学习）</td>
 <td>注意力值被少数 token 主导</td>
 </tr>
 <tr>
@@ -274,11 +274,11 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 <td>跨窗口分辨率迁移效果差</td>
 </tr>
 </tbody></table>
-<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>代码来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer">microsoft&#x2F;Swin-Transformer</a> (MIT License)</p>
+<h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>代码来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer">microsoft/Swin-Transformer</a> (MIT License)</p>
 <table>
 <thead>
 <tr>
-<th>函数&#x2F;类</th>
+<th>函数/类</th>
 <th>功能</th>
 </tr>
 </thead>
@@ -302,24 +302,24 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 <details>
 <summary>📄 点击展开 WindowAttention.forward 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models&#x2F;swin_transformer.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x, mask=<span class="literal">None</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        x: input features with shape of (num_windows*B, N, C)</span></span><br><span class="line"><span class="string">        mask: (0/-inf) mask with shape of (num_windows, Wh*Ww, Wh*Ww) or None</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    B_, N, C = x.shape</span><br><span class="line">    <span class="comment"># 线性投影得到 Q, K, V</span></span><br><span class="line">    qkv = <span class="variable language_">self</span>.qkv(x).reshape(B_, N, <span class="number">3</span>, <span class="variable language_">self</span>.num_heads, C // <span class="variable language_">self</span>.num_heads).permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">4</span>)</span><br><span class="line">    q, k, v = qkv[<span class="number">0</span>], qkv[<span class="number">1</span>], qkv[<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 缩放点积注意力</span></span><br><span class="line">    q = q * <span class="variable language_">self</span>.scale</span><br><span class="line">    attn = (q @ k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 添加相对位置偏置 B ∈ R^&#123;M²×M²&#125;</span></span><br><span class="line">    relative_position_bias = <span class="variable language_">self</span>.relative_position_bias_table[</span><br><span class="line">        <span class="variable language_">self</span>.relative_position_index.view(-<span class="number">1</span>)</span><br><span class="line">    ].view(<span class="variable language_">self</span>.window_size[<span class="number">0</span>] * <span class="variable language_">self</span>.window_size[<span class="number">1</span>],</span><br><span class="line">           <span class="variable language_">self</span>.window_size[<span class="number">0</span>] * <span class="variable language_">self</span>.window_size[<span class="number">1</span>], -<span class="number">1</span>)  <span class="comment"># Wh*Ww, Wh*Ww, nH</span></span><br><span class="line">    relative_position_bias = relative_position_bias.permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>).contiguous()  <span class="comment"># nH, Wh*Ww, Wh*Ww</span></span><br><span class="line">    attn = attn + relative_position_bias.unsqueeze(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 对移位窗口应用 attention mask（-100 屏蔽非相邻区域）</span></span><br><span class="line">    <span class="keyword">if</span> mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        nW = mask.shape[<span class="number">0</span>]</span><br><span class="line">        attn = attn.view(B_ // nW, nW, <span class="variable language_">self</span>.num_heads, N, N) + mask.unsqueeze(<span class="number">1</span>).unsqueeze(<span class="number">0</span>)</span><br><span class="line">        attn = attn.view(-<span class="number">1</span>, <span class="variable language_">self</span>.num_heads, N, N)</span><br><span class="line">        attn = <span class="variable language_">self</span>.softmax(attn)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        attn = <span class="variable language_">self</span>.softmax(attn)</span><br><span class="line"></span><br><span class="line">    attn = <span class="variable language_">self</span>.attn_drop(attn)</span><br><span class="line"></span><br><span class="line">    x = (attn @ v).transpose(<span class="number">1</span>, <span class="number">2</span>).reshape(B_, N, C)</span><br><span class="line">    x = <span class="variable language_">self</span>.proj(x)</span><br><span class="line">    x = <span class="variable language_">self</span>.proj_drop(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models/swin_transformer.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x, mask=<span class="literal">None</span></span>):</span><br><span class="line">    <span class="string">"""</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        x: input features with shape of (num_windows*B, N, C)</span></span><br><span class="line"><span class="string">        mask: (0/-inf) mask with shape of (num_windows, Wh*Ww, Wh*Ww) or None</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    B_, N, C = x.shape</span><br><span class="line">    <span class="comment"># 线性投影得到 Q, K, V</span></span><br><span class="line">    qkv = <span class="variable language_">self</span>.qkv(x).reshape(B_, N, <span class="number">3</span>, <span class="variable language_">self</span>.num_heads, C // <span class="variable language_">self</span>.num_heads).permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="number">4</span>)</span><br><span class="line">    q, k, v = qkv[<span class="number">0</span>], qkv[<span class="number">1</span>], qkv[<span class="number">2</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 缩放点积注意力</span></span><br><span class="line">    q = q * <span class="variable language_">self</span>.scale</span><br><span class="line">    attn = (q @ k.transpose(-<span class="number">2</span>, -<span class="number">1</span>))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 添加相对位置偏置 B ∈ R^{M²×M²}</span></span><br><span class="line">    relative_position_bias = <span class="variable language_">self</span>.relative_position_bias_table[</span><br><span class="line">        <span class="variable language_">self</span>.relative_position_index.view(-<span class="number">1</span>)</span><br><span class="line">    ].view(<span class="variable language_">self</span>.window_size[<span class="number">0</span>] * <span class="variable language_">self</span>.window_size[<span class="number">1</span>],</span><br><span class="line">           <span class="variable language_">self</span>.window_size[<span class="number">0</span>] * <span class="variable language_">self</span>.window_size[<span class="number">1</span>], -<span class="number">1</span>)  <span class="comment"># Wh*Ww, Wh*Ww, nH</span></span><br><span class="line">    relative_position_bias = relative_position_bias.permute(<span class="number">2</span>, <span class="number">0</span>, <span class="number">1</span>).contiguous()  <span class="comment"># nH, Wh*Ww, Wh*Ww</span></span><br><span class="line">    attn = attn + relative_position_bias.unsqueeze(<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 对移位窗口应用 attention mask（-100 屏蔽非相邻区域）</span></span><br><span class="line">    <span class="keyword">if</span> mask <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        nW = mask.shape[<span class="number">0</span>]</span><br><span class="line">        attn = attn.view(B_ // nW, nW, <span class="variable language_">self</span>.num_heads, N, N) + mask.unsqueeze(<span class="number">1</span>).unsqueeze(<span class="number">0</span>)</span><br><span class="line">        attn = attn.view(-<span class="number">1</span>, <span class="variable language_">self</span>.num_heads, N, N)</span><br><span class="line">        attn = <span class="variable language_">self</span>.softmax(attn)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        attn = <span class="variable language_">self</span>.softmax(attn)</span><br><span class="line"></span><br><span class="line">    attn = <span class="variable language_">self</span>.attn_drop(attn)</span><br><span class="line"></span><br><span class="line">    x = (attn @ v).transpose(<span class="number">1</span>, <span class="number">2</span>).reshape(B_, N, C)</span><br><span class="line">    x = <span class="variable language_">self</span>.proj(x)</span><br><span class="line">    x = <span class="variable language_">self</span>.proj_drop(x)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <details>
 <summary>📄 点击展开 SwinTransformerBlock.forward 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models&#x2F;swin_transformer.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">    H, W = <span class="variable language_">self</span>.input_resolution</span><br><span class="line">    B, L, C = x.shape</span><br><span class="line">    <span class="keyword">assert</span> L == H * W, <span class="string">&quot;input feature has wrong size&quot;</span></span><br><span class="line"></span><br><span class="line">    shortcut = x</span><br><span class="line">    x = <span class="variable language_">self</span>.norm1(x)</span><br><span class="line">    x = x.view(B, H, W, C)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 循环移位（cyclic shift）实现移位窗口</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.shift_size &gt; <span class="number">0</span>:</span><br><span class="line">        shifted_x = torch.roll(x, shifts=(-<span class="variable language_">self</span>.shift_size, -<span class="variable language_">self</span>.shift_size), dims=(<span class="number">1</span>, <span class="number">2</span>))</span><br><span class="line">        x_windows = window_partition(shifted_x, <span class="variable language_">self</span>.window_size)  <span class="comment"># nW*B, ws, ws, C</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        shifted_x = x</span><br><span class="line">        x_windows = window_partition(shifted_x, <span class="variable language_">self</span>.window_size)</span><br><span class="line"></span><br><span class="line">    x_windows = x_windows.view(-<span class="number">1</span>, <span class="variable language_">self</span>.window_size * <span class="variable language_">self</span>.window_size, C)  <span class="comment"># nW*B, ws*ws, C</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 窗口内自注意力（W-MSA 或 SW-MSA）</span></span><br><span class="line">    attn_windows = <span class="variable language_">self</span>.attn(x_windows, mask=<span class="variable language_">self</span>.attn_mask)  <span class="comment"># nW*B, ws*ws, C</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 合并窗口</span></span><br><span class="line">    attn_windows = attn_windows.view(-<span class="number">1</span>, <span class="variable language_">self</span>.window_size, <span class="variable language_">self</span>.window_size, C)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 反向循环移位</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.shift_size &gt; <span class="number">0</span>:</span><br><span class="line">        shifted_x = window_reverse(attn_windows, <span class="variable language_">self</span>.window_size, H, W)  <span class="comment"># B H W C</span></span><br><span class="line">        x = torch.roll(shifted_x, shifts=(<span class="variable language_">self</span>.shift_size, <span class="variable language_">self</span>.shift_size), dims=(<span class="number">1</span>, <span class="number">2</span>))</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        shifted_x = window_reverse(attn_windows, <span class="variable language_">self</span>.window_size, H, W)</span><br><span class="line">        x = shifted_x</span><br><span class="line"></span><br><span class="line">    x = x.view(B, H * W, C)</span><br><span class="line">    <span class="comment"># 残差连接 + FFN</span></span><br><span class="line">    x = shortcut + <span class="variable language_">self</span>.drop_path(x)</span><br><span class="line">    x = x + <span class="variable language_">self</span>.drop_path(<span class="variable language_">self</span>.mlp(<span class="variable language_">self</span>.norm2(x)))</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models/swin_transformer.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">    H, W = <span class="variable language_">self</span>.input_resolution</span><br><span class="line">    B, L, C = x.shape</span><br><span class="line">    <span class="keyword">assert</span> L == H * W, <span class="string">"input feature has wrong size"</span></span><br><span class="line"></span><br><span class="line">    shortcut = x</span><br><span class="line">    x = <span class="variable language_">self</span>.norm1(x)</span><br><span class="line">    x = x.view(B, H, W, C)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 循环移位（cyclic shift）实现移位窗口</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.shift_size &gt; <span class="number">0</span>:</span><br><span class="line">        shifted_x = torch.roll(x, shifts=(-<span class="variable language_">self</span>.shift_size, -<span class="variable language_">self</span>.shift_size), dims=(<span class="number">1</span>, <span class="number">2</span>))</span><br><span class="line">        x_windows = window_partition(shifted_x, <span class="variable language_">self</span>.window_size)  <span class="comment"># nW*B, ws, ws, C</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        shifted_x = x</span><br><span class="line">        x_windows = window_partition(shifted_x, <span class="variable language_">self</span>.window_size)</span><br><span class="line"></span><br><span class="line">    x_windows = x_windows.view(-<span class="number">1</span>, <span class="variable language_">self</span>.window_size * <span class="variable language_">self</span>.window_size, C)  <span class="comment"># nW*B, ws*ws, C</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 窗口内自注意力（W-MSA 或 SW-MSA）</span></span><br><span class="line">    attn_windows = <span class="variable language_">self</span>.attn(x_windows, mask=<span class="variable language_">self</span>.attn_mask)  <span class="comment"># nW*B, ws*ws, C</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 合并窗口</span></span><br><span class="line">    attn_windows = attn_windows.view(-<span class="number">1</span>, <span class="variable language_">self</span>.window_size, <span class="variable language_">self</span>.window_size, C)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 反向循环移位</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.shift_size &gt; <span class="number">0</span>:</span><br><span class="line">        shifted_x = window_reverse(attn_windows, <span class="variable language_">self</span>.window_size, H, W)  <span class="comment"># B H W C</span></span><br><span class="line">        x = torch.roll(shifted_x, shifts=(<span class="variable language_">self</span>.shift_size, <span class="variable language_">self</span>.shift_size), dims=(<span class="number">1</span>, <span class="number">2</span>))</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        shifted_x = window_reverse(attn_windows, <span class="variable language_">self</span>.window_size, H, W)</span><br><span class="line">        x = shifted_x</span><br><span class="line"></span><br><span class="line">    x = x.view(B, H * W, C)</span><br><span class="line">    <span class="comment"># 残差连接 + FFN</span></span><br><span class="line">    x = shortcut + <span class="variable language_">self</span>.drop_path(x)</span><br><span class="line">    x = x + <span class="variable language_">self</span>.drop_path(<span class="variable language_">self</span>.mlp(<span class="variable language_">self</span>.norm2(x)))</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <details>
 <summary>📄 点击展开 window_partition / window_reverse 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models&#x2F;swin_transformer.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">window_partition</span>(<span class="params">x, window_size</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;将特征图按 window_size 切分为不重叠窗口</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        x: (B, H, W, C)</span></span><br><span class="line"><span class="string">        window_size (int): 窗口大小</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        windows: (num_windows*B, window_size, window_size, C)</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    B, H, W, C = x.shape</span><br><span class="line">    x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)</span><br><span class="line">    windows = x.permute(<span class="number">0</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>).contiguous().view(-<span class="number">1</span>, window_size, window_size, C)</span><br><span class="line">    <span class="keyword">return</span> windows</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">window_reverse</span>(<span class="params">windows, window_size, H, W</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;将窗口合并恢复为特征图</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        windows: (num_windows*B, window_size, window_size, C)</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        x: (B, H, W, C)</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    B = <span class="built_in">int</span>(windows.shape[<span class="number">0</span>] / (H * W / window_size / window_size))</span><br><span class="line">    x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -<span class="number">1</span>)</span><br><span class="line">    x = x.permute(<span class="number">0</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>).contiguous().view(B, H, W, -<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py">models/swin_transformer.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">window_partition</span>(<span class="params">x, window_size</span>):</span><br><span class="line">    <span class="string">"""将特征图按 window_size 切分为不重叠窗口</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        x: (B, H, W, C)</span></span><br><span class="line"><span class="string">        window_size (int): 窗口大小</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        windows: (num_windows*B, window_size, window_size, C)</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    B, H, W, C = x.shape</span><br><span class="line">    x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)</span><br><span class="line">    windows = x.permute(<span class="number">0</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>).contiguous().view(-<span class="number">1</span>, window_size, window_size, C)</span><br><span class="line">    <span class="keyword">return</span> windows</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">window_reverse</span>(<span class="params">windows, window_size, H, W</span>):</span><br><span class="line">    <span class="string">"""将窗口合并恢复为特征图</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        windows: (num_windows*B, window_size, window_size, C)</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        x: (B, H, W, C)</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    B = <span class="built_in">int</span>(windows.shape[<span class="number">0</span>] / (H * W / window_size / window_size))</span><br><span class="line">    x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -<span class="number">1</span>)</span><br><span class="line">    x = x.permute(<span class="number">0</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">4</span>, <span class="number">5</span>).contiguous().view(B, H, W, -<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> x</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -445,7 +445,7 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 <ol>
 <li>Swin-T 在所有四个检测框架（Cascade Mask R-CNN, ATSS, RepPoints v2, Sparse RCNN）上一致性超越 ResNet-50 +3.4∼4.2 box AP</li>
 <li>相比 DeiT-S，Swin-T 同等参数规模下推理速度快 47%（15.3 FPS vs 10.4 FPS），box AP 高 +2.5</li>
-<li>SwinV2-G 仅用 1&#x2F;40 标注数据和 1&#x2F;40 训练时间即达到 COCO 63.1 AP，超越 Google 十亿参数级模型</li>
+<li>SwinV2-G 仅用 1/40 标注数据和 1/40 训练时间即达到 COCO 63.1 AP，超越 Google 十亿参数级模型</li>
 </ol>
 <h3 id="5-2-消融实验：验证三个洞察"><a href="#5-2-消融实验：验证三个洞察" class="headerlink" title="5.2 消融实验：验证三个洞察"></a>5.2 消融实验：验证三个洞察</h3><p><strong>V1 消融</strong>（基于 Swin-T）：</p>
 <table>
@@ -531,15 +531,15 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 </tr>
 </tbody></table>
 <p>改进幅度随规模增大而增长（+0.2 → +0.4 → +0.5），说明这些技术对大模型更重要。</p>
-<p><strong>V2 消融 — 跨分辨率迁移</strong>（预训练 W8&#x2F;I256，直接测试不同窗口大小, Swin-T）：</p>
+<p><strong>V2 消融 — 跨分辨率迁移</strong>（预训练 W8/I256，直接测试不同窗口大小, Swin-T）：</p>
 <table>
 <thead>
 <tr>
 <th>方法</th>
 <th>W8 (预训练)</th>
-<th>W12 (w&#x2F;o ft)</th>
-<th>W16 (w&#x2F;o ft)</th>
-<th>W24 (w&#x2F;o ft)</th>
+<th>W12 (w/o ft)</th>
+<th>W16 (w/o ft)</th>
+<th>W24 (w/o ft)</th>
 <th>验证洞察</th>
 </tr>
 </thead>
@@ -572,17 +572,17 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 <li><strong>Huge 模型训练崩溃（V1 配置）</strong>：原始 pre-norm 在 658M 参数的 Huge 模型上无法完成训练，激活值爆炸导致发散</li>
 </ul>
 <h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><p>**V1 ImageNet-1K (224²)**：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone: Swin-T/S/B</span><br><span class="line">Input: 224×224</span><br><span class="line">Optimizer: AdamW (lr=0.001, weight_decay=0.05)</span><br><span class="line">Scheduler: Cosine decay + 20-epoch warmup</span><br><span class="line">Batch size: 1024</span><br><span class="line">Epochs: 300</span><br><span class="line">Augmentation: RandAugment, Mixup, Cutmix, Random Erasing</span><br><span class="line">Regularization: Stochastic depth (0.2/0.3/0.5 for T/S/B)</span><br><span class="line">Gradient clipping: max_norm=1</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone: Swin-T/S/B</span><br><span class="line">Input: 224×224</span><br><span class="line">Optimizer: AdamW (lr=0.001, weight_decay=0.05)</span><br><span class="line">Scheduler: Cosine decay + 20-epoch warmup</span><br><span class="line">Batch size: 1024</span><br><span class="line">Epochs: 300</span><br><span class="line">Augmentation: RandAugment, Mixup, Cutmix, Random Erasing</span><br><span class="line">Regularization: Stochastic depth (0.2/0.3/0.5 for T/S/B)</span><br><span class="line">Gradient clipping: max_norm=1</span><br></pre></td></tr></tbody></table></figure>
 
 <p>**V1 COCO Detection (Cascade Mask R-CNN, 3× schedule)**：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Framework: mmdetection</span><br><span class="line">Multi-scale training: shorter side [480, 800], longer ≤ 1333</span><br><span class="line">Optimizer: AdamW (lr=0.0001, weight_decay=0.05)</span><br><span class="line">Batch size: 16</span><br><span class="line">Epochs: 36 (lr ×0.1 at epoch 27, 33)</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Framework: mmdetection</span><br><span class="line">Multi-scale training: shorter side [480, 800], longer ≤ 1333</span><br><span class="line">Optimizer: AdamW (lr=0.0001, weight_decay=0.05)</span><br><span class="line">Batch size: 16</span><br><span class="line">Epochs: 36 (lr ×0.1 at epoch 27, 33)</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
 <li><strong>不使用 Repeated Augmentation 和 EMA</strong>：与 DeiT 不同，这两项在 Swin 上不提升性能</li>
-<li><strong>Stochastic depth 随模型增大</strong>：T&#x2F;S&#x2F;B 分别使用 0.2&#x2F;0.3&#x2F;0.5 的 drop rate</li>
+<li><strong>Stochastic depth 随模型增大</strong>：T/S/B 分别使用 0.2/0.3/0.5 的 drop rate</li>
 <li><strong>检测用 AdamW 而非 SGD</strong>：ResNet 骨干换用 AdamW 后也能提升 0.5−1.3 AP，确保公平对比</li>
 <li><strong>窗口大小可整除性</strong>：输入分辨率必须被窗口大小整除，否则需 padding</li>
-<li><strong>V2 大模型额外 LN</strong>：SwinV2-H&#x2F;G 在主干每 6 个 Transformer block 后加一层额外 LayerNorm</li>
+<li><strong>V2 大模型额外 LN</strong>：SwinV2-H/G 在主干每 6 个 Transformer block 后加一层额外 LayerNorm</li>
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
@@ -597,9 +597,9 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
 <li><strong>局部注意力 + 跨窗口连接是通用模式</strong>：可应用于视频理解（Video Swin）、点云处理、3D 医学图像等高分辨率场景，在保持线性复杂度的同时获得全局建模能力</li>
-<li><strong>层级特征对齐 CNN 设计范式</strong>：使 Transformer 骨干可以无缝接入已有的检测&#x2F;分割框架（FPN, UperNet），降低迁移成本</li>
+<li><strong>层级特征对齐 CNN 设计范式</strong>：使 Transformer 骨干可以无缝接入已有的检测/分割框架（FPN, UperNet），降低迁移成本</li>
 <li><strong>Post-norm + cosine attention 稳定训练</strong>：不仅适用于视觉 Transformer，也适用于 MLP-Mixer 等非注意力架构（Swin-Mixer 验证了这一点），可推广至任意需要深层残差训练的场景</li>
-<li><strong>对数坐标外推</strong>：Log-CPB 的对数坐标思想可迁移到任何需要跨分辨率&#x2F;跨尺度迁移位置编码的场景</li>
+<li><strong>对数坐标外推</strong>：Log-CPB 的对数坐标思想可迁移到任何需要跨分辨率/跨尺度迁移位置编码的场景</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
 <li>固定窗口大小的局部注意力在需要全局上下文的任务上不如全局注意力（如 ImageNet 分类只有 +1.5% over DeiT）</li>
@@ -608,10 +608,11 @@ $$B(\Delta x, \Delta y) = \mathcal{G}\left(\text{sign}(\Delta x) \cdot \log(1+|\
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li>确立了 <strong>Transformer 作为视觉通用骨干</strong> 的地位：Swin 是第一个在分类、检测、分割三任务上同时达到 SOTA 的 Transformer</li>
-<li>推动了 <strong>BEVDet、BEVFormer、Mask2Former</strong> 等后续工作采用 Swin 作为默认骨干</li>
+<li>推动了 <strong><a href="/posts/2021/papers/2021_arXiv_BEVDet_High_Performance_Multi_Camera_3D_Object_Detection/">BEVDet</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>、<a href="/posts/2022/papers/2022_CVPR_Mask2Former_Universal_Image_Segmentation/">Mask2Former</a></strong> 等后续工作采用 Swin 作为默认骨干</li>
 <li>层级设计 + 局部注意力的范式被 Focal Transformer、CSWin、Twins 等后续工作广泛采用</li>
 <li>V2 的大模型训练技术（post-norm, cosine attention, Log-CPB）成为后续大规模视觉模型的标准实践</li>
 </ul>
+
 
             </div>
 

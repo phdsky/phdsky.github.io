@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 3D Object Detection from LiDAR Point Clouds<br>Method: Pillar-based Point Cloud Encoding + 2D CNN Detection<br>Venue: CVPR 2019<br>Year: 2019<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1812.05784">https://arxiv.org/abs/1812.05784</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/nutonomy/second.pytorch">https://github.com/nutonomy/second.pytorch</a></p>
+                
+<p>Task: 3D Object Detection from LiDAR Point Clouds<br>Method: Pillar-based Point Cloud Encoding + 2D CNN Detection<br>Venue: CVPR 2019<br>Year: 2019<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1812.05784">https://arxiv.org/abs/1812.05784</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/nutonomy/second.pytorch">https://github.com/nutonomy/second.pytorch</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>点云中的 3D 目标检测是自动驾驶的核心任务。本文提出 PointPillars，一种基于柱体（pillars）编码的 LiDAR 点云检测方法。该方法将点云沿 z 轴组织为垂直柱体，用简化版 PointNet 对每个柱体进行特征学习，生成 2D 伪图像（pseudo-image），随后用标准 2D CNN 骨干网络和 SSD 检测头进行 3D 目标检测。PointPillars 在 KITTI 基准测试上以 <strong>62 Hz</strong> 的推理速度达到 SOTA 性能（BEV mAP 66.19），比 VoxelNet 快 <strong>14 倍</strong>，同时在所有类别上性能更优。更快的版本可在 <strong>105 Hz</strong> 下达到接近 SOTA 的性能。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>点云中的 3D 目标检测是自动驾驶的核心任务。本文提出 PointPillars，一种基于柱体（pillars）编码的 LiDAR 点云检测方法。该方法将点云沿 z 轴组织为垂直柱体，用简化版 PointNet 对每个柱体进行特征学习，生成 2D 伪图像（pseudo-image），随后用标准 2D CNN 骨干网络和 <a href="/posts/2016/papers/2016_ECCV_SSD_Single_Shot_MultiBox_Detector/">SSD</a> 检测头进行 3D 目标检测。PointPillars 在 KITTI 基准测试上以 <strong>62 Hz</strong> 的推理速度达到 SOTA 性能（BEV mAP 66.19），比 VoxelNet 快 <strong>14 倍</strong>，同时在所有类别上性能更优。更快的版本可在 <strong>105 Hz</strong> 下达到接近 SOTA 的性能。</p>
 <p><strong>核心论点</strong>：将 3D 点云编码从体素化+3D 卷积简化为柱体化+2D 卷积，消除了昂贵的 3D 卷积瓶颈，在保持检测精度的同时实现了 10 倍以上的推理加速。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>LiDAR 点云 3D 检测的现有方案存在<strong>速度与精度的矛盾</strong>：</p>
 <table>
@@ -104,11 +105,11 @@
 $$\text{Point Cloud} \xrightarrow{\text{pillarize}} (D, P, N) \xrightarrow{\text{PointNet}} (C, P) \xrightarrow{\text{scatter}} (C, H, W)$$
 
 
-<p>其中 $D&#x3D;9$ 为点的增强特征维度，$P$ 为非空柱体数，$N$ 为每柱体最大点数，$C&#x3D;64$ 为编码输出维度。柱体编码不需要 z 方向超参数，且所有操作均为 2D，可高效 GPU 并行。</p>
+<p>其中 $D=9$ 为点的增强特征维度，$P$ 为非空柱体数，$N$ 为每柱体最大点数，$C=64$ 为编码输出维度。柱体编码不需要 z 方向超参数，且所有操作均为 2D，可高效 GPU 并行。</p>
 <h3 id="洞察-2：学习编码优于固定编码"><a href="#洞察-2：学习编码优于固定编码" class="headerlink" title="洞察 2：学习编码优于固定编码"></a>洞察 2：学习编码优于固定编码</h3><p>传统做法：MV3D、PIXOR 等方法对每个网格单元使用手工设计的特征（如高度统计、密度等），不可学习。</p>
 <p>本文做法：用简化 PointNet（单层线性+BN+ReLU+MaxPool）端到端学习柱体特征。关键在于每个点被增强为 9 维特征 $(x, y, z, r, x_c, y_c, z_c, x_p, y_p)$，其中 $c$ 下标为到柱体内点均值的偏移、$p$ 下标为到柱体中心的偏移。</p>
 <p>消融实验证实：在相同下游网络下，学习编码比所有固定编码高约 <strong>1-5 mAP</strong>，且优势随网格尺寸增大而更明显。</p>
-<h3 id="洞察-3：2D-伪图像-标准-2D-检测管线-实时-3D-检测"><a href="#洞察-3：2D-伪图像-标准-2D-检测管线-实时-3D-检测" class="headerlink" title="洞察 3：2D 伪图像 + 标准 2D 检测管线 &#x3D; 实时 3D 检测"></a>洞察 3：2D 伪图像 + 标准 2D 检测管线 &#x3D; 实时 3D 检测</h3><p>传统做法：VoxelNet 在编码后仍需 3D 中间层处理体素特征，编码器耗时 190ms。</p>
+<h3 id="洞察-3：2D-伪图像-标准-2D-检测管线-实时-3D-检测"><a href="#洞察-3：2D-伪图像-标准-2D-检测管线-实时-3D-检测" class="headerlink" title="洞察 3：2D 伪图像 + 标准 2D 检测管线 = 实时 3D 检测"></a>洞察 3：2D 伪图像 + 标准 2D 检测管线 = 实时 3D 检测</h3><p>传统做法：VoxelNet 在编码后仍需 3D 中间层处理体素特征，编码器耗时 190ms。</p>
 <p>本文做法：柱体特征直接散射为 2D 伪图像 $(C, H, W)$，后续使用标准 2D 多尺度骨干（3 个 Block + 3 个 Upsample 拼接）和 SSD 检测头。整个推理流程的关键运算（编码 1.3ms + 骨干+检测头 7.7ms）均为 2D 操作。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
@@ -125,8 +126,7 @@ $$\text{Point Cloud} \rightarrow \text{Pillar Feature Net} \rightarrow \text{2D 
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
- Point Cloud (x,y,z,r)
+<pre> Point Cloud (x,y,z,r)
            │
            ▼
 ┌──────────────────────────────┐
@@ -174,7 +174,7 @@ $$\text{Point Cloud} \rightarrow \text{Pillar Feature Net} \rightarrow \text{2D 
 </tr>
 <tr>
 <td align="center">Backbone Block 1-3</td>
-<td align="center">C&#x2F;2C&#x2F;4C 通道, 4&#x2F;6&#x2F;6 层</td>
+<td align="center">C/2C/4C 通道, 4/6/6 层</td>
 <td align="left">多尺度 2D 特征提取</td>
 <td align="center">—</td>
 </tr>
@@ -188,19 +188,19 @@ $$\text{Point Cloud} \rightarrow \text{Pillar Feature Net} \rightarrow \text{2D 
 <td align="center">分类头</td>
 <td align="center">Focal Loss</td>
 <td align="left">目标类别预测</td>
-<td align="center">$\beta_{cls}&#x3D;1$</td>
+<td align="center">$\beta_{cls}=1$</td>
 </tr>
 <tr>
 <td align="center">回归头</td>
 <td align="center">SmoothL1</td>
-<td align="left">3D 框位置&#x2F;尺寸&#x2F;角度</td>
-<td align="center">$\beta_{loc}&#x3D;2$</td>
+<td align="left">3D 框位置/尺寸/角度</td>
+<td align="center">$\beta_{loc}=2$</td>
 </tr>
 <tr>
 <td align="center">方向头</td>
 <td align="center">Softmax CE</td>
 <td align="left">消除 180° 方向歧义</td>
-<td align="center">$\beta_{dir}&#x3D;0.2$</td>
+<td align="center">$\beta_{dir}=0.2$</td>
 </tr>
 </tbody></table>
 <p><strong>总损失函数</strong>：</p>
@@ -209,10 +209,10 @@ $$\mathcal{L} = \frac{1}{N_{pos}} \left( \beta_{loc} \mathcal{L}_{loc} + \beta_{
 
 
 <h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>核心代码为 Pillar Feature Extraction（柱体特征提取）。</p>
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/open-mmlab/OpenPCDet/blob/master/pcdet/models/backbones_3d/vfe/pillar_vfe.py">pillar_vfe.py</a>，OpenPCDet 标准实现，原始代码发布于 <a target="_blank" rel="noopener" href="https://github.com/nutonomy/second.pytorch">nutonomy&#x2F;second.pytorch</a>）</p>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/open-mmlab/OpenPCDet/blob/master/pcdet/models/backbones_3d/vfe/pillar_vfe.py">pillar_vfe.py</a>，OpenPCDet 标准实现，原始代码发布于 <a target="_blank" rel="noopener" href="https://github.com/nutonomy/second.pytorch">nutonomy/second.pytorch</a>）</p>
 <details><summary>📄 点击展开 PillarVFE.forward 代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, batch_dict, **kwargs</span>):</span><br><span class="line">    <span class="comment"># 获取体素化后的特征、每个柱体的点数、坐标</span></span><br><span class="line">    voxel_features, voxel_num_points, coords = (</span><br><span class="line">        batch_dict[<span class="string">&#x27;voxels&#x27;</span>],</span><br><span class="line">        batch_dict[<span class="string">&#x27;voxel_num_points&#x27;</span>],</span><br><span class="line">        batch_dict[<span class="string">&#x27;voxel_coords&#x27;</span>]</span><br><span class="line">    )</span><br><span class="line">    <span class="comment"># 计算柱体内点均值，得到到均值的偏移 f_cluster</span></span><br><span class="line">    points_mean = voxel_features[:, :, :<span class="number">3</span>].<span class="built_in">sum</span>(dim=<span class="number">1</span>, keepdim=<span class="literal">True</span>) / \</span><br><span class="line">                  voxel_num_points.type_as(voxel_features).view(-<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>)</span><br><span class="line">    f_cluster = voxel_features[:, :, :<span class="number">3</span>] - points_mean</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 计算到柱体几何中心的偏移 f_center</span></span><br><span class="line">    f_center = torch.zeros_like(voxel_features[:, :, :<span class="number">3</span>])</span><br><span class="line">    f_center[:, :, <span class="number">0</span>] = voxel_features[:, :, <span class="number">0</span>] - (</span><br><span class="line">        coords[:, <span class="number">3</span>].to(voxel_features.dtype).unsqueeze(<span class="number">1</span>) * <span class="variable language_">self</span>.voxel_x + <span class="variable language_">self</span>.x_offset)</span><br><span class="line">    f_center[:, :, <span class="number">1</span>] = voxel_features[:, :, <span class="number">1</span>] - (</span><br><span class="line">        coords[:, <span class="number">2</span>].to(voxel_features.dtype).unsqueeze(<span class="number">1</span>) * <span class="variable language_">self</span>.voxel_y + <span class="variable language_">self</span>.y_offset)</span><br><span class="line">    f_center[:, :, <span class="number">2</span>] = voxel_features[:, :, <span class="number">2</span>] - (</span><br><span class="line">        coords[:, <span class="number">1</span>].to(voxel_features.dtype).unsqueeze(<span class="number">1</span>) * <span class="variable language_">self</span>.voxel_z + <span class="variable language_">self</span>.z_offset)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 拼接原始特征 + 均值偏移 + 中心偏移 → 9 维增强特征</span></span><br><span class="line">    features = [voxel_features, f_cluster, f_center]</span><br><span class="line">    features = torch.cat(features, dim=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 零填充掩码，忽略空位置</span></span><br><span class="line">    voxel_count = features.shape[<span class="number">1</span>]</span><br><span class="line">    mask = <span class="variable language_">self</span>.get_paddings_indicator(voxel_num_points, voxel_count, axis=<span class="number">0</span>)</span><br><span class="line">    mask = torch.unsqueeze(mask, -<span class="number">1</span>).type_as(voxel_features)</span><br><span class="line">    features *= mask</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 逐层 PointNet（Linear+BN+ReLU+MaxPool）</span></span><br><span class="line">    <span class="keyword">for</span> pfn <span class="keyword">in</span> <span class="variable language_">self</span>.pfn_layers:</span><br><span class="line">        features = pfn(features)</span><br><span class="line">    features = features.squeeze()</span><br><span class="line">    batch_dict[<span class="string">&#x27;pillar_features&#x27;</span>] = features</span><br><span class="line">    <span class="keyword">return</span> batch_dict</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, batch_dict, **kwargs</span>):</span><br><span class="line">    <span class="comment"># 获取体素化后的特征、每个柱体的点数、坐标</span></span><br><span class="line">    voxel_features, voxel_num_points, coords = (</span><br><span class="line">        batch_dict[<span class="string">'voxels'</span>],</span><br><span class="line">        batch_dict[<span class="string">'voxel_num_points'</span>],</span><br><span class="line">        batch_dict[<span class="string">'voxel_coords'</span>]</span><br><span class="line">    )</span><br><span class="line">    <span class="comment"># 计算柱体内点均值，得到到均值的偏移 f_cluster</span></span><br><span class="line">    points_mean = voxel_features[:, :, :<span class="number">3</span>].<span class="built_in">sum</span>(dim=<span class="number">1</span>, keepdim=<span class="literal">True</span>) / \</span><br><span class="line">                  voxel_num_points.type_as(voxel_features).view(-<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>)</span><br><span class="line">    f_cluster = voxel_features[:, :, :<span class="number">3</span>] - points_mean</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 计算到柱体几何中心的偏移 f_center</span></span><br><span class="line">    f_center = torch.zeros_like(voxel_features[:, :, :<span class="number">3</span>])</span><br><span class="line">    f_center[:, :, <span class="number">0</span>] = voxel_features[:, :, <span class="number">0</span>] - (</span><br><span class="line">        coords[:, <span class="number">3</span>].to(voxel_features.dtype).unsqueeze(<span class="number">1</span>) * <span class="variable language_">self</span>.voxel_x + <span class="variable language_">self</span>.x_offset)</span><br><span class="line">    f_center[:, :, <span class="number">1</span>] = voxel_features[:, :, <span class="number">1</span>] - (</span><br><span class="line">        coords[:, <span class="number">2</span>].to(voxel_features.dtype).unsqueeze(<span class="number">1</span>) * <span class="variable language_">self</span>.voxel_y + <span class="variable language_">self</span>.y_offset)</span><br><span class="line">    f_center[:, :, <span class="number">2</span>] = voxel_features[:, :, <span class="number">2</span>] - (</span><br><span class="line">        coords[:, <span class="number">1</span>].to(voxel_features.dtype).unsqueeze(<span class="number">1</span>) * <span class="variable language_">self</span>.voxel_z + <span class="variable language_">self</span>.z_offset)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 拼接原始特征 + 均值偏移 + 中心偏移 → 9 维增强特征</span></span><br><span class="line">    features = [voxel_features, f_cluster, f_center]</span><br><span class="line">    features = torch.cat(features, dim=-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 零填充掩码，忽略空位置</span></span><br><span class="line">    voxel_count = features.shape[<span class="number">1</span>]</span><br><span class="line">    mask = <span class="variable language_">self</span>.get_paddings_indicator(voxel_num_points, voxel_count, axis=<span class="number">0</span>)</span><br><span class="line">    mask = torch.unsqueeze(mask, -<span class="number">1</span>).type_as(voxel_features)</span><br><span class="line">    features *= mask</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 逐层 PointNet（Linear+BN+ReLU+MaxPool）</span></span><br><span class="line">    <span class="keyword">for</span> pfn <span class="keyword">in</span> <span class="variable language_">self</span>.pfn_layers:</span><br><span class="line">        features = pfn(features)</span><br><span class="line">    features = features.squeeze()</span><br><span class="line">    batch_dict[<span class="string">'pillar_features'</span>] = features</span><br><span class="line">    <span class="keyword">return</span> batch_dict</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -303,7 +303,7 @@ $$\mathcal{L} = \frac{1}{N_{pos}} \left( \beta_{loc} \mathcal{L}_{loc} + \beta_{
 </tr>
 <tr>
 <td align="left">分辨率 0.12²→0.28²</td>
-<td align="left">速度&#x2F;精度权衡</td>
+<td align="left">速度/精度权衡</td>
 <td align="center">73.7→~68</td>
 <td align="center">洞察 3</td>
 </tr>
@@ -317,17 +317,17 @@ $$\mathcal{L} = \frac{1}{N_{pos}} \left( \beta_{loc} \mathcal{L}_{loc} + \beta_{
 <li><strong>三维编码信息丢失</strong>：柱体 MaxPool 丢失了部分 z 轴细节（vs VoxelNet 的 3D 编码差 1.4 mAP）</li>
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
-<li><strong>远距离&#x2F;严重遮挡目标</strong>：点云极度稀疏时容易漏检</li>
+<li><strong>远距离/严重遮挡目标</strong>：点云极度稀疏时容易漏检</li>
 <li><strong>行人-骑行者混淆</strong>：两类形状相似，单靠点云难以区分</li>
 <li><strong>细长垂直结构误检</strong>：电线杆、树干等容易被误判为行人</li>
-<li><strong>标注缺失&#x2F;GT 遗漏</strong>：部分场景中 PointPillars 正确检测但 GT 缺失</li>
+<li><strong>标注缺失/GT 遗漏</strong>：部分场景中 PointPillars 正确检测但 GT 缺失</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:    2D CNN (Block1/2/3 + Upsample concat)</span><br><span class="line">Pillar Size: 0.16 × 0.16 m²</span><br><span class="line">Max Pillars: 12000</span><br><span class="line">Max Points:  100 per pillar</span><br><span class="line">Encoder Dim: C = 64</span><br><span class="line">Optimizer:   Adam, lr=2e-4, decay ×0.8 every 15 epochs</span><br><span class="line">Epochs:      160</span><br><span class="line">Batch Size:  2 (val) / 4 (test)</span><br><span class="line">Car Range:   x[0,70.4], y[-40,40], z[-3,1] m</span><br><span class="line">Ped Range:   x[0,48], y[-20,20], z[-2.5,0.5] m</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:    2D CNN (Block1/2/3 + Upsample concat)</span><br><span class="line">Pillar Size: 0.16 × 0.16 m²</span><br><span class="line">Max Pillars: 12000</span><br><span class="line">Max Points:  100 per pillar</span><br><span class="line">Encoder Dim: C = 64</span><br><span class="line">Optimizer:   Adam, lr=2e-4, decay ×0.8 every 15 epochs</span><br><span class="line">Epochs:      160</span><br><span class="line">Batch Size:  2 (val) / 4 (test)</span><br><span class="line">Car Range:   x[0,70.4], y[-40,40], z[-3,1] m</span><br><span class="line">Ped Range:   x[0,48], y[-20,20], z[-2.5,0.5] m</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>GT 采样增强</strong>：从全数据集构建 GT 数据库，每帧随机插入 15&#x2F;0&#x2F;8 个 car&#x2F;ped&#x2F;cyc GT 样本，对性能提升约 3 mAP</li>
+<li><strong>GT 采样增强</strong>：从全数据集构建 GT 数据库，每帧随机插入 15/0/8 个 car/ped/cyc GT 样本，对性能提升约 3 mAP</li>
 <li><strong>柱体大小选择</strong>：0.16m² 是精度和速度的最佳平衡点；0.28m² 可达 105 Hz 但精度下降</li>
-<li><strong>单独训练</strong>：car 和 ped&#x2F;cyc 分开训练两个网络（因检测范围和 anchor 尺寸不同）</li>
+<li><strong>单独训练</strong>：car 和 ped/cyc 分开训练两个网络（因检测范围和 anchor 尺寸不同）</li>
 <li><strong>点特征增强</strong>：添加 $x_p, y_p$（到柱体中心偏移）额外贡献 +0.5 mAP</li>
 <li><strong>NMS 策略</strong>：使用轴对齐 NMS（IoU 0.5），性能与旋转 NMS 相当但快很多</li>
 </ol>
@@ -343,13 +343,13 @@ $$\mathcal{L} = \frac{1}{N_{pos}} \left( \beta_{loc} \mathcal{L}_{loc} + \beta_{
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
 <li><strong>柱体化范式消除 3D 卷积瓶颈</strong>：任何需要处理 3D 点云的任务都可以考虑先投影到 BEV 伪图像，用 2D 卷积替代 3D 卷积</li>
-<li><strong>BEV 伪图像是 LiDAR 与 Camera 特征对齐的天然空间</strong>：BEVFusion 等后续工作正是在 BEV 空间融合两种模态</li>
+<li><strong>BEV 伪图像是 LiDAR 与 Camera 特征对齐的天然空间</strong>：<a href="/posts/2023/papers/2023_ICRA_BEVFusion_Multi_Task_Multi_Sensor_Fusion/">BEVFusion</a> 等后续工作正是在 BEV 空间融合两种模态</li>
 <li><strong>学习编码 &gt; 固定编码</strong>：端到端可学习的特征编码比手工特征更具泛化性</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
 <li>柱体 MaxPool 丢失 z 轴细节，对需要精确高度信息的场景（如低矮障碍物）不利</li>
 <li>仅在 KITTI 上验证，未在大规模数据集（如 nuScenes、Waymo）上评估</li>
-<li>检测头使用传统 SSD anchor-based 方案，后续 CenterPoint 用 anchor-free 的中心点检测取得更好效果</li>
+<li>检测头使用传统 SSD anchor-based 方案，后续 <a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a> 用 anchor-free 的中心点检测取得更好效果</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
 <li><strong>奠定 LiDAR BEV 检测范式</strong>：BEV 伪图像 + 2D 检测头成为 LiDAR 检测的标准流程</li>
@@ -357,6 +357,7 @@ $$\mathcal{L} = \frac{1}{N_{pos}} \left( \beta_{loc} \mathcal{L}_{loc} + \beta_{
 <li><strong>BEVFusion 的 LiDAR 分支</strong>：BEVFusion 直接使用 PointPillars 风格编码生成 LiDAR BEV 特征</li>
 <li><strong>工业部署标杆</strong>：62 Hz 的实时性能使 PointPillars 成为自动驾驶量产系统的常用 LiDAR 检测方案</li>
 </ul>
+
 
             </div>
 

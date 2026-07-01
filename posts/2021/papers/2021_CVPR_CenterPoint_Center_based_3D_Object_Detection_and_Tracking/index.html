@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: 3D Object Detection &amp; Tracking (LiDAR)<br>Method: center-based, anchor-free, two-stage<br>Venue: CVPR<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2006.11275">https://arxiv.org/abs/2006.11275</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/tianweiy/CenterPoint">https://github.com/tianweiy/CenterPoint</a></p>
+                
+<p>Task: 3D Object Detection &amp; Tracking (LiDAR)<br>Method: center-based, anchor-free, two-stage<br>Venue: CVPR<br>Year: 2021<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2006.11275">https://arxiv.org/abs/2006.11275</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/tianweiy/CenterPoint">https://github.com/tianweiy/CenterPoint</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>3D 点云检测主流方法沿用 2D 检测范式：anchor boxes + NMS + IoU 匹配。本文提出 CenterPoint，将 <a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a> 的中心点表示迁移至 3D LiDAR 检测与跟踪。CenterPoint 在 BEV 特征图上用 center heatmap 定位物体中心，回归 3D 属性（尺寸、朝向、速度），并通过第二阶段 point feature 细化 bbox。跟踪仅需最近邻匹配。CenterPoint 在 nuScenes 上达到 65.5 NDS &#x2F; 58.0 mAP（检测）和 63.8 AMOTA（跟踪），在 Waymo 上 71.8 L2 mAPH（vehicle），均刷新当时 SOTA。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>3D 点云检测主流方法沿用 2D 检测范式：anchor boxes + NMS + IoU 匹配。本文提出 CenterPoint，将 <a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a> 的中心点表示迁移至 3D LiDAR 检测与跟踪。CenterPoint 在 BEV 特征图上用 center heatmap 定位物体中心，回归 3D 属性（尺寸、朝向、速度），并通过第二阶段 point feature 细化 bbox。跟踪仅需最近邻匹配。CenterPoint 在 nuScenes 上达到 65.5 NDS / 58.0 mAP（检测）和 63.8 AMOTA（跟踪），在 Waymo 上 71.8 L2 mAPH（vehicle），均刷新当时 SOTA。</p>
 <p><strong>核心论点</strong>：3D 物体天然适合中心点表示——BEV 视角下 3D 框几乎不重叠、无视角歧义，中心点 + 属性回归不仅比 anchor+NMS 更简洁高效，而且直接输出 velocity 即可实现端到端跟踪。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>主流 3D 检测 pipeline 存在多层冗余：</p>
 <table>
@@ -80,7 +81,7 @@
 </tr>
 <tr>
 <td>角度回归困难</td>
-<td>朝向 0°&#x2F;360° 不连续导致回归不稳定，通常需 $\sin&#x2F;\cos$ 编码或分类离散化</td>
+<td>朝向 0°/360° 不连续导致回归不稳定，通常需 $\sin/\cos$ 编码或分类离散化</td>
 </tr>
 <tr>
 <td>跟踪与检测分离</td>
@@ -96,11 +97,11 @@
 <ul>
 <li><strong>物体不重叠</strong>：所有 3D box 在 BEV 上几乎没有重叠（nuScenes 仅 0.2%）</li>
 <li><strong>无视角依赖</strong>：BEV 中心唯一确定，不随相机位姿变化</li>
-<li><strong>无 anchor 参数</strong>：直接预测 heatmap peaks，无需预设类别&#x2F;尺寸&#x2F;朝向的 anchor 组合</li>
+<li><strong>无 anchor 参数</strong>：直接预测 heatmap peaks，无需预设类别/尺寸/朝向的 anchor 组合</li>
 </ul>
-<p>$$\hat{Y}_{x,y,c} &#x3D; \max\left(0, 1 - \frac{(x-\tilde{p}_x)^2 + (y-\tilde{p}_y)^2}{2\sigma_c^2}\right)$$</p>
+<p>$$\hat{Y}_{x,y,c} = \max\left(0, 1 - \frac{(x-\tilde{p}_x)^2 + (y-\tilde{p}_y)^2}{2\sigma_c^2}\right)$$</p>
 <p>其中 $\tilde{p}$ 是 GT 3D center 在 BEV 上的投影，$\sigma_c$ 按物体尺寸自适应缩放。</p>
-<h3 id="洞察-2：两阶段-point-feature-从根本上校正中心误差"><a href="#洞察-2：两阶段-point-feature-从根本上校正中心误差" class="headerlink" title="洞察 2：两阶段 point feature 从根本上校正中心误差"></a>洞察 2：两阶段 point feature 从根本上校正中心误差</h3><p>单阶段从 heatmap peak 处直接回归所有属性，但 heatmap 分辨率有限（stride&#x3D;8），中心定位存在量化误差。CenterPoint 在第二阶段从<strong>预测 box 的 8 个面中心 + 底面中心</strong>（共 9 点）提取 BEV 特征，通过 MLP 预测 bbox 修正量。</p>
+<h3 id="洞察-2：两阶段-point-feature-从根本上校正中心误差"><a href="#洞察-2：两阶段-point-feature-从根本上校正中心误差" class="headerlink" title="洞察 2：两阶段 point feature 从根本上校正中心误差"></a>洞察 2：两阶段 point feature 从根本上校正中心误差</h3><p>单阶段从 heatmap peak 处直接回归所有属性，但 heatmap 分辨率有限（stride=8），中心定位存在量化误差。CenterPoint 在第二阶段从<strong>预测 box 的 8 个面中心 + 底面中心</strong>（共 9 点）提取 BEV 特征，通过 MLP 预测 bbox 修正量。</p>
 
 $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F}_{BEV},\; \{\hat{b}_{face_i}\}_{i=1}^{9}\right)\right)$$
 
@@ -108,22 +109,21 @@ $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F
 <p><strong>为什么有效</strong>：</p>
 <ul>
 <li>face center 点分布在物体边界和内部，提供丰富的几何信息</li>
-<li>比 PointPillars 的 RoI-Pool + 全连接更轻量（9 点 → MLP，vs 整个 RoI grid）</li>
-<li>在 nuScenes 上提升 +2.2 mAP &#x2F; +2.0 NDS</li>
+<li>比 <a href="/posts/2019/papers/2019_CVPR_PointPillars_Fast_Encoders_LiDAR_3D_Object_Detection/">PointPillars</a> 的 RoI-Pool + 全连接更轻量（9 点 → MLP，vs 整个 RoI grid）</li>
+<li>在 nuScenes 上提升 +2.2 mAP / +2.0 NDS</li>
 </ul>
-<h3 id="洞察-3：速度预测-最近邻-零成本跟踪"><a href="#洞察-3：速度预测-最近邻-零成本跟踪" class="headerlink" title="洞察 3：速度预测 + 最近邻 &#x3D; 零成本跟踪"></a>洞察 3：速度预测 + 最近邻 &#x3D; 零成本跟踪</h3><p>检测头额外回归 2D BEV 速度 $\hat{\mathbf{v}} &#x3D; (\hat{v}_x, \hat{v}_y)$，跟踪时只需将预测位置加上 velocity × Δt，然后按 BEV 距离做贪心最近邻匹配。</p>
-<p>$$\hat{\mathbf{p}}^{(t)}_{projected} &#x3D; \hat{\mathbf{p}}^{(t)} + \hat{\mathbf{v}}^{(t)} \cdot \Delta t$$</p>
+<h3 id="洞察-3：速度预测-最近邻-零成本跟踪"><a href="#洞察-3：速度预测-最近邻-零成本跟踪" class="headerlink" title="洞察 3：速度预测 + 最近邻 = 零成本跟踪"></a>洞察 3：速度预测 + 最近邻 = 零成本跟踪</h3><p>检测头额外回归 2D BEV 速度 $\hat{\mathbf{v}} = (\hat{v}_x, \hat{v}_y)$，跟踪时只需将预测位置加上 velocity × Δt，然后按 BEV 距离做贪心最近邻匹配。</p>
+<p>$$\hat{\mathbf{p}}^{(t)}_{projected} = \hat{\mathbf{p}}^{(t)} + \hat{\mathbf{v}}^{(t)} \cdot \Delta t$$</p>
 <p>匹配完成 → 继承 ID。无 Kalman Filter、无 ReID、无匈牙利算法，推理开销 ≈ 0。</p>
 <p>**对比 <a href="/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/">CenterTrack</a>**：CenterTrack 需要输入前一帧图像和 heatmap（额外 4 通道 + 额外 forward pass 开销），CenterPoint 的速度是标量回归头，无需看到前一帧，开销为零。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>65.5 NDS &#x2F; 58.0 mAP</strong>：nuScenes 检测 SOTA</li>
+<li><strong>65.5 NDS / 58.0 mAP</strong>：nuScenes 检测 SOTA</li>
 <li><strong>63.8 AMOTA</strong>：nuScenes 跟踪 SOTA</li>
 <li><strong>71.8 L2 mAPH</strong>：Waymo vehicle 检测 SOTA</li>
 </ul>
 <h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-                   LiDAR Point Cloud
+<pre>                   LiDAR Point Cloud
                            ↓
               ┌──────────────────────┐
               │  3D Backbone         │
@@ -192,14 +192,14 @@ $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F
 </tr>
 </tbody></table>
 <p><strong>损失函数</strong>：</p>
-<p>$$L &#x3D; L_{heatmap}^{focal} + \lambda_{reg} \sum_{attr \in {off, z, size, rot, vel}} L_1^{attr}$$</p>
+<p>$$L = L_{heatmap}^{focal} + \lambda_{reg} \sum_{attr \in {off, z, size, rot, vel}} L_1^{attr}$$</p>
 <p>关键代码（来源：<a target="_blank" rel="noopener" href="https://github.com/tianweiy/CenterPoint/blob/master/det3d/models/bbox_heads/center_head.py">center_head.py</a>）</p>
 <p><code>SepHead</code> —— 每个属性独立回归头：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">SepHead</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, in_channels, heads, head_conv=<span class="number">64</span>, final_kernel=<span class="number">1</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.heads = heads</span><br><span class="line">        <span class="keyword">for</span> head <span class="keyword">in</span> <span class="variable language_">self</span>.heads:</span><br><span class="line">            classes, num_conv = <span class="variable language_">self</span>.heads[head]</span><br><span class="line">            fc = Sequential()</span><br><span class="line">            <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_conv - <span class="number">1</span>):</span><br><span class="line">                fc.add(nn.Conv2d(in_channels, head_conv,</span><br><span class="line">                    kernel_size=final_kernel, padding=final_kernel // <span class="number">2</span>, bias=<span class="literal">True</span>))</span><br><span class="line">                fc.add(nn.BatchNorm2d(head_conv))</span><br><span class="line">                fc.add(nn.ReLU())</span><br><span class="line">            fc.add(nn.Conv2d(head_conv, classes,</span><br><span class="line">                kernel_size=final_kernel, padding=final_kernel // <span class="number">2</span>, bias=<span class="literal">True</span>))</span><br><span class="line">            <span class="variable language_">self</span>.__setattr__(head, fc)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">        ret_dict = <span class="built_in">dict</span>()</span><br><span class="line">        <span class="keyword">for</span> head <span class="keyword">in</span> <span class="variable language_">self</span>.heads:</span><br><span class="line">            ret_dict[head] = <span class="variable language_">self</span>.__getattr__(head)(x)</span><br><span class="line">        <span class="keyword">return</span> ret_dict</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">SepHead</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, in_channels, heads, head_conv=<span class="number">64</span>, final_kernel=<span class="number">1</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.heads = heads</span><br><span class="line">        <span class="keyword">for</span> head <span class="keyword">in</span> <span class="variable language_">self</span>.heads:</span><br><span class="line">            classes, num_conv = <span class="variable language_">self</span>.heads[head]</span><br><span class="line">            fc = Sequential()</span><br><span class="line">            <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_conv - <span class="number">1</span>):</span><br><span class="line">                fc.add(nn.Conv2d(in_channels, head_conv,</span><br><span class="line">                    kernel_size=final_kernel, padding=final_kernel // <span class="number">2</span>, bias=<span class="literal">True</span>))</span><br><span class="line">                fc.add(nn.BatchNorm2d(head_conv))</span><br><span class="line">                fc.add(nn.ReLU())</span><br><span class="line">            fc.add(nn.Conv2d(head_conv, classes,</span><br><span class="line">                kernel_size=final_kernel, padding=final_kernel // <span class="number">2</span>, bias=<span class="literal">True</span>))</span><br><span class="line">            <span class="variable language_">self</span>.__setattr__(head, fc)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">        ret_dict = <span class="built_in">dict</span>()</span><br><span class="line">        <span class="keyword">for</span> head <span class="keyword">in</span> <span class="variable language_">self</span>.heads:</span><br><span class="line">            ret_dict[head] = <span class="variable language_">self</span>.__getattr__(head)(x)</span><br><span class="line">        <span class="keyword">return</span> ret_dict</span><br></pre></td></tr></tbody></table></figure>
 
 <details><summary>📄 点击展开后处理与跟踪核心逻辑</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">predict</span>(<span class="params">self, example</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Stage-1: heatmap → peaks → gather attributes&quot;&quot;&quot;</span></span><br><span class="line">    preds_dict = <span class="variable language_">self</span>.forward(example)</span><br><span class="line">    <span class="comment"># Decode: 8 topK peaks per class → gather reg attributes</span></span><br><span class="line">    batch_hm = torch.sigmoid(preds_dict[<span class="string">&#x27;hm&#x27;</span>])</span><br><span class="line">    batch_reg = preds_dict[<span class="string">&#x27;reg&#x27;</span>]      <span class="comment"># sub-voxel offset</span></span><br><span class="line">    batch_height = preds_dict[<span class="string">&#x27;height&#x27;</span>]</span><br><span class="line">    batch_rot = preds_dict[<span class="string">&#x27;rot&#x27;</span>]      <span class="comment"># [sin, cos]</span></span><br><span class="line">    batch_dim = preds_dict[<span class="string">&#x27;dim&#x27;</span>]      <span class="comment"># [l, w, h]</span></span><br><span class="line">    batch_vel = preds_dict[<span class="string">&#x27;vel&#x27;</span>]      <span class="comment"># [vx, vy]</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># topK from heatmap, then gather</span></span><br><span class="line">    scores, inds, clses, ys, xs = _topk(batch_hm, K=<span class="number">500</span>)</span><br><span class="line">    <span class="comment"># ...</span></span><br><span class="line">    <span class="keyword">return</span> boxes, scores, labels</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">post_processing</span>(<span class="params">self, batch_box_preds, batch_scores, batch_labels</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Stage-2: point-feature refinement + velocity-based tracking&quot;&quot;&quot;</span></span><br><span class="line">    ret_list = []</span><br><span class="line">    <span class="keyword">for</span> box_preds, scores, labels <span class="keyword">in</span> <span class="built_in">zip</span>(</span><br><span class="line">            batch_box_preds, batch_scores, batch_labels):</span><br><span class="line">        <span class="comment"># Score threshold filtering</span></span><br><span class="line">        mask = scores &gt; <span class="variable language_">self</span>.post_cfg.score_threshold</span><br><span class="line">        box_preds = box_preds[mask]</span><br><span class="line">        scores = scores[mask]</span><br><span class="line">        labels = labels[mask]</span><br><span class="line">        <span class="comment"># No NMS needed for center-based detection!</span></span><br><span class="line">        <span class="comment"># (BEV peaks already non-overlapping)</span></span><br><span class="line">        ret_list.append(&#123;</span><br><span class="line">            <span class="string">&#x27;box3d_lidar&#x27;</span>: box_preds,</span><br><span class="line">            <span class="string">&#x27;scores&#x27;</span>: scores,</span><br><span class="line">            <span class="string">&#x27;label_preds&#x27;</span>: labels,</span><br><span class="line">        &#125;)</span><br><span class="line">    <span class="keyword">return</span> ret_list</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">predict</span>(<span class="params">self, example</span>):</span><br><span class="line">    <span class="string">"""Stage-1: heatmap → peaks → gather attributes"""</span></span><br><span class="line">    preds_dict = <span class="variable language_">self</span>.forward(example)</span><br><span class="line">    <span class="comment"># Decode: 8 topK peaks per class → gather reg attributes</span></span><br><span class="line">    batch_hm = torch.sigmoid(preds_dict[<span class="string">'hm'</span>])</span><br><span class="line">    batch_reg = preds_dict[<span class="string">'reg'</span>]      <span class="comment"># sub-voxel offset</span></span><br><span class="line">    batch_height = preds_dict[<span class="string">'height'</span>]</span><br><span class="line">    batch_rot = preds_dict[<span class="string">'rot'</span>]      <span class="comment"># [sin, cos]</span></span><br><span class="line">    batch_dim = preds_dict[<span class="string">'dim'</span>]      <span class="comment"># [l, w, h]</span></span><br><span class="line">    batch_vel = preds_dict[<span class="string">'vel'</span>]      <span class="comment"># [vx, vy]</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># topK from heatmap, then gather</span></span><br><span class="line">    scores, inds, clses, ys, xs = _topk(batch_hm, K=<span class="number">500</span>)</span><br><span class="line">    <span class="comment"># ...</span></span><br><span class="line">    <span class="keyword">return</span> boxes, scores, labels</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">post_processing</span>(<span class="params">self, batch_box_preds, batch_scores, batch_labels</span>):</span><br><span class="line">    <span class="string">"""Stage-2: point-feature refinement + velocity-based tracking"""</span></span><br><span class="line">    ret_list = []</span><br><span class="line">    <span class="keyword">for</span> box_preds, scores, labels <span class="keyword">in</span> <span class="built_in">zip</span>(</span><br><span class="line">            batch_box_preds, batch_scores, batch_labels):</span><br><span class="line">        <span class="comment"># Score threshold filtering</span></span><br><span class="line">        mask = scores &gt; <span class="variable language_">self</span>.post_cfg.score_threshold</span><br><span class="line">        box_preds = box_preds[mask]</span><br><span class="line">        scores = scores[mask]</span><br><span class="line">        labels = labels[mask]</span><br><span class="line">        <span class="comment"># No NMS needed for center-based detection!</span></span><br><span class="line">        <span class="comment"># (BEV peaks already non-overlapping)</span></span><br><span class="line">        ret_list.append({</span><br><span class="line">            <span class="string">'box3d_lidar'</span>: box_preds,</span><br><span class="line">            <span class="string">'scores'</span>: scores,</span><br><span class="line">            <span class="string">'label_preds'</span>: labels,</span><br><span class="line">        })</span><br><span class="line">    <span class="keyword">return</span> ret_list</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -308,8 +308,8 @@ $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F
 </tbody></table>
 <p><strong>关键发现</strong>：</p>
 <ol>
-<li><strong>anchor-free vs anchor-based</strong>：相同 VoxelNet backbone 下 center-based 比 anchor-based 高 +0.9 mAP &#x2F; +0.3 NDS，且无需 NMS（推理更快）</li>
-<li><strong>Second stage 贡献显著</strong>：+2.2 mAP &#x2F; +2.0 NDS，尤其改善大型物体（truck +4.0, bus +3.2）</li>
+<li><strong>anchor-free vs anchor-based</strong>：相同 VoxelNet backbone 下 center-based 比 anchor-based 高 +0.9 mAP / +0.3 NDS，且无需 NMS（推理更快）</li>
+<li><strong>Second stage 贡献显著</strong>：+2.2 mAP / +2.0 NDS，尤其改善大型物体（truck +4.0, bus +3.2）</li>
 <li><strong>9-point 采样 vs 其他策略</strong>：9 面中心点比 4 角点（+0.8 mAP）、1 中心点（+1.4 mAP）都好；信息量与计算量的最佳平衡</li>
 </ol>
 <h3 id="跟踪消融"><a href="#跟踪消融" class="headerlink" title="跟踪消融"></a>跟踪消融</h3><table>
@@ -337,12 +337,12 @@ $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F
 </tr>
 </tbody></table>
 <p>velocity 预测使 AMOTA 从 61.9 → 63.8（+1.9），核心收益来自对快速移动物体的关联改善。</p>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone: VoxelNet (sparse convolution, output stride=8)</span><br><span class="line">Voxel Size: [0.075m, 0.075m, 0.2m] (nuScenes) / [0.1m, 0.1m, 0.15m] (Waymo)</span><br><span class="line">BEV Range: [-54m, 54m] × [-54m, 54m] (nuScenes)</span><br><span class="line">Batch: 4 GPUs × 4 samples</span><br><span class="line">Optimizer: Adam (lr=1e-3, weight_decay=0.01, one-cycle scheduler)</span><br><span class="line">Epochs: 20 (nuScenes) / 36 (Waymo)</span><br><span class="line">CBGS: class-balanced group sampling (平衡各类样本量)</span><br><span class="line">GT Augmentation: 从数据库粘贴 GT box 和内部点增加稀有类训练样本</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone: VoxelNet (sparse convolution, output stride=8)</span><br><span class="line">Voxel Size: [0.075m, 0.075m, 0.2m] (nuScenes) / [0.1m, 0.1m, 0.15m] (Waymo)</span><br><span class="line">BEV Range: [-54m, 54m] × [-54m, 54m] (nuScenes)</span><br><span class="line">Batch: 4 GPUs × 4 samples</span><br><span class="line">Optimizer: Adam (lr=1e-3, weight_decay=0.01, one-cycle scheduler)</span><br><span class="line">Epochs: 20 (nuScenes) / 36 (Waymo)</span><br><span class="line">CBGS: class-balanced group sampling (平衡各类样本量)</span><br><span class="line">GT Augmentation: 从数据库粘贴 GT box 和内部点增加稀有类训练样本</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
-<li><p><strong>无 NMS</strong>：center heatmap 的 max-pooling（kernel&#x3D;3）已等效 NMS，后处理无需额外 NMS。这是 CenterPoint 速度的关键来源。</p>
+<li><p><strong>无 NMS</strong>：center heatmap 的 max-pooling（kernel=3）已等效 NMS，后处理无需额外 NMS。这是 CenterPoint 速度的关键来源。</p>
 </li>
-<li><p><strong>$\sin&#x2F;\cos$ 朝向编码</strong>：回归 $(\sin\theta, \cos\theta)$ 避免角度不连续，但需在 loss 中用 $\text{atan2}$ 恢复角度。注意 $\theta \in [-\pi, \pi]$。</p>
+<li><p><strong>$\sin/\cos$ 朝向编码</strong>：回归 $(\sin\theta, \cos\theta)$ 避免角度不连续，但需在 loss 中用 $\text{atan2}$ 恢复角度。注意 $\theta \in [-\pi, \pi]$。</p>
 </li>
 <li><p><strong>CBGS 对 nuScenes 至关重要</strong>：nuScenes 各类样本极不均衡（car 占 60%+，bicycle 不到 1%），CBGS 将所有类平衡采样后 mAP 提升 ≈ 6 点。</p>
 </li>
@@ -356,14 +356,15 @@ $$\text{refine}(\hat{b}) = \text{MLP}\left(\text{BilinearSample}\left(\mathcal{F
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
 <li><strong>依赖 BEV 不重叠假设</strong>：CenterPoint 的无 NMS 设计假设 BEV 下物体不重叠。在极端密集场景（如堆叠货物）或垂直方向重叠（如立交桥上下层车辆）时，heatmap peak 可能合并</li>
-<li><strong>LiDAR 专用</strong>：检测头假设输入为 BEV 特征（从 3D 体素化得到），不直接适用于纯相机方案。需要先将图像特征转换到 BEV（如 LSS、BEVFormer），才能接入 CenterPoint 风格的检测头</li>
+<li><strong>LiDAR 专用</strong>：检测头假设输入为 BEV 特征（从 3D 体素化得到），不直接适用于纯相机方案。需要先将图像特征转换到 BEV（如 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a>、<a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>），才能接入 CenterPoint 风格的检测头</li>
 <li><strong>贪心匹配非最优</strong>：与 CenterTrack 相同的局限——密集场景下贪心匹配可能产生次优关联</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
-<li><strong>确立了 BEV center-based 检测范式</strong>：几乎所有后续 LiDAR &#x2F; 多模态检测器（TransFusion、BEVFusion、UniTR 等）均采用 CenterPoint 风格的 center heatmap 检测头</li>
+<li><strong>确立了 BEV center-based 检测范式</strong>：几乎所有后续 LiDAR / 多模态检测器（TransFusion、BEVFusion、UniTR 等）均采用 CenterPoint 风格的 center heatmap 检测头</li>
 <li><strong>零成本跟踪将检测和跟踪统一</strong>：通过 velocity 回归，MOT 不再需要独立的跟踪模块，推动了检测-跟踪一体化趋势</li>
-<li><strong>继承自 <a href="/posts/2019/papers/2019_CVPR_CenterNet_Objects_as_Points/">CenterNet</a> → <a href="/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/">CenterTrack</a> 的中心点哲学</strong>：从 2D 检测 → 2D 跟踪 → 3D 检测+跟踪，中心点表示的范式在 CenterPoint 达到了 LiDAR 3D 任务的完整闭环</li>
+<li><strong>继承自 CenterNet → CenterTrack 的中心点哲学</strong>：从 2D 检测 → 2D 跟踪 → 3D 检测+跟踪，中心点表示的范式在 CenterPoint 达到了 LiDAR 3D 任务的完整闭环</li>
 </ul>
+
 
             </div>
 

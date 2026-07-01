@@ -55,14 +55,15 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Online Vectorized HD Map Construction (with Centerline &amp; 3D Map)<br>Method: Decoupled Self-Attention, One-to-Many Matching, Auxiliary Dense Supervision<br>Venue: IJCV<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.05736">https://arxiv.org/abs/2308.05736</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/MapTR">https://github.com/hustvl/MapTR</a></p>
+                
+<p>Task: Online Vectorized HD Map Construction (with Centerline &amp; 3D Map)<br>Method: Decoupled Self-Attention, One-to-Many Matching, Auxiliary Dense Supervision<br>Venue: IJCV<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.05736">https://arxiv.org/abs/2308.05736</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/hustvl/MapTR">https://github.com/hustvl/MapTR</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>MapTRv2 是 <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> 的全面增强版本，目标是同时解决 MapTR 的<strong>收敛慢、显存高、缺少 centerline &#x2F; 3D 地图能力</strong>三大短板。核心改进有四：(1) <strong>解耦自注意力</strong>把全局自注意力的 $O((N \cdot N_v)^2)$ 复杂度降到 $O(N^2 + N_v^2)$，显存减少近 2 GB；(2) <strong>辅助一对多匹配</strong>以 GT 重复 $K$ 倍的方式增加正样本，加速收敛 ~4×；(3) <strong>辅助密集监督</strong>（深度 + PV 分割 + BEV 分割）共带来 +4.9 mAP 增益；(4) 框架扩展为同时支持 <strong>centerline 学习</strong> 和 <strong>3D 地图构建</strong>。MapTRv2-R50 在 nuScenes 24-epoch 即达 <strong>61.5 mAP</strong>（比 MapTR 同条件 +11.2 mAP），110-epoch 达 68.7 mAP，V2-99 backbone 进一步达 <strong>73.4 mAP</strong>，均为同期最优；同时 R18 backbone 推理速度可达 <strong>33.7 FPS</strong>。</p>
-<p><strong>核心论点</strong>：把”稀疏 query 收敛慢”和”地图元素表达力不足”两个并发难题，用”解耦注意力 + 一对多匹配 + 密集监督 + centerline &#x2F; 3D 扩展”四把斧一起解决，而不是再发明新表示。</p>
-<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>MapTR 已经把矢量化建图带进了实时区间（25.1 FPS &#x2F; 50.3 mAP @ 24 ep），但仍存在三类瓶颈：</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>MapTRv2 是 <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> 的全面增强版本，目标是同时解决 MapTR 的<strong>收敛慢、显存高、缺少 centerline / 3D 地图能力</strong>三大短板。核心改进有四：(1) <strong>解耦自注意力</strong>把全局自注意力的 $O((N \cdot N_v)^2)$ 复杂度降到 $O(N^2 + N_v^2)$，显存减少近 2 GB；(2) <strong>辅助一对多匹配</strong>以 GT 重复 $K$ 倍的方式增加正样本，加速收敛 ~4×；(3) <strong>辅助密集监督</strong>（深度 + PV 分割 + BEV 分割）共带来 +4.9 mAP 增益；(4) 框架扩展为同时支持 <strong>centerline 学习</strong> 和 <strong>3D 地图构建</strong>。MapTRv2-R50 在 nuScenes 24-epoch 即达 <strong>61.5 mAP</strong>（比 MapTR 同条件 +11.2 mAP），110-epoch 达 68.7 mAP，V2-99 backbone 进一步达 <strong>73.4 mAP</strong>，均为同期最优；同时 R18 backbone 推理速度可达 <strong>33.7 FPS</strong>。</p>
+<p><strong>核心论点</strong>：把”稀疏 query 收敛慢”和”地图元素表达力不足”两个并发难题，用”解耦注意力 + 一对多匹配 + 密集监督 + centerline / 3D 扩展”四把斧一起解决，而不是再发明新表示。</p>
+<h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><p>MapTR 已经把矢量化建图带进了实时区间（25.1 FPS / 50.3 mAP @ 24 ep），但仍存在三类瓶颈：</p>
 <table>
 <thead>
 <tr>
@@ -79,11 +80,11 @@
 <tr>
 <td align="left"><strong>显存高</strong></td>
 <td align="left">全局自注意力 $O((N \cdot N_v)^2)$</td>
-<td align="left">$N&#x3D;50, N_v&#x3D;20$ 时 query 长 1000，显存 10.4 GB</td>
+<td align="left">$N=50, N_v=20$ 时 query 长 1000，显存 10.4 GB</td>
 </tr>
 <tr>
 <td align="left"><strong>能力缺口</strong></td>
-<td align="left">仅支持 ped&#x2F;divider&#x2F;boundary 三类 + 2D</td>
+<td align="left">仅支持 ped/divider/boundary 三类 + 2D</td>
 <td align="left">缺 centerline → 无法直接给规划用；缺 3D → 上下坡场景失真</td>
 </tr>
 </tbody></table>
@@ -94,44 +95,43 @@
 <li><strong>实例间注意力</strong>（intra-instance：同实例 $N_v$ 个点之间）；</li>
 <li><strong>点间注意力</strong>（inter-instance：同位置 $N$ 个实例之间）。</li>
 </ol>
-<p>复杂度从 $O((N \cdot N_v)^2)$ 降到 $O(N^2 + N_v^2)$，在 $N &#x3D; 50, N_v &#x3D; 20$ 时显存从 <strong>10443 MB → 8458 MB</strong>，且 mAP 不降反升 +0.5。</p>
+<p>复杂度从 $O((N \cdot N_v)^2)$ 降到 $O(N^2 + N_v^2)$，在 $N = 50, N_v = 20$ 时显存从 <strong>10443 MB → 8458 MB</strong>，且 mAP 不降反升 +0.5。</p>
 <blockquote>
 <p>直觉解释：实例间应当区分”哪条线 vs 哪条线”，点间应当区分”线上的哪个点 vs 同位置另一条线的对应点”，二者本来就是不同的关系图，强行混在一起反而稀释了注意力分布。</p>
 </blockquote>
-<h3 id="洞察-2：辅助一对多匹配——用-GT-重复给稀疏-query-喂正样本"><a href="#洞察-2：辅助一对多匹配——用-GT-重复给稀疏-query-喂正样本" class="headerlink" title="洞察 2：辅助一对多匹配——用 GT 重复给稀疏 query 喂正样本"></a>洞察 2：辅助一对多匹配——用 GT 重复给稀疏 query 喂正样本</h3><p>DETR 系方法的最大痛点是一对一匹配下正样本极少（$N$ 个 query 通常只有 ~10 个对应到 GT，剩下都是背景）。MapTRv2 引入辅助分支：</p>
+<h3 id="洞察-2：辅助一对多匹配——用-GT-重复给稀疏-query-喂正样本"><a href="#洞察-2：辅助一对多匹配——用-GT-重复给稀疏-query-喂正样本" class="headerlink" title="洞察 2：辅助一对多匹配——用 GT 重复给稀疏 query 喂正样本"></a>洞察 2：辅助一对多匹配——用 GT 重复给稀疏 query 喂正样本</h3><p><a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a> 系方法的最大痛点是一对一匹配下正样本极少（$N$ 个 query 通常只有 ~10 个对应到 GT，剩下都是背景）。MapTRv2 引入辅助分支：</p>
 <ul>
 <li>在主分支（一对一匹配）之外增加一组辅助实例 query；</li>
-<li>训练时把每个 GT <strong>重复 $K$ 倍</strong>（默认 $K&#x3D;6$），让辅助 query 与”$K$ 倍 GT”做匈牙利匹配；</li>
+<li>训练时把每个 GT <strong>重复 $K$ 倍</strong>（默认 $K=6$），让辅助 query 与”$K$ 倍 GT”做匈牙利匹配；</li>
 <li>辅助分支与主分支<strong>共享同一个 decoder</strong>，仅在训练时使用，推理时丢弃。</li>
 </ul>
 <p>效果：收敛速度 ~4×，24 ep 达到原来 110 ep 的水平；mAP 单项贡献 <strong>+4.4</strong>（从 57.1 → 61.5）。</p>
-<h3 id="洞察-3：辅助密集监督——给稀疏预测装上-dense-锚点"><a href="#洞察-3：辅助密集监督——给稀疏预测装上-dense-锚点" class="headerlink" title="洞察 3：辅助密集监督——给稀疏预测装上 dense 锚点"></a>洞察 3：辅助密集监督——给稀疏预测装上 dense 锚点</h3><p>稀疏 query 收敛慢的另一面是 backbone &#x2F; BEV 特征学得不充分。MapTRv2 在三个层级加密集监督：</p>
+<h3 id="洞察-3：辅助密集监督——给稀疏预测装上-dense-锚点"><a href="#洞察-3：辅助密集监督——给稀疏预测装上-dense-锚点" class="headerlink" title="洞察 3：辅助密集监督——给稀疏预测装上 dense 锚点"></a>洞察 3：辅助密集监督——给稀疏预测装上 dense 锚点</h3><p>稀疏 query 收敛慢的另一面是 backbone / BEV 特征学得不充分。MapTRv2 在三个层级加密集监督：</p>
 <ol>
 <li><strong>PV 深度预测</strong>（LiDAR 渲染 GT，仅训练时 LiDAR）：让 PV 特征显式学到几何；</li>
 <li><strong>PV 前景分割</strong>：让 PV 特征对地图元素有显式响应；</li>
 <li><strong>BEV 前景分割</strong>：让 BEV 特征对前景元素有显式响应。</li>
 </ol>
-<p>三者互补，<strong>共带来 +4.9 mAP</strong>（基线 50.1 → 57.1，密集监督单项见 5.2 路线图）。这与 BEVDepth 的”显式深度监督让 LSS 起飞”是同一思路在矢量化建图上的复刻。</p>
+<p>三者互补，<strong>共带来 +4.9 mAP</strong>（基线 50.1 → 57.1，密集监督单项见 5.2 路线图）。这与 <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 的”显式深度监督让 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 起飞”是同一思路在矢量化建图上的复刻。</p>
 <h4 id="三个洞察的递进关系"><a href="#三个洞察的递进关系" class="headerlink" title="三个洞察的递进关系"></a>三个洞察的递进关系</h4><ol>
 <li>形式上瘦身：解耦注意力解决显存与速度；</li>
 <li>标签上加密：一对多匹配加速 query 收敛；</li>
-<li>表征上加密：密集监督让 backbone &#x2F; BEV 学得更扎实。</li>
+<li>表征上加密：密集监督让 backbone / BEV 学得更扎实。</li>
 </ol>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>61.5 mAP（24 ep, R50）vs MapTR 50.3 mAP</strong>：四把斧合计 <strong>+11.2 mAP</strong>；</li>
 <li><strong>73.4 mAP（110 ep, V2-99）</strong>：纯视觉矢量化建图的当时新 SOTA；</li>
-<li><strong>解耦注意力 -2 GB 显存 &#x2F; +0.5 mAP</strong>：少即是多的工程典范。</li>
+<li><strong>解耦注意力 -2 GB 显存 / +0.5 mAP</strong>：少即是多的工程典范。</li>
 </ul>
-<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>$$\text{6 cams} \xrightarrow{\text{Backbone}} \text{PV feat} \xrightarrow{\text{BEVPoolv2}} \text{BEV feat} \xrightarrow{\text{Decoupled Decoder}} {(\text{class}, \text{polyline} &#x2F; \text{centerline} &#x2F; \text{3D polyline})}$$</p>
+<h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>$$\text{6 cams} \xrightarrow{\text{Backbone}} \text{PV feat} \xrightarrow{\text{BEVPoolv2}} \text{BEV feat} \xrightarrow{\text{Decoupled Decoder}} {(\text{class}, \text{polyline} / \text{centerline} / \text{3D polyline})}$$</p>
 <div style="text-align:center; margin: 24px 0;">
   <img src="https://ar5iv.labs.arxiv.org/html/2308.05736/assets/x4.png" alt="MapTRv2 架构图" style="max-width:100%;">
 </div>
 
 <p>ASCII 架构图（突出 v2 的四把斧）：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-6 cam (1600×900)              [LiDAR @ train only]
+<pre>6 cam (1600×900)              [LiDAR @ train only]
       │                              │
       ▼                              ▼
 ┌──────────────┐             ┌──────────────┐
@@ -168,7 +168,7 @@
                300 instance × 20 pt
                GT × K=6 重复匹配
 
-<p>输出: (class, 2D &#x2F; 3D polyline &#x2F; centerline)<br></pre></p>
+<p>输出: (class, 2D / 3D polyline / centerline)<br></p></pre><p></p>
 </div>
 
 <h3 id="4-2-关键组件对比-MapTR"><a href="#4-2-关键组件对比-MapTR" class="headerlink" title="4.2 关键组件对比 MapTR"></a>4.2 关键组件对比 MapTR</h3><table>
@@ -192,12 +192,12 @@
 <tr>
 <td align="left">Cross-Attn</td>
 <td align="left">BEV-only Deformable Attn</td>
-<td align="left">BEV &#x2F; PV &#x2F; Hybrid 可选</td>
+<td align="left">BEV / PV / Hybrid 可选</td>
 </tr>
 <tr>
 <td align="left">匹配</td>
 <td align="left">一对一匈牙利</td>
-<td align="left"><strong>一对一 + 辅助一对多 ($K&#x3D;6$)</strong></td>
+<td align="left"><strong>一对一 + 辅助一对多 ($K=6$)</strong></td>
 </tr>
 <tr>
 <td align="left">密集监督</td>
@@ -227,16 +227,16 @@ $$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \m
 
 <p>主分支 $\mathcal{L}_{\text{one2one}}$ 与辅助分支 $\mathcal{L}_{\text{one2many}}$ 的内部结构都沿用 MapTR 的 (cls + p2p + dir) 三件套。</p>
 <h3 id="4-3-Centerline-与-3D-扩展"><a href="#4-3-Centerline-与-3D-扩展" class="headerlink" title="4.3 Centerline 与 3D 扩展"></a>4.3 Centerline 与 3D 扩展</h3><ul>
-<li><strong>Centerline 学习</strong>：把车道 centerline 当作另一类矢量元素（path），与 divider &#x2F; boundary &#x2F; ped_xing 共享同一套分层 query 解码框架，仅类别数从 3 增至 4；</li>
+<li><strong>Centerline 学习</strong>：把车道 centerline 当作另一类矢量元素（path），与 divider / boundary / ped_xing 共享同一套分层 query 解码框架，仅类别数从 3 增至 4；</li>
 <li><strong>3D 地图构建</strong>：每个点 query 多回归一个 $z$ 坐标，配合 BEVPoolv2 已有的深度信息；总参数量增加 &lt; 1%，但能正确表达上下坡。</li>
 </ul>
 <h3 id="4-4-关键代码"><a href="#4-4-关键代码" class="headerlink" title="4.4 关键代码"></a>4.4 关键代码</h3><p>辅助一对多匹配的核心逻辑（基于官方实现整理）：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：projects/mmdet3d_plugin/maptr/dense_heads/maptrv2_head.py</span></span><br><span class="line"><span class="comment"># https://github.com/hustvl/MapTR</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">forward_train</span>(<span class="params">self, bev_feats, gt_bboxes_list, gt_labels_list, ...</span>):</span><br><span class="line">    <span class="comment"># ----- 主分支 (one-to-one) -----</span></span><br><span class="line">    out_main = <span class="variable language_">self</span>.decoder(bev_feats, query_main)        <span class="comment"># 50 inst × 20 pt</span></span><br><span class="line">    loss_o2o = <span class="variable language_">self</span>.loss_o2o(out_main, gt_bboxes_list, gt_labels_list)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># ----- 辅助分支 (one-to-many) -----</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.aux_one2many:</span><br><span class="line">        <span class="comment"># 把 GT 重复 K 倍</span></span><br><span class="line">        gt_bboxes_o2m = [gt.repeat(<span class="variable language_">self</span>.K, <span class="number">1</span>, <span class="number">1</span>)  <span class="keyword">for</span> gt <span class="keyword">in</span> gt_bboxes_list]</span><br><span class="line">        gt_labels_o2m = [lb.repeat(<span class="variable language_">self</span>.K)       <span class="keyword">for</span> lb <span class="keyword">in</span> gt_labels_list]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 辅助 query 数量更多（如 300），共享 decoder</span></span><br><span class="line">        out_aux = <span class="variable language_">self</span>.decoder(bev_feats, query_aux)      <span class="comment"># 300 inst × 20 pt</span></span><br><span class="line">        loss_o2m = <span class="variable language_">self</span>.loss_o2m(out_aux, gt_bboxes_o2m, gt_labels_o2m)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        loss_o2m = <span class="number">0.0</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># ----- 密集监督 -----</span></span><br><span class="line">    loss_dense = <span class="variable language_">self</span>.depth_head(pv_feats, gt_depth) \</span><br><span class="line">               + <span class="variable language_">self</span>.bev_seg_head(bev_feats, gt_bev_seg) \</span><br><span class="line">               + <span class="variable language_">self</span>.pv_seg_head(pv_feats, gt_pv_seg)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">self</span>.beta_o * loss_o2o + <span class="variable language_">self</span>.beta_m * loss_o2m + <span class="variable language_">self</span>.beta_d * loss_dense</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：projects/mmdet3d_plugin/maptr/dense_heads/maptrv2_head.py</span></span><br><span class="line"><span class="comment"># https://github.com/hustvl/MapTR</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">forward_train</span>(<span class="params">self, bev_feats, gt_bboxes_list, gt_labels_list, ...</span>):</span><br><span class="line">    <span class="comment"># ----- 主分支 (one-to-one) -----</span></span><br><span class="line">    out_main = <span class="variable language_">self</span>.decoder(bev_feats, query_main)        <span class="comment"># 50 inst × 20 pt</span></span><br><span class="line">    loss_o2o = <span class="variable language_">self</span>.loss_o2o(out_main, gt_bboxes_list, gt_labels_list)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># ----- 辅助分支 (one-to-many) -----</span></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.aux_one2many:</span><br><span class="line">        <span class="comment"># 把 GT 重复 K 倍</span></span><br><span class="line">        gt_bboxes_o2m = [gt.repeat(<span class="variable language_">self</span>.K, <span class="number">1</span>, <span class="number">1</span>)  <span class="keyword">for</span> gt <span class="keyword">in</span> gt_bboxes_list]</span><br><span class="line">        gt_labels_o2m = [lb.repeat(<span class="variable language_">self</span>.K)       <span class="keyword">for</span> lb <span class="keyword">in</span> gt_labels_list]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 辅助 query 数量更多（如 300），共享 decoder</span></span><br><span class="line">        out_aux = <span class="variable language_">self</span>.decoder(bev_feats, query_aux)      <span class="comment"># 300 inst × 20 pt</span></span><br><span class="line">        loss_o2m = <span class="variable language_">self</span>.loss_o2m(out_aux, gt_bboxes_o2m, gt_labels_o2m)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        loss_o2m = <span class="number">0.0</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># ----- 密集监督 -----</span></span><br><span class="line">    loss_dense = <span class="variable language_">self</span>.depth_head(pv_feats, gt_depth) \</span><br><span class="line">               + <span class="variable language_">self</span>.bev_seg_head(bev_feats, gt_bev_seg) \</span><br><span class="line">               + <span class="variable language_">self</span>.pv_seg_head(pv_feats, gt_pv_seg)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">self</span>.beta_o * loss_o2o + <span class="variable language_">self</span>.beta_m * loss_o2m + <span class="variable language_">self</span>.beta_d * loss_dense</span><br></pre></td></tr></tbody></table></figure>
 
 <details>
 <summary>📄 点击展开：解耦自注意力的伪代码</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># Decoupled Self-Attention：把 (N, Nv, D) 的 query 张量分两次做 self-attn</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">decoupled_self_attn</span>(<span class="params">q</span>):</span><br><span class="line">    <span class="comment"># q: (B, N, Nv, D)</span></span><br><span class="line">    B, N, Nv, D = q.shape</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 1) intra-instance：每个实例内部 Nv 个点之间</span></span><br><span class="line">    q_intra = q.view(B*N, Nv, D)</span><br><span class="line">    q_intra = <span class="variable language_">self</span>.self_attn_intra(q_intra)               <span class="comment"># O(Nv^2)</span></span><br><span class="line">    q = q_intra.view(B, N, Nv, D)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2) inter-instance：每个位置上 N 个实例之间</span></span><br><span class="line">    q_inter = q.permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">3</span>).reshape(B*Nv, N, D)</span><br><span class="line">    q_inter = <span class="variable language_">self</span>.self_attn_inter(q_inter)               <span class="comment"># O(N^2)</span></span><br><span class="line">    q = q_inter.view(B, Nv, N, D).permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">3</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> q                                              <span class="comment"># O(N^2 + Nv^2)</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># Decoupled Self-Attention：把 (N, Nv, D) 的 query 张量分两次做 self-attn</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">decoupled_self_attn</span>(<span class="params">q</span>):</span><br><span class="line">    <span class="comment"># q: (B, N, Nv, D)</span></span><br><span class="line">    B, N, Nv, D = q.shape</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 1) intra-instance：每个实例内部 Nv 个点之间</span></span><br><span class="line">    q_intra = q.view(B*N, Nv, D)</span><br><span class="line">    q_intra = <span class="variable language_">self</span>.self_attn_intra(q_intra)               <span class="comment"># O(Nv^2)</span></span><br><span class="line">    q = q_intra.view(B, N, Nv, D)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2) inter-instance：每个位置上 N 个实例之间</span></span><br><span class="line">    q_inter = q.permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">3</span>).reshape(B*Nv, N, D)</span><br><span class="line">    q_inter = <span class="variable language_">self</span>.self_attn_inter(q_inter)               <span class="comment"># O(N^2)</span></span><br><span class="line">    q = q_inter.view(B, Nv, N, D).permute(<span class="number">0</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">3</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> q                                              <span class="comment"># O(N^2 + Nv^2)</span></span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -371,7 +371,7 @@ $$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \m
 <tr>
 <td align="left"><strong>+ 解耦自注意力</strong></td>
 <td align="center">57.6</td>
-<td align="center">+0.5 &#x2F; −2 GB</td>
+<td align="center">+0.5 / −2 GB</td>
 <td align="center">洞察 1</td>
 </tr>
 <tr>
@@ -448,10 +448,10 @@ $$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \m
 <li><strong>相机外参偏差敏感性显著优于 MapTR</strong>：50.3 → 42.0 mAP（vs MapTR 50.3 → 34.0），密集监督带来鲁棒性；</li>
 <li><strong>3D 模式在剧烈坡度场景偶有 z 跳变</strong>：未引入时序约束。</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        R18 / R50 / V2-99</span><br><span class="line">Input:           6 cams, 1600×900</span><br><span class="line">Batch size:      24（8× RTX 3090）</span><br><span class="line">Optimizer:       AdamW, lr = 6e-4, weight decay = 0.01, cosine</span><br><span class="line">Schedule:        24 / 110 epochs</span><br><span class="line">PV2BEV:          BEVPoolv2（LSS-based）</span><br><span class="line">Self-Attn:       Decoupled (intra + inter)</span><br><span class="line">Matching:        one-to-one + one-to-many (K=6, T=300)</span><br><span class="line">Dense Sup:       depth + BEV seg + PV seg</span><br><span class="line">Train memory:    ~19426 MB (bs24)</span><br></pre></td></tr></table></figure>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:        R18 / R50 / V2-99</span><br><span class="line">Input:           6 cams, 1600×900</span><br><span class="line">Batch size:      24（8× RTX 3090）</span><br><span class="line">Optimizer:       AdamW, lr = 6e-4, weight decay = 0.01, cosine</span><br><span class="line">Schedule:        24 / 110 epochs</span><br><span class="line">PV2BEV:          BEVPoolv2（LSS-based）</span><br><span class="line">Self-Attn:       Decoupled (intra + inter)</span><br><span class="line">Matching:        one-to-one + one-to-many (K=6, T=300)</span><br><span class="line">Dense Sup:       depth + BEV seg + PV seg</span><br><span class="line">Train memory:    ~19426 MB (bs24)</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>一对多分支显存代价大</strong>：$K&#x3D;6, T&#x3D;300$ 时显存从 8.5 GB 涨到 19.4 GB，需 24 GB 卡起步；推理时该分支完全不参与；</li>
+<li><strong>一对多分支显存代价大</strong>：$K=6, T=300$ 时显存从 8.5 GB 涨到 19.4 GB，需 24 GB 卡起步；推理时该分支完全不参与；</li>
 <li><strong>深度监督需 LiDAR GT</strong>：仅训练阶段用 LiDAR 渲染深度，部署时 LiDAR 不必上车；</li>
 <li><strong>BEVPoolv2 + 深度监督是绑定关系</strong>：单独换 BEVPoolv2 不加深度监督会跌 0.2 mAP（见路线图第 2 行）；</li>
 <li><strong>解耦注意力实现细节</strong>：intra 和 inter 必须用不同的 self-attn 模块，参数共享会掉 mAP；</li>
@@ -459,20 +459,20 @@ $$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \m
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong></p>
 <ul>
-<li>引入时序聚合（多帧 BEV 融合，参考 BEVFormer）；</li>
+<li>引入时序聚合（多帧 BEV 融合，参考 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a>）；</li>
 <li>centerline 路径建模可增加图结构约束（与 TopoNet 结合）；</li>
 <li>3D 模式可加 z 方向时序平滑。</li>
 </ul>
 <p><strong>速度优化</strong></p>
 <ul>
-<li>R18 backbone 已达 33.7 FPS，进一步可用 EfficientNet &#x2F; 蒸馏；</li>
+<li>R18 backbone 已达 33.7 FPS，进一步可用 EfficientNet / 蒸馏；</li>
 <li>BEVPoolv2 替换为更轻量的 PV2BEV（如 GKT）会牺牲 ~5 mAP 但提升速度；</li>
 <li>Decoder 层数 6 → 3，速度可再 +30%，精度下降 ~3 mAP。</li>
 </ul>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
-<li><strong>解耦自注意力</strong>：当 query 张量天然有”多维”结构（实例 × 部件 &#x2F; 帧 × 物体 &#x2F; batch × token）时，按维度拆 self-attention 是几乎稳赚的工程改造；</li>
+<li><strong>解耦自注意力</strong>：当 query 张量天然有”多维”结构（实例 × 部件 / 帧 × 物体 / batch × token）时，按维度拆 self-attention 是几乎稳赚的工程改造；</li>
 <li><strong>一对多匹配（DETR with Hybrid Matching 思想）</strong>：任何稀疏 query-based 方法都可以用”GT 复制 + 辅助分支”的方式加速收敛，几乎无副作用；</li>
-<li><strong>辅助密集监督</strong>：稀疏头 + 密集监督是 DETR &#x2F; BEV &#x2F; 矢量化建图等所有”稀疏预测”任务的通用加速手段；</li>
+<li><strong>辅助密集监督</strong>：稀疏头 + 密集监督是 DETR / BEV / 矢量化建图等所有”稀疏预测”任务的通用加速手段；</li>
 <li><strong>不发明新表示，做工程加法</strong>：MapTRv2 没有改 MapTR 的核心范式，仅通过四项增量改进就拿下 +23 mAP，是”先把基线吃透再创新”的工程典范。</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ul>
@@ -482,12 +482,13 @@ $$\mathcal{L}_{\text{dense}} = \alpha_d \mathcal{L}_{\text{depth}} + \alpha_b \m
 <li>centerline 模式仍是离散点表示，未利用图结构（拓扑关系交给后续 TopoNet）。</li>
 </ul>
 <h3 id="7-3-技术影响"><a href="#7-3-技术影响" class="headerlink" title="7.3 技术影响"></a>7.3 技术影响</h3><ul>
-<li><strong>把矢量化建图的精度天花板从 ~50 抬到 73.4 mAP</strong>，让端到端规划（VAD &#x2F; SparseDrive）的输入质量进入实用阶段；</li>
+<li><strong>把矢量化建图的精度天花板从 ~50 抬到 73.4 mAP</strong>，让端到端规划（<a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a> / <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a>）的输入质量进入实用阶段；</li>
 <li><strong>首次将 centerline 学习集成进 DETR-like 矢量化建图框架</strong>，为 TopoNet 等拓扑推理提供基础输入；</li>
-<li><strong>3D 地图能力打通了上下坡 &#x2F; 立体路网场景</strong>；</li>
-<li><strong>解耦注意力 + 一对多匹配的组合</strong>被多个后续 BEV &#x2F; 矢量化工作直接复用（如 MapVR、MapNeXt、StreamMapNet 等）；</li>
+<li><strong>3D 地图能力打通了上下坡 / 立体路网场景</strong>；</li>
+<li><strong>解耦注意力 + 一对多匹配的组合</strong>被多个后续 BEV / 矢量化工作直接复用（如 MapVR、MapNeXt、StreamMapNet 等）；</li>
 <li>在工业界，MapTRv2 的 R18 33.7 FPS + 73.4 mAP 上限组合，使得”上车实时矢量化建图”从可行走向标配。</li>
 </ul>
+
 
             </div>
 

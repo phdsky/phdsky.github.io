@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Generative End-to-End Autonomous Driving<br>Method: Instance-centric Scene Tokenizer, Structural Latent Space, Variational Autoencoder, Temporal Model<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.11502">https://arxiv.org/abs/2402.11502</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/GenAD">https://github.com/wzzheng/GenAD</a></p>
+                
+<p>Task: Generative End-to-End Autonomous Driving<br>Method: Instance-centric Scene Tokenizer, Structural Latent Space, Variational Autoencoder, Temporal Model<br>Venue: ECCV 2024<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2402.11502">https://arxiv.org/abs/2402.11502</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/wzzheng/GenAD">https://github.com/wzzheng/GenAD</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -71,11 +72,11 @@
 <li><strong>结构先验弱</strong>：未来轨迹不是任意曲线，它受道路、agent 交互和交通规则约束。</li>
 </ul>
 <p>GenAD 的问题意识是：自动驾驶规划本质上可以看成未来演化的生成问题。与其直接输出一个规划结果，不如先学习一个结构化 latent space，让模型在这个空间中表达不同未来。</p>
-<p>这让 GenAD 处在 VAD 和 DiffusionDrive 之间：它没有像 VADv2 那样用固定轨迹词汇表，也没有像 DiffusionDrive 那样用扩散去噪，而是通过 VAE latent 来表达未来分布。</p>
+<p>这让 GenAD 处在 <a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a> 和 <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 之间：它没有像 VADv2 那样用固定轨迹词汇表，也没有像 DiffusionDrive 那样用扩散去噪，而是通过 VAE latent 来表达未来分布。</p>
 <h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：端到端驾驶可以用生成式框架统一"><a href="#洞察-1：端到端驾驶可以用生成式框架统一" class="headerlink" title="洞察 1：端到端驾驶可以用生成式框架统一"></a>洞察 1：端到端驾驶可以用生成式框架统一</h3><p>GenAD 不只预测一条轨迹，而是在结构化 latent space 中生成 future trajectories。这样做的价值是让模型表达“未来不唯一”：在同一个当前场景下，可能存在减速、跟车、变道等多个合理分支。</p>
 <p>生成式框架的意义，不是为了追求随机性，而是为了把多模态未来作为分布来建模。</p>
-<h3 id="洞察-2：instance-centric-tokenizer-保留交通参与者结构"><a href="#洞察-2：instance-centric-tokenizer-保留交通参与者结构" class="headerlink" title="洞察 2：instance-centric tokenizer 保留交通参与者结构"></a>洞察 2：instance-centric tokenizer 保留交通参与者结构</h3><p>场景先被编码为 map-aware instance tokens，避免直接在 dense feature 上生成未来。这个设计保留了交通参与者和地图元素的结构，使生成模型面对的是 agent &#x2F; map 级别的场景 token，而不是难以解释的整张特征图。</p>
-<p>这和 SparseDrive 的 sparse scene representation 有相似之处：都认为规划不一定需要完整 dense BEV，而需要保留对决策关键的实体结构。</p>
+<h3 id="洞察-2：instance-centric-tokenizer-保留交通参与者结构"><a href="#洞察-2：instance-centric-tokenizer-保留交通参与者结构" class="headerlink" title="洞察 2：instance-centric tokenizer 保留交通参与者结构"></a>洞察 2：instance-centric tokenizer 保留交通参与者结构</h3><p>场景先被编码为 map-aware instance tokens，避免直接在 dense feature 上生成未来。这个设计保留了交通参与者和地图元素的结构，使生成模型面对的是 agent / map 级别的场景 token，而不是难以解释的整张特征图。</p>
+<p>这和 <a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a> 的 sparse scene representation 有相似之处：都认为规划不一定需要完整 dense BEV，而需要保留对决策关键的实体结构。</p>
 <h3 id="洞察-3：latent-temporal-model-同时服务预测和规划"><a href="#洞察-3：latent-temporal-model-同时服务预测和规划" class="headerlink" title="洞察 3：latent temporal model 同时服务预测和规划"></a>洞察 3：latent temporal model 同时服务预测和规划</h3><p>模型在 latent space 中捕获 agent 和 ego movements，最终同时执行 motion prediction 和 planning。也就是说，surrounding motion 和 ego planning 被放进同一个未来演化模型里，而不是两个后处理模块。</p>
 <p>这条洞察是 GenAD 与普通 motion forecasting 的分界：它关注的是自车和环境的联合未来，而不只是预测别人怎么动。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
@@ -83,8 +84,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-past scenes
+<pre>past scenes
     │
     ▼
 instance-centric scene tokenizer
@@ -105,10 +105,9 @@ temporal model
 
 <p>GenAD 的更细结构可以拆成“场景 token 化、结构 latent、未来联合生成、任务解码”四层：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-GenAD detailed architecture
+<pre>GenAD detailed architecture
 
-<p>Input:<br>  camera &#x2F; scene observations<br>  map-agent-ego context</p>
+<p>Input:<br>  camera / scene observations<br>  map-agent-ego context</p>
 <pre><code>    ┌──────────────────────────────────────────┐
     │  1. Instance-centric Tokenizer           │
     │  agents, map elements, ego state         │
@@ -126,7 +125,7 @@ GenAD detailed architecture
     ┌──────────────────────────────────────────┐
     │  3. Generative Future Model              │
     │  jointly generate ego future             │
-    │  and surrounding agents&#39; motion          │
+    │  and surrounding agents' motion          │
     └──────────────────────────────────────────┘
                       │
                       ▼
@@ -136,7 +135,7 @@ GenAD detailed architecture
     │  evaluate coherent future evolution      │
     └──────────────────────────────────────────┘
 </code></pre>
-<p></pre></p>
+<p></p></pre><p></p>
 </div>
 
 <p>这套结构解释了 GenAD 为什么不只是“规划 head 换成生成模型”：它把 ego planning 和 surrounding motion 放进同一个未来演化 latent 中，使自车动作和他车运动不再是两个孤立输出。</p>
@@ -173,13 +172,13 @@ GenAD detailed architecture
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">UniAD</td>
+<td align="left"><a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a></td>
 <td align="left">query cascade + 单轨迹规划</td>
 <td align="left">任务级联，planning-oriented</td>
 </tr>
 <tr>
 <td align="left">VAD</td>
-<td align="left">vectorized map &#x2F; agent &#x2F; ego</td>
+<td align="left">vectorized map / agent / ego</td>
 <td align="left">几何约束 + 轻量规划</td>
 </tr>
 <tr>
@@ -194,12 +193,12 @@ GenAD detailed architecture
 </tr>
 </tbody></table>
 <p>GenAD 的位置在于：它把“未来分布”引入端到端驾驶，但仍然以 latent representation 为核心，而不是固定词表或扩散过程。</p>
-<h3 id="4-4-structural-latent-与轨迹词表的差别"><a href="#4-4-structural-latent-与轨迹词表的差别" class="headerlink" title="4.4 structural latent 与轨迹词表的差别"></a>4.4 structural latent 与轨迹词表的差别</h3><p>VADv2 &#x2F; SparseDriveV2 这类评分派方法通常把未来动作离散成候选轨迹，再学习候选分数；GenAD 则把 future evolution 压到 structural latent space 中，让 ego 和 surrounding agents 在同一个 latent 中生成。</p>
+<h3 id="4-4-structural-latent-与轨迹词表的差别"><a href="#4-4-structural-latent-与轨迹词表的差别" class="headerlink" title="4.4 structural latent 与轨迹词表的差别"></a>4.4 structural latent 与轨迹词表的差别</h3><p>VADv2 / SparseDriveV2 这类评分派方法通常把未来动作离散成候选轨迹，再学习候选分数；GenAD 则把 future evolution 压到 structural latent space 中，让 ego 和 surrounding agents 在同一个 latent 中生成。</p>
 <table>
 <thead>
 <tr>
 <th align="left">维度</th>
-<th align="left">轨迹词表 &#x2F; scoring</th>
+<th align="left">轨迹词表 / scoring</th>
 <th align="left">GenAD structural latent</th>
 </tr>
 </thead>
@@ -231,10 +230,10 @@ GenAD detailed architecture
 </tbody></table>
 <p>这也是 GenAD 的价值边界：它提出了生成式端到端驾驶的结构化思路，但后续 DiffusionDrive 进一步把生成分布落到更直接的 trajectory distribution 上。</p>
 <h3 id="4-5-端到端生成的信息流"><a href="#4-5-端到端生成的信息流" class="headerlink" title="4.5 端到端生成的信息流"></a>4.5 端到端生成的信息流</h3><p>GenAD 的信息流可以压缩成一句话：从视觉场景表示中生成一个结构化未来 latent，再从 latent 中同时读出 ego 与 surrounding 的未来。</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">multi-view visual features</span><br><span class="line">        ↓</span><br><span class="line">scene / agent representation</span><br><span class="line">        ↓</span><br><span class="line">structural latent space</span><br><span class="line">        ↓</span><br><span class="line">ego future + surrounding future</span><br><span class="line">        ↓</span><br><span class="line">planning and motion prediction losses</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">multi-view visual features</span><br><span class="line">        ↓</span><br><span class="line">scene / agent representation</span><br><span class="line">        ↓</span><br><span class="line">structural latent space</span><br><span class="line">        ↓</span><br><span class="line">ego future + surrounding future</span><br><span class="line">        ↓</span><br><span class="line">planning and motion prediction losses</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这也是它和传统 cascade 系统的差别：GenAD 不先分别完成检测、预测、规划再串起来，而是试图让未来交互本身成为一个可生成的中间变量。这样的优点是统一，风险是 latent 的可解释性和可控性需要额外验证。</p>
-<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上报告 GenAD 在 vision-centric end-to-end autonomous driving 上达到领先表现，并强调高效性。这里保留方法层面结论：GenAD 是 DiffusionDrive 之前重要的 action-centric &#x2F; generative planning 参考，核心是把 future evolution 作为生成目标。</p>
+<h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文在 nuScenes 上报告 GenAD 在 vision-centric end-to-end autonomous driving 上达到领先表现，并强调高效性。这里保留方法层面结论：GenAD 是 DiffusionDrive 之前重要的 action-centric / generative planning 参考，核心是把 future evolution 作为生成目标。</p>
 <p>实验部分的证据可以分成三层：</p>
 <table>
 <thead>
@@ -291,7 +290,7 @@ GenAD detailed architecture
 </ul>
 <h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><p>GenAD 与 VAD、SparseDrive、DiffusionDrive 的关系可以这样对照：</p>
 <ul>
-<li><strong>VAD</strong> 更偏向 vectorized planning，用 map &#x2F; agent &#x2F; ego 表示配合几何约束；</li>
+<li><strong>VAD</strong> 更偏向 vectorized planning，用 map / agent / ego 表示配合几何约束；</li>
 <li><strong>SparseDrive</strong> 更偏向 sparse scene representation，用稀疏实例和地图 token 贯穿全栈；</li>
 <li><strong>DiffusionDrive</strong> 更偏向扩散式轨迹分布，用去噪过程生成多模态规划；</li>
 <li><strong>GenAD</strong> 则把生成式端到端规划的 latent 结构提前提出。</li>
@@ -308,7 +307,7 @@ GenAD detailed architecture
 </thead>
 <tbody><tr>
 <td align="left">Generative planning</td>
-<td align="left">生成 ego future action &#x2F; trajectory</td>
+<td align="left">生成 ego future action / trajectory</td>
 </tr>
 <tr>
 <td align="left">World model</td>
@@ -320,7 +319,7 @@ GenAD detailed architecture
 </tr>
 </tbody></table>
 <p>GenAD 处在三者交界处：它用生成式框架统一 ego 和 surroundings 的未来，但还不是严格意义上以显式 world state 为核心的 occupancy world model。</p>
-<h2 id="8-方法边界与站内关系"><a href="#8-方法边界与站内关系" class="headerlink" title="8. 方法边界与站内关系"></a>8. 方法边界与站内关系</h2><p>GenAD 的位置，最好放在端到端规划从“回归”走向“生成”的过渡期来理解。它不像 <a href="/posts/2023/papers/2023_CVPR_UniAD_Planning_Oriented_Autonomous_Driving/">UniAD</a> 那样强调规划导向的任务级联，也不像 <a href="/posts/2025/papers/2025_CVPR_DiffusionDrive_Truncated_Diffusion_End_to_End_Driving/">DiffusionDrive</a> 那样把轨迹分布显式交给 diffusion process，而是先提出一个 structural latent space 来容纳未来交互。</p>
+<h2 id="8-方法边界与站内关系"><a href="#8-方法边界与站内关系" class="headerlink" title="8. 方法边界与站内关系"></a>8. 方法边界与站内关系</h2><p>GenAD 的位置，最好放在端到端规划从“回归”走向“生成”的过渡期来理解。它不像 UniAD 那样强调规划导向的任务级联，也不像 DiffusionDrive 那样把轨迹分布显式交给 diffusion process，而是先提出一个 structural latent space 来容纳未来交互。</p>
 <table>
 <thead>
 <tr>
@@ -337,13 +336,13 @@ GenAD detailed architecture
 <td align="left">GenAD 更强调生成式未来变量</td>
 </tr>
 <tr>
-<td align="left"><a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD &#x2F; VADv2</a></td>
+<td align="left">VAD / VADv2</td>
 <td align="left">vectorized scene + ego planning</td>
 <td align="left">几何约束明确</td>
 <td align="left">GenAD 更强调 latent distribution</td>
 </tr>
 <tr>
-<td align="left"><a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a></td>
+<td align="left">SparseDrive</td>
 <td align="left">sparse scene tokens + scoring</td>
 <td align="left">推理高效、实例中心</td>
 <td align="left">GenAD 更像生成式先验</td>
@@ -356,6 +355,7 @@ GenAD detailed architecture
 </tr>
 </tbody></table>
 <p>因此 GenAD 的方法边界也很清楚：它适合说明“未来交互可以作为生成变量”，但还没有把 world state 显式展开成 occupancy、geometry 或 cost。读这篇时应记住它的桥梁作用：它把端到端驾驶从确定性回归推向生成式规划，但真正接近闭环决策，还需要后续方法把生成未来变成可解释、可筛选、可约束的动作候选。</p>
+
 
             </div>
 

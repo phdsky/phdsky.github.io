@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: End-to-End Autonomous Driving (Detection, Tracking, Mapping, Motion, Occupancy, Planning)<br>Method: Unified Query-based Multi-task Framework, Planning-oriented Design<br>Venue: CVPR 2023 Best Paper<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2212.10156">https://arxiv.org/abs/2212.10156</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/OpenDriveLab/UniAD">https://github.com/OpenDriveLab/UniAD</a></p>
+                
+<p>Task: End-to-End Autonomous Driving (Detection, Tracking, Mapping, Motion, Occupancy, Planning)<br>Method: Unified Query-based Multi-task Framework, Planning-oriented Design<br>Venue: CVPR 2023 Best Paper<br>Year: 2022<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2212.10156">https://arxiv.org/abs/2212.10156</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/OpenDriveLab/UniAD">https://github.com/OpenDriveLab/UniAD</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>现代自动驾驶系统采用模块化设计，按顺序执行感知、预测和规划任务。现有方案要么部署独立模型（信息损失+误差累积），要么简单多任务学习（负迁移）。本文提出 <strong>UniAD（Unified Autonomous Driving）</strong>，首个涵盖检测、跟踪、建图、运动预测、占用预测与规划的全栈端到端框架。核心设计是以 <strong>query</strong> 作为统一接口连接所有模块——TrackFormer 用 track query 编码智能体、MapFormer 用 map query 编码道路元素、MotionFormer 用 motion query 联合预测多智能体轨迹、OccFormer 用 BEV 特征与智能体特征交互预测未来占用、Planner 利用 ego query 在 BEV 上做注意力后预测规划轨迹并用占用图做碰撞优化。在 nuScenes 上，UniAD 在所有任务上显著超越前人方法，规划 L2 误差降低 51.2%、碰撞率降低 56.3%（相比 ST-P3）。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>现代自动驾驶系统采用模块化设计，按顺序执行感知、预测和规划任务。现有方案要么部署独立模型（信息损失+误差累积），要么简单多任务学习（负迁移）。本文提出 <strong>UniAD（Unified Autonomous Driving）</strong>，首个涵盖检测、跟踪、建图、运动预测、占用预测与规划的全栈端到端框架。核心设计是以 <strong>query</strong> 作为统一接口连接所有模块——TrackFormer 用 track query 编码智能体、MapFormer 用 map query 编码道路元素、MotionFormer 用 motion query 联合预测多智能体轨迹、<a href="/posts/2023/papers/2023_ICCV_OccFormer_Dual_Path_Transformer_3D_Semantic_Occupancy/">OccFormer</a> 用 BEV 特征与智能体特征交互预测未来占用、Planner 利用 ego query 在 BEV 上做注意力后预测规划轨迹并用占用图做碰撞优化。在 nuScenes 上，UniAD 在所有任务上显著超越前人方法，规划 L2 误差降低 51.2%、碰撞率降低 56.3%（相比 ST-P3）。</p>
 <p><strong>核心论点</strong>：端到端自动驾驶的关键不是简单堆叠任务，而是以规划为导向、通过 query 接口协调各模块的信息流——每个前置任务都应为最终规划服务。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>自动驾驶系统需要同时完成检测、跟踪、建图、运动预测、占用预测和规划。现有方案存在明显局限：</p>
 <table>
@@ -124,8 +125,7 @@ $$\text{多视图图像} \xrightarrow{\text{BEVFormer}} \text{BEV 特征}\ B \xr
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-多视图 6 cam
+<pre>多视图 6 cam
       │
       ▼
 ┌─────────────────┐
@@ -175,11 +175,11 @@ $$\text{多视图图像} \xrightarrow{\text{BEVFormer}} \text{BEV 特征}\ B \xr
 </tr>
 </thead>
 <tbody><tr>
-<td>BEVFormer</td>
+<td><a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a></td>
 <td>多视图图像</td>
 <td>BEV 特征 $B$</td>
 <td>—</td>
-<td>BEVFormer 编码器（空间&#x2F;时序注意力）</td>
+<td>BEVFormer 编码器（空间/时序注意力）</td>
 </tr>
 <tr>
 <td>TrackFormer</td>
@@ -200,7 +200,7 @@ $$\text{多视图图像} \xrightarrow{\text{BEVFormer}} \text{BEV 特征}\ B \xr
 <td>$Q_A, Q_M, B$</td>
 <td>$K \times T$ 轨迹</td>
 <td>3</td>
-<td>agent-agent &#x2F; agent-map &#x2F; agent-goal 交互</td>
+<td>agent-agent / agent-map / agent-goal 交互</td>
 </tr>
 <tr>
 <td>OccFormer</td>
@@ -597,15 +597,15 @@ $$\mathcal{L}_2 = \mathcal{L}_{\text{track}} + \mathcal{L}_{\text{map}} + \mathc
 <li><strong>远距离目标</strong>：BEV 范围 51.2m，超出范围的目标无法感知</li>
 <li><strong>遮挡恢复</strong>：track query 有生命周期管理（2s 容忍期），但长时间遮挡后 ID 仍可能切换</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        ResNet-50 (S) / ResNet-101 (B) / VoVNetV2-99 (L)</span><br><span class="line">BEV Encoder:     BEVFormer (时空注意力), 200×200, [-51.2m, 51.2m]</span><br><span class="line">Training:</span><br><span class="line">  Stage 1:       6 epochs, Track + Map 损失, 冻结 backbone</span><br><span class="line">  Stage 2:       20 epochs (ablation 8ep), 全任务损失, 冻结 backbone + BEV encoder</span><br><span class="line">Batch Size:      1 per GPU</span><br><span class="line">Optimizer:       AdamW, lr=2e-4, weight_decay=0.01, backbone lr ×0.1</span><br><span class="line">Sequence Length:  5 frames (3 for ablation)</span><br><span class="line">GPUs:            8× A100</span><br><span class="line">TrackFormer:     900 det queries + dynamic track queries, 6 layers</span><br><span class="line">MapFormer:       300 thing queries + 1 stuff query, 6+4 layers</span><br><span class="line">MotionFormer:    K=6 modes, T=12 steps (6s), 3 layers</span><br><span class="line">OccFormer:       T_o=5 blocks (2.5s at 2Hz)</span><br><span class="line">Planner:         T_p=6 steps (3s), 3 layers</span><br><span class="line">Feature Dim:     256 throughout</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:        ResNet-50 (S) / ResNet-101 (B) / VoVNetV2-99 (L)</span><br><span class="line">BEV Encoder:     BEVFormer (时空注意力), 200×200, [-51.2m, 51.2m]</span><br><span class="line">Training:</span><br><span class="line">  Stage 1:       6 epochs, Track + Map 损失, 冻结 backbone</span><br><span class="line">  Stage 2:       20 epochs (ablation 8ep), 全任务损失, 冻结 backbone + BEV encoder</span><br><span class="line">Batch Size:      1 per GPU</span><br><span class="line">Optimizer:       AdamW, lr=2e-4, weight_decay=0.01, backbone lr ×0.1</span><br><span class="line">Sequence Length:  5 frames (3 for ablation)</span><br><span class="line">GPUs:            8× A100</span><br><span class="line">TrackFormer:     900 det queries + dynamic track queries, 6 layers</span><br><span class="line">MapFormer:       300 thing queries + 1 stuff query, 6+4 layers</span><br><span class="line">MotionFormer:    K=6 modes, T=12 steps (6s), 3 layers</span><br><span class="line">OccFormer:       T_o=5 blocks (2.5s at 2Hz)</span><br><span class="line">Planner:         T_p=6 steps (3s), 3 layers</span><br><span class="line">Feature Dim:     256 throughout</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
 <li><strong>两阶段训练至关重要</strong>：直接端到端训练不收敛，需先预训练感知模块（Stage 1），再联合训练全任务（Stage 2）。Stage 2 额外冻结 BEV encoder 以节省显存</li>
-<li><strong>Track query 生命周期管理</strong>：训练时用 3D IoU &gt; 0.5 过滤配对结果；推理时用分类分数 &gt; 0.4（det）&#x2F; &gt; 0.35（track）过滤，2s 容忍期避免短时遮挡中断</li>
+<li><strong>Track query 生命周期管理</strong>：训练时用 3D IoU &gt; 0.5 过滤配对结果；推理时用分类分数 &gt; 0.4（det）/ &gt; 0.35（track）过滤，2s 容忍期避免短时遮挡中断</li>
 <li><strong>匹配结果共享</strong>：TrackFormer 的匈牙利匹配结果被 MotionFormer 和 OccFormer 复用，保证从历史跟踪到未来预测的身份一致性</li>
 <li><strong>非线性优化（NLO）</strong>：训练时对 GT 轨迹做运动学约束（多重射击法），使其在检测位置不精确时仍物理可行；仅训练阶段使用</li>
 <li><strong>碰撞优化</strong>：推理时用 Newton 法在占用图上优化规划轨迹，设定 $\lambda_{\text{coord}}=1.0, \lambda_{\text{obs}}=5.0, d=5, \sigma=1.0$</li>
-<li><strong>显存管理</strong>：OccFormer 在 BEV 1&#x2F;4 分辨率上做交互，再降至 1&#x2F;8 做 pixel-agent 注意力</li>
+<li><strong>显存管理</strong>：OccFormer 在 BEV 1/4 分辨率上做交互，再降至 1/8 做 pixel-agent 注意力</li>
 </ol>
 <h3 id="性能优化方向"><a href="#性能优化方向" class="headerlink" title="性能优化方向"></a>性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
@@ -631,10 +631,11 @@ $$\mathcal{L}_2 = \mathcal{L}_{\text{track}} + \mathcal{L}_{\text{map}} + \mathc
 </ul>
 <h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
 <li>UniAD 是首个涵盖全栈驾驶任务的端到端框架，获得 CVPR 2023 最佳论文奖，奠定了”planning-oriented”端到端自动驾驶的范式</li>
-<li>后续 VAD、SparseDrive、GenAD 等方法均以 UniAD 为基线或在其基础上简化&#x2F;改进</li>
+<li>后续 <a href="/posts/2024/papers/2024_arXiv_VAD_VADv2_Vectorized_End_to_End_Autonomous_Driving/">VAD</a>、<a href="/posts/2026/papers/2026_arXiv_SparseDrive_Series_End_to_End_Autonomous_Driving/">SparseDrive</a>、<a href="/posts/2024/papers/2024_ECCV_GenAD_Generative_End_to_End_Autonomous_Driving/">GenAD</a> 等方法均以 UniAD 为基线或在其基础上简化/改进</li>
 <li>证明了端到端训练中各任务的渐进式协调优于独立多任务学习，影响了自动驾驶工业界的系统设计思路</li>
 <li>开放代码和模型，成为社区广泛使用的端到端自动驾驶基准</li>
 </ul>
+
 
             </div>
 

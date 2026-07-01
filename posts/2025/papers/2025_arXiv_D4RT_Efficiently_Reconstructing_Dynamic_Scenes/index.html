@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Dynamic 4D Reconstruction and Tracking<br>Method: Unified Transformer, Query-based 4D Decoding<br>Venue: arXiv<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.08924">https://arxiv.org/abs/2512.08924</a><br>Code: <a target="_blank" rel="noopener" href="https://d4rt-paper.github.io/">https://d4rt-paper.github.io/</a></p>
+                
+<p>Task: Dynamic 4D Reconstruction and Tracking<br>Method: Unified Transformer, Query-based 4D Decoding<br>Venue: arXiv<br>Year: 2025<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2512.08924">https://arxiv.org/abs/2512.08924</a><br>Code: <a target="_blank" rel="noopener" href="https://d4rt-paper.github.io/">https://d4rt-paper.github.io/</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -97,8 +98,7 @@
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-single video
+<pre>single video
     │
     ▼
 unified transformer encoder
@@ -117,10 +117,9 @@ query decoder
 
 <p>D4RT 的关键是 query-based decoding：encoder 不必为每一帧完整解码 dense geometry，而是让 decoder 回答特定时刻、特定像素、特定目标相机下的 4D 几何查询。</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-D4RT detailed architecture
+<pre>D4RT detailed architecture
 
-<p>Input:<br>  monocular &#x2F; multi-view video clip<br>  dynamic objects + moving camera</p>
+<p>Input:<br>  monocular / multi-view video clip<br>  dynamic objects + moving camera</p>
 <pre><code>    ┌──────────────────────────────────────────┐
     │  1. Unified Video Transformer Encoder    │
     │  frames -&gt; global scene representation   │
@@ -145,7 +144,7 @@ D4RT detailed architecture
           ▼                 ▼                  ▼
     depth / point cloud   3D tracks       camera parameters
 </code></pre>
-<p></pre></p>
+<p></p></pre><p></p>
 </div>
 
 <p>这种接口比逐帧 dense decoding 更适合动态世界：系统可以只查询关键像素、关键时间或关键物体，而不是把所有帧都完整重建一遍。对自动驾驶而言，这正好对应“只在规划相关区域上追踪 4D 几何”的潜在使用方式。</p>
@@ -176,7 +175,7 @@ $$
 </tr>
 <tr>
 <td align="left">Query-based decoding</td>
-<td align="left">指定像素 &#x2F; 时间 &#x2F; 相机</td>
+<td align="left">指定像素 / 时间 / 相机</td>
 <td align="left">只解规划或跟踪关心的点</td>
 <td align="left">需要设计查询采样策略</td>
 </tr>
@@ -191,8 +190,8 @@ $$
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">VGGT</td>
-<td align="left">多视图 &#x2F; 静态或弱动态几何</td>
+<td align="left"><a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a></td>
+<td align="left">多视图 / 静态或弱动态几何</td>
 <td align="left">camera、depth、point map、track 的前向输出</td>
 </tr>
 <tr>
@@ -203,7 +202,7 @@ $$
 </tbody></table>
 <p>D4RT 更强调动态场景中的“查询式几何”，这使它特别适合被放到 4D geometry 路线中理解。</p>
 <h3 id="4-5-query-based-4D-reconstruction-的信息流"><a href="#4-5-query-based-4D-reconstruction-的信息流" class="headerlink" title="4.5 query-based 4D reconstruction 的信息流"></a>4.5 query-based 4D reconstruction 的信息流</h3><p>D4RT 的信息流不是“每帧解出全部几何”，而是“先编码动态视频，再按查询取出 4D 点”：</p>
-<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">single video sequence</span><br><span class="line">        ↓</span><br><span class="line">unified video transformer encoder</span><br><span class="line">        ↓</span><br><span class="line">dynamic 4D scene representation</span><br><span class="line">        ↓</span><br><span class="line">query: pixel + source time + target time + target camera</span><br><span class="line">        ↓</span><br><span class="line">lightweight query decoder</span><br><span class="line">        ↓</span><br><span class="line">target 3D point / correspondence / geometry</span><br></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tbody><tr><td class="code"><pre><span class="line">single video sequence</span><br><span class="line">        ↓</span><br><span class="line">unified video transformer encoder</span><br><span class="line">        ↓</span><br><span class="line">dynamic 4D scene representation</span><br><span class="line">        ↓</span><br><span class="line">query: pixel + source time + target time + target camera</span><br><span class="line">        ↓</span><br><span class="line">lightweight query decoder</span><br><span class="line">        ↓</span><br><span class="line">target 3D point / correspondence / geometry</span><br></pre></td></tr></tbody></table></figure>
 
 <p>这个设计把计算重心从 dense decoding 转移到 representation learning 和 query decoding。对长视频、动态场景和下游选择性使用几何的任务来说，它比“全部重建后再筛选”更灵活。</p>
 <h2 id="5-实验与分析"><a href="#5-实验与分析" class="headerlink" title="5. 实验与分析"></a>5. 实验与分析</h2><p>论文报告 D4RT 在多类 4D reconstruction 任务上达到新的领先表现。这里保留已经由摘要和项目页直接支撑的结论：D4RT 的贡献不是一个新损失函数，而是把动态 4D 几何变成统一、轻量、可查询的前向模型。</p>
@@ -216,11 +215,11 @@ $$
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">Depth &#x2F; reconstruction</td>
+<td align="left">Depth / reconstruction</td>
 <td align="left">模型是否能恢复几何结构</td>
 </tr>
 <tr>
-<td align="left">Tracking &#x2F; correspondence</td>
+<td align="left">Tracking / correspondence</td>
 <td align="left">模型是否能跨时间追踪点</td>
 </tr>
 <tr>
@@ -268,9 +267,9 @@ $$
 <li><strong>遮挡与重现</strong>：交通场景中的点可能长时间不可见；</li>
 <li><strong>闭环接口</strong>：D4RT 输出几何查询结果，但并不直接输出 planning cost。</li>
 </ul>
-<p>因此，它更适合启发驾驶系统的 4D geometry interface，而不是直接替代 perception&#x2F;planning pipeline。</p>
+<p>因此，它更适合启发驾驶系统的 4D geometry interface，而不是直接替代 perception/planning pipeline。</p>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><p>D4RT 把“几何模型”从静态 3D 推向动态 4D。它和 VGGT 共同说明，几何基础模型正在从重建工具走向通用视觉表示；而驾驶任务的下一步，是把这种动态几何能力接入实时、多传感器、闭环的决策系统。</p>
-<p>在本站路线中，D4RT 是一个“横向启发”节点：它不属于自动驾驶专用方法，但它的 query-based 4D decoding 对 DVGT &#x2F; DVGT-2 这类驾驶几何方法很有参考价值。</p>
+<p>在本站路线中，D4RT 是一个“横向启发”节点：它不属于自动驾驶专用方法，但它的 query-based 4D decoding 对 <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT</a> / DVGT-2 这类驾驶几何方法很有参考价值。</p>
 <h2 id="8-方法边界与站内关系"><a href="#8-方法边界与站内关系" class="headerlink" title="8. 方法边界与站内关系"></a>8. 方法边界与站内关系</h2><p>D4RT 的边界也要讲清楚：它不是端到端驾驶方法，也不是 occupancy planner。它解决的是动态场景 4D 几何如何高效重建和查询的问题。自动驾驶读者关心它，是因为驾驶世界天然就是多相机、自车运动、物体运动和遮挡交织的动态 4D 场。</p>
 <table>
 <thead>
@@ -301,8 +300,9 @@ $$
 <td align="left">D4RT 本身尚未提供 cost 或 action condition</td>
 </tr>
 </tbody></table>
-<p>和 <a href="/posts/2025/papers/2025_CVPR_VGGT_Visual_Geometry_Grounded_Transformer/">VGGT</a> 相比，D4RT 把几何从多视图静态理解推进到动态时空查询；和 <a href="/posts/2025/papers/2025_arXiv_DVGT_Driving_Visual_Geometry_Transformer/">DVGT 系列</a> 相比，它缺少驾驶专用的多相机和规划接口，但提供了非常重要的 query-based 思路。</p>
-<p>这也是 D4RT 在路线图里的价值：它提醒驾驶几何模型不一定要每一帧都 dense 输出，系统可以先学一个统一 4D 场，再对关键像素、关键时间、关键区域发起查询。真正进入自动驾驶时，这个思想需要和 BEV&#x2F;occupancy、ego motion、trajectory candidate 以及 planning cost 接起来。</p>
+<p>和 VGGT 相比，D4RT 把几何从多视图静态理解推进到动态时空查询；和 DVGT 系列 相比，它缺少驾驶专用的多相机和规划接口，但提供了非常重要的 query-based 思路。</p>
+<p>这也是 D4RT 在路线图里的价值：它提醒驾驶几何模型不一定要每一帧都 dense 输出，系统可以先学一个统一 4D 场，再对关键像素、关键时间、关键区域发起查询。真正进入自动驾驶时，这个思想需要和 BEV/occupancy、ego motion、trajectory candidate 以及 planning cost 接起来。</p>
+
 
             </div>
 

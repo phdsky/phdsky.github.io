@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Multi-Camera 3D Object Detection<br>Method: LSS View Transformer, BEV Data Augmentation, Scale-NMS, Temporal BEV Fusion<br>Venue: arXiv<br>Year: 2021 (BEVDet) &#x2F; 2022 (BEVDet4D)<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2112.11790">https://arxiv.org/abs/2112.11790</a> (BEVDet) &#x2F; <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.17054">https://arxiv.org/abs/2203.17054</a> (BEVDet4D)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></p>
+                
+<p>Task: Multi-Camera 3D Object Detection<br>Method: <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> View Transformer, BEV Data Augmentation, Scale-NMS, Temporal BEV Fusion<br>Venue: arXiv<br>Year: 2021 (BEVDet) / 2022 (BEVDet4D)<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2112.11790">https://arxiv.org/abs/2112.11790</a> (BEVDet) / <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.17054">https://arxiv.org/abs/2203.17054</a> (BEVDet4D)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet">https://github.com/HuangJunJie2017/BEVDet</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文提出 <strong>BEVDet</strong> 范式，首次将 BEV 语义分割中成熟的 Lift-Splat-Shoot（LSS）框架系统性地应用于多相机 3D 目标检测任务。BEVDet 采用模块化设计：<strong>图像视图编码器</strong>（Image-view Encoder）提取特征→<strong>视图变换器</strong>（View Transformer, 即 LSS）将图像特征提升到 BEV→<strong>BEV 编码器</strong>进一步编码 BEV 特征→<strong>CenterPoint 检测头</strong>在 BEV 空间完成 3D 目标检测。虽然框架的各模块均复用已有工作，但 BEVDet 通过两项关键贡献显著提升了性能：（1）发现 LSS 视图变换器<strong>解耦了图像视图与 BEV 视图的数据增强</strong>，据此设计了图像空间（IDA）+ BEV 空间（BDA）的双重数据增强策略，从根本上解决了 BEV 空间学习的过拟合问题；（2）提出 <strong>Scale-NMS</strong> 解决 BEV 空间中小物体（行人、交通锥）因占地面积小于网格分辨率而导致传统 NMS 失效的问题。在 nuScenes 数据集上，BEVDet-Tiny 以 704×256 输入仅需 215.3 GFLOPs 即达到 31.2% mAP &#x2F; 39.2% NDS，比 FCOS3D 快 9.2 倍；BEVDet-Base 以 1600×640 输入达到 39.3% mAP &#x2F; 47.2% NDS，大幅超越所有已发表结果。</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文提出 <strong>BEVDet</strong> 范式，首次将 BEV 语义分割中成熟的 Lift-Splat-Shoot（LSS）框架系统性地应用于多相机 3D 目标检测任务。BEVDet 采用模块化设计：<strong>图像视图编码器</strong>（Image-view Encoder）提取特征→<strong>视图变换器</strong>（View Transformer, 即 LSS）将图像特征提升到 BEV→<strong>BEV 编码器</strong>进一步编码 BEV 特征→<strong><a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a> 检测头</strong>在 BEV 空间完成 3D 目标检测。虽然框架的各模块均复用已有工作，但 BEVDet 通过两项关键贡献显著提升了性能：（1）发现 LSS 视图变换器<strong>解耦了图像视图与 BEV 视图的数据增强</strong>，据此设计了图像空间（IDA）+ BEV 空间（BDA）的双重数据增强策略，从根本上解决了 BEV 空间学习的过拟合问题；（2）提出 <strong>Scale-NMS</strong> 解决 BEV 空间中小物体（行人、交通锥）因占地面积小于网格分辨率而导致传统 NMS 失效的问题。在 nuScenes 数据集上，BEVDet-Tiny 以 704×256 输入仅需 215.3 GFLOPs 即达到 31.2% mAP / 39.2% NDS，比 FCOS3D 快 9.2 倍；BEVDet-Base 以 1600×640 输入达到 39.3% mAP / 47.2% NDS，大幅超越所有已发表结果。</p>
 <p><strong>核心论点</strong>：将 LSS 从 BEV 分割迁移到 3D 目标检测的关键不在于架构创新，而在于解决 BEV 空间过拟合——视图变换器的像素级坐标映射在数据增强层面解耦了两个视图空间，使得独立的 BEV 数据增强成为可能，这一发现开启了 BEVDet 系列及整个 BEV 3D 检测方向的快速发展。</p>
 <h2 id="问题与动机"><a href="#问题与动机" class="headerlink" title="问题与动机"></a>问题与动机</h2><p>自动驾驶多相机 3D 目标检测在 2021 年底主要由图像视图方法主导，缺少一个统一且可扩展的 BEV 范式。</p>
 <table>
@@ -69,29 +70,29 @@
 <th>方法类型</th>
 <th>代表作</th>
 <th>核心问题</th>
-<th>nuScenes val (mAP&#x2F;NDS)</th>
+<th>nuScenes val (mAP/NDS)</th>
 <th>FPS</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>图像视图检测</td>
 <td>FCOS3D</td>
-<td>逐视图独立检测，难以感知 BEV 尺度&#x2F;朝向&#x2F;速度</td>
-<td>29.5&#x2F;37.2</td>
+<td>逐视图独立检测，难以感知 BEV 尺度/朝向/速度</td>
+<td>29.5/37.2</td>
 <td>1.7</td>
 </tr>
 <tr>
 <td>图像视图+深度</td>
 <td>PGD</td>
 <td>额外深度估计模块增加计算量</td>
-<td>33.5&#x2F;40.9</td>
+<td>33.5/40.9</td>
 <td>1.4</td>
 </tr>
 <tr>
 <td>Query-based</td>
-<td>DETR3D</td>
+<td><a href="/posts/2021/papers/2021_CoRL_DETR3D_3D_Object_Detection_via_3D_to_2D_Queries/">DETR3D</a></td>
 <td>注意力流程复杂，推理速度与 FCOS3D 相当</td>
-<td>30.3&#x2F;37.4</td>
+<td>30.3/37.4</td>
 <td>2.0</td>
 </tr>
 <tr>
@@ -127,15 +128,15 @@ $$\mathbf{p}'_{\text{camera}} = I^{-1}(A^{-1} \cdot \mathbf{p}'_{\text{image}} \
 <p><strong>传统 NMS</strong>：按 IoU 阈值抑制重叠框，对 BEV 小物体失效<br><strong>Circular-NMS（CenterPoint）</strong>：基于中心距离抑制，有所改善但不够精确<br><strong>Scale-NMS（BEVDet）</strong>：在 NMS 前按类别缩放框尺寸，使小物体的重叠框产生有效 IoU</p>
 <p><strong>为什么有效</strong>：Scale-NMS 将类别特定的尺度因子作为超参数，通过在验证集上搜索得到。对行人 +4.8% AP，交通锥 +7.5% AP，整体 +1.7% mAP（29.5%→31.2%）。</p>
 <h3 id="洞察-3：模块化设计——BEV-范式的可扩展性基础"><a href="#洞察-3：模块化设计——BEV-范式的可扩展性基础" class="headerlink" title="洞察 3：模块化设计——BEV 范式的可扩展性基础"></a>洞察 3：模块化设计——BEV 范式的可扩展性基础</h3><p>BEVDet 的核心设计哲学是<strong>模块化</strong>：每个模块（Image Encoder、View Transformer、BEV Encoder、Head）独立且可替换。这不是技术创新，但是范式选择的深远影响。</p>
-<p><strong>图像视图方法</strong>（FCOS3D）：检测在图像坐标系完成，难以感知 BEV 空间的尺度&#x2F;朝向&#x2F;速度<br><strong>BEVDet</strong>：检测在 BEV 坐标系完成，天然适合感知这些在 BEV 空间有清晰几何含义的属性</p>
-<p>BEVDet 在预测位移（ATE）、尺度（ASE）、朝向（AOE）、速度（AVE）上均显著优于 FCOS3D，仅在属性预测（AAE）上稍弱（属性依赖外观线索，图像视图更擅长）。更重要的是，模块化设计使 BEVDet 成为<strong>可持续演进的框架</strong>——后续的 BEVDet4D（时序融合）、BEVDepth（深度监督）、BEVPoolv2（部署优化）都是在此基础上替换或增强单个模块。</p>
+<p><strong>图像视图方法</strong>（FCOS3D）：检测在图像坐标系完成，难以感知 BEV 空间的尺度/朝向/速度<br><strong>BEVDet</strong>：检测在 BEV 坐标系完成，天然适合感知这些在 BEV 空间有清晰几何含义的属性</p>
+<p>BEVDet 在预测位移（ATE）、尺度（ASE）、朝向（AOE）、速度（AVE）上均显著优于 FCOS3D，仅在属性预测（AAE）上稍弱（属性依赖外观线索，图像视图更擅长）。更重要的是，模块化设计使 BEVDet 成为<strong>可持续演进的框架</strong>——后续的 BEVDet4D（时序融合）、<a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a>（深度监督）、BEVPoolv2（部署优化）都是在此基础上替换或增强单个模块。</p>
 <p><strong>三个关键数字</strong>：</p>
 <ul>
-<li><strong>39.3% mAP &#x2F; 47.2% NDS</strong>：BEVDet-Base 在 nuScenes val 上达到的 SOTA 性能，超 PGD 达 +5.8% mAP &#x2F; +6.3% NDS</li>
+<li><strong>39.3% mAP / 47.2% NDS</strong>：BEVDet-Base 在 nuScenes val 上达到的 SOTA 性能，超 PGD 达 +5.8% mAP / +6.3% NDS</li>
 <li><strong>15.6 FPS</strong>：BEVDet-Tiny 的推理速度，是 FCOS3D（1.7 FPS）的 9.2 倍</li>
 <li><strong>+8.6% mAP</strong>：IDA + BDA 双重数据增强相比无增强 baseline 的提升幅度</li>
 </ul>
-<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>给定 $n&#x3D;6$ 个相机的图像，BEVDet 输出 BEV 空间的 3D 检测框：</p>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>给定 $n=6$ 个相机的图像，BEVDet 输出 BEV 空间的 3D 检测框：</p>
 
 $$\text{Images} \xrightarrow{\text{Image Encoder}} \text{Image Features} \xrightarrow{\text{View Transformer (LSS)}} \text{BEV Features} \xrightarrow{\text{BEV Encoder}} \text{Encoded BEV} \xrightarrow{\text{CenterPoint Head}} \text{3D Boxes}$$
 
@@ -145,8 +146,7 @@ $$\text{Images} \xrightarrow{\text{Image Encoder}} \text{Image Features} \xright
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-输入：6 张图像 (704×256 / 1600×640)
+<pre>输入：6 张图像 (704×256 / 1600×640)
                 │
                 ▼
  ┌──────────────────────────────┐
@@ -207,11 +207,11 @@ $$\text{Images} \xrightarrow{\text{Image Encoder}} \text{Image Features} \xright
 <td>View Transformer</td>
 <td>LSS-64-0.8m</td>
 <td>LSS-64-0.4m</td>
-<td>图像→BEV，64ch，0.8m&#x2F;0.4m 分辨率</td>
+<td>图像→BEV，64ch，0.8m/0.4m 分辨率</td>
 </tr>
 <tr>
 <td>BEV Encoder</td>
-<td>2×Basic-128&#x2F;256&#x2F;512 + FPN</td>
+<td>2×Basic-128/256/512 + FPN</td>
 <td>同左</td>
 <td>BEV 特征编码</td>
 </tr>
@@ -250,7 +250,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><table>
 <thead>
 <tr>
-<th>函数 &#x2F; 类</th>
+<th>函数 / 类</th>
 <th>任务</th>
 </tr>
 </thead>
@@ -273,15 +273,15 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 </tbody></table>
 <details><summary>📄 点击展开 LSSViewTransformer.forward 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet/blob/dev2.0/mmdet3d/models/necks/view_transformer.py">mmdet3d&#x2F;models&#x2F;necks&#x2F;view_transformer.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, <span class="built_in">input</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Transform image-view feature into bird-eye-view feature.</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        input (list(torch.tensor)): of (image-view feature, rots, trans,</span></span><br><span class="line"><span class="string">            intrins, post_rots, post_trans)</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        torch.tensor: Bird-eye-view feature in shape (B, C, H_BEV, W_BEV)</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    x = <span class="built_in">input</span>[<span class="number">0</span>]</span><br><span class="line">    B, N, C, H, W = x.shape</span><br><span class="line">    x = x.view(B * N, C, H, W)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 1×1 Conv 同时输出 depth 分布和 context 特征</span></span><br><span class="line">    x = <span class="variable language_">self</span>.depth_net(x)</span><br><span class="line">    depth_digit = x[:, :<span class="variable language_">self</span>.D, ...]           <span class="comment"># D 个深度 bin 的 logits</span></span><br><span class="line">    tran_feat = x[:, <span class="variable language_">self</span>.D:<span class="variable language_">self</span>.D + <span class="variable language_">self</span>.out_channels, ...]  <span class="comment"># C 维上下文特征</span></span><br><span class="line">    depth = depth_digit.softmax(dim=<span class="number">1</span>)          <span class="comment"># Softmax → 深度概率分布</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># view_transform: Lift（外积）+ Splat（BEVPoolv2）</span></span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">self</span>.view_transform(<span class="built_in">input</span>, depth, tran_feat)</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet/blob/dev2.0/mmdet3d/models/necks/view_transformer.py">mmdet3d/models/necks/view_transformer.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, <span class="built_in">input</span></span>):</span><br><span class="line">    <span class="string">"""Transform image-view feature into bird-eye-view feature.</span></span><br><span class="line"><span class="string">    Args:</span></span><br><span class="line"><span class="string">        input (list(torch.tensor)): of (image-view feature, rots, trans,</span></span><br><span class="line"><span class="string">            intrins, post_rots, post_trans)</span></span><br><span class="line"><span class="string">    Returns:</span></span><br><span class="line"><span class="string">        torch.tensor: Bird-eye-view feature in shape (B, C, H_BEV, W_BEV)</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    x = <span class="built_in">input</span>[<span class="number">0</span>]</span><br><span class="line">    B, N, C, H, W = x.shape</span><br><span class="line">    x = x.view(B * N, C, H, W)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 1×1 Conv 同时输出 depth 分布和 context 特征</span></span><br><span class="line">    x = <span class="variable language_">self</span>.depth_net(x)</span><br><span class="line">    depth_digit = x[:, :<span class="variable language_">self</span>.D, ...]           <span class="comment"># D 个深度 bin 的 logits</span></span><br><span class="line">    tran_feat = x[:, <span class="variable language_">self</span>.D:<span class="variable language_">self</span>.D + <span class="variable language_">self</span>.out_channels, ...]  <span class="comment"># C 维上下文特征</span></span><br><span class="line">    depth = depth_digit.softmax(dim=<span class="number">1</span>)          <span class="comment"># Softmax → 深度概率分布</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># view_transform: Lift（外积）+ Splat（BEVPoolv2）</span></span><br><span class="line">    <span class="keyword">return</span> <span class="variable language_">self</span>.view_transform(<span class="built_in">input</span>, depth, tran_feat)</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <details><summary>📄 点击展开 BEVPoolv2 CUDA Forward Kernel 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet/blob/dev2.0/mmdet3d/ops/bev_pool_v2/src/bev_pool_cuda.cu">mmdet3d&#x2F;ops&#x2F;bev_pool_v2&#x2F;src&#x2F;bev_pool_cuda.cu</a>）</p>
-<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">  BEVPoolv2 的核心优化：不显式构建 (N,D,H,W,C) 视锥体特征张量</span></span><br><span class="line"><span class="comment">  而是通过 ranks_depth / ranks_feat 索引按需访问 depth 和 feat</span></span><br><span class="line"><span class="comment">  每个线程处理一个 interval（BEV pillar）的一个通道</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">bev_pool_v2_kernel</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span> c, <span class="type">int</span> n_intervals,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span> *__restrict__ depth,   <span class="comment">// 深度分布 (B,N,D,H,W)</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span> *__restrict__ feat,    <span class="comment">// 上下文特征 (B,N,H,W,C)</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ ranks_depth,   <span class="comment">// 深度索引</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ ranks_feat,    <span class="comment">// 特征索引</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ ranks_bev,     <span class="comment">// BEV 输出索引</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ interval_starts,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ interval_lengths,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* __restrict__ out)</span> </span>&#123;</span><br><span class="line">  <span class="type">int</span> idx = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  <span class="type">int</span> index = idx / c;       <span class="comment">// interval（pillar）编号</span></span><br><span class="line">  <span class="type">int</span> cur_c = idx % c;       <span class="comment">// 当前通道</span></span><br><span class="line">  <span class="keyword">if</span> (index &gt;= n_intervals) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> interval_start = interval_starts[index];</span><br><span class="line">  <span class="type">int</span> interval_length = interval_lengths[index];</span><br><span class="line">  <span class="type">float</span> psum = <span class="number">0</span>;</span><br><span class="line">  <span class="comment">// 遍历该 pillar 内所有点，按索引读取并实时计算外积</span></span><br><span class="line">  <span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; interval_length; i++)&#123;</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* cur_depth = depth + ranks_depth[interval_start+i];</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* cur_feat = feat + ranks_feat[interval_start+i] * c + cur_c;</span><br><span class="line">    psum += *cur_feat * *cur_depth;  <span class="comment">// α · c[channel]</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// 写入 BEV 输出</span></span><br><span class="line">  <span class="type">float</span>* cur_out = out + ranks_bev[interval_start] * c + cur_c;</span><br><span class="line">  *cur_out = psum;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/HuangJunJie2017/BEVDet/blob/dev2.0/mmdet3d/ops/bev_pool_v2/src/bev_pool_cuda.cu">mmdet3d/ops/bev_pool_v2/src/bev_pool_cuda.cu</a>）</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">  BEVPoolv2 的核心优化：不显式构建 (N,D,H,W,C) 视锥体特征张量</span></span><br><span class="line"><span class="comment">  而是通过 ranks_depth / ranks_feat 索引按需访问 depth 和 feat</span></span><br><span class="line"><span class="comment">  每个线程处理一个 interval（BEV pillar）的一个通道</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="function">__global__ <span class="type">void</span> <span class="title">bev_pool_v2_kernel</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">int</span> c, <span class="type">int</span> n_intervals,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span> *__restrict__ depth,   <span class="comment">// 深度分布 (B,N,D,H,W)</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">float</span> *__restrict__ feat,    <span class="comment">// 上下文特征 (B,N,H,W,C)</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ ranks_depth,   <span class="comment">// 深度索引</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ ranks_feat,    <span class="comment">// 特征索引</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ ranks_bev,     <span class="comment">// BEV 输出索引</span></span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ interval_starts,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">const</span> <span class="type">int</span> *__restrict__ interval_lengths,</span></span></span><br><span class="line"><span class="params"><span class="function">    <span class="type">float</span>* __restrict__ out)</span> </span>{</span><br><span class="line">  <span class="type">int</span> idx = blockIdx.x * blockDim.x + threadIdx.x;</span><br><span class="line">  <span class="type">int</span> index = idx / c;       <span class="comment">// interval（pillar）编号</span></span><br><span class="line">  <span class="type">int</span> cur_c = idx % c;       <span class="comment">// 当前通道</span></span><br><span class="line">  <span class="keyword">if</span> (index &gt;= n_intervals) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">  <span class="type">int</span> interval_start = interval_starts[index];</span><br><span class="line">  <span class="type">int</span> interval_length = interval_lengths[index];</span><br><span class="line">  <span class="type">float</span> psum = <span class="number">0</span>;</span><br><span class="line">  <span class="comment">// 遍历该 pillar 内所有点，按索引读取并实时计算外积</span></span><br><span class="line">  <span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; interval_length; i++){</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* cur_depth = depth + ranks_depth[interval_start+i];</span><br><span class="line">    <span class="type">const</span> <span class="type">float</span>* cur_feat = feat + ranks_feat[interval_start+i] * c + cur_c;</span><br><span class="line">    psum += *cur_feat * *cur_depth;  <span class="comment">// α · c[channel]</span></span><br><span class="line">  }</span><br><span class="line">  <span class="comment">// 写入 BEV 输出</span></span><br><span class="line">  <span class="type">float</span>* cur_out = out + ranks_bev[interval_start] * c + cur_c;</span><br><span class="line">  *cur_out = psum;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -383,14 +383,14 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <td><strong>48.2</strong></td>
 </tr>
 <tr>
-<td>PointPillars (LiDAR)</td>
+<td><a href="/posts/2019/papers/2019_CVPR_PointPillars_Fast_Encoders_LiDAR_3D_Object_Detection/">PointPillars</a> (LiDAR)</td>
 <td>30.5</td>
 <td>45.3</td>
 </tr>
 </tbody></table>
 <p><strong>关键发现</strong>：</p>
 <ol>
-<li>BEVDet-Tiny 仅用 FCOS3D 1&#x2F;8 的输入分辨率和 1&#x2F;10 的计算量，即超越其精度，推理速度快 9.2 倍</li>
+<li>BEVDet-Tiny 仅用 FCOS3D 1/8 的输入分辨率和 1/10 的计算量，即超越其精度，推理速度快 9.2 倍</li>
 <li>BEVDet 在位移（ATE）、尺度（ASE）、朝向（AOE）、速度（AVE）等 BEV 空间定义的属性上大幅优于图像视图方法</li>
 <li>纯视觉的 BEVDet（42.2% mAP）已可对标经典 LiDAR 方法 PointPillars（30.5% mAP）</li>
 </ol>
@@ -466,7 +466,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 </ul>
 <h3 id="5-3-性能瓶颈分析"><a href="#5-3-性能瓶颈分析" class="headerlink" title="5.3 性能瓶颈分析"></a>5.3 性能瓶颈分析</h3><ul>
 <li><strong>深度估计精度</strong>：BEVDet 的 View Transformer 仅通过下游检测 loss 间接学习深度分布，无显式深度监督。与 LiDAR 方法（50.3% mAP）仍有明显差距</li>
-<li><strong>属性预测</strong>：BEVDet 的 AAE（0.247）高于 FCOS3D（0.170），属性（如”停放&#x2F;行驶”）依赖外观纹理，BEV 特征中外观信息已被抽象</li>
+<li><strong>属性预测</strong>：BEVDet 的 AAE（0.247）高于 FCOS3D（0.170），属性（如”停放/行驶”）依赖外观纹理，BEV 特征中外观信息已被抽象</li>
 <li><strong>输入分辨率敏感性</strong>：从 704×256 到 1408×512，mAP 提升 +4.5%（31.2→35.7），但计算量从 215.3 增至 824.6 GFLOPs</li>
 </ul>
 <h3 id="5-4-失效场景分析"><a href="#5-4-失效场景分析" class="headerlink" title="5.4 失效场景分析"></a>5.4 失效场景分析</h3><ul>
@@ -474,22 +474,22 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <li><strong>远距离深度歧义</strong>：无显式深度监督的情况下，远处物体的深度预测不确定性大，导致 BEV 空间的定位不准</li>
 <li><strong>属性预测弱</strong>：依赖外观线索的属性（如车辆是否停放）在 BEV 抽象特征中丢失，论文指出需结合图像视图信息</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:          SwinTransformer-Tiny (BEVDet-Tiny) / SwinT-Base (BEVDet-Base)</span><br><span class="line">Neck:              FPN-LSS (512ch)</span><br><span class="line">View Transformer:  LSS, depth ∈ [1, 60]m, interval=1.25×r</span><br><span class="line">BEV Resolution:    0.8m (Tiny) / 0.4m (Base), ROI=51.2m</span><br><span class="line">BEV Encoder:       ResNet BasicBlocks (128→256→512) + FPN-LSS</span><br><span class="line">Head:              CenterPoint Stage-1</span><br><span class="line">Input Size:        704×256 (Tiny) / 1600×640 (Base)</span><br><span class="line">Optimizer:         AdamW, lr=2e-4, gradient clip</span><br><span class="line">Schedule:          20 epochs, Cyclic LR (SwinT) / Step LR (ResNet)</span><br><span class="line">Batch Size:        64 on 8× RTX 3090</span><br><span class="line">IDA:               Random flip + scale [s-0.06, s+0.11] + rotate ±5.4° + crop</span><br><span class="line">BDA:               Random flip + rotate ±22.5° + scale [0.95, 1.05]</span><br><span class="line">Sampling:          CBGS (Class-balanced)</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:          SwinTransformer-Tiny (BEVDet-Tiny) / SwinT-Base (BEVDet-Base)</span><br><span class="line">Neck:              FPN-LSS (512ch)</span><br><span class="line">View Transformer:  LSS, depth ∈ [1, 60]m, interval=1.25×r</span><br><span class="line">BEV Resolution:    0.8m (Tiny) / 0.4m (Base), ROI=51.2m</span><br><span class="line">BEV Encoder:       ResNet BasicBlocks (128→256→512) + FPN-LSS</span><br><span class="line">Head:              CenterPoint Stage-1</span><br><span class="line">Input Size:        704×256 (Tiny) / 1600×640 (Base)</span><br><span class="line">Optimizer:         AdamW, lr=2e-4, gradient clip</span><br><span class="line">Schedule:          20 epochs, Cyclic LR (SwinT) / Step LR (ResNet)</span><br><span class="line">Batch Size:        64 on 8× RTX 3090</span><br><span class="line">IDA:               Random flip + scale [s-0.06, s+0.11] + rotate ±5.4° + crop</span><br><span class="line">BDA:               Random flip + rotate ±22.5° + scale [0.95, 1.05]</span><br><span class="line">Sampling:          CBGS (Class-balanced)</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
 <li><strong>BDA 是性能基础</strong>：没有 BEV 数据增强，模型会严重过拟合，mAP 可能只有 17~23%。BDA 对 BEV Encoder 和 Head 的正则化效果不可替代</li>
 <li><strong>IDA 需要与 BDA 配合</strong>：单独使用 IDA 可能反而降低性能（消融实验 B vs. A），只有在 BDA 存在时 IDA 才正向贡献</li>
 <li><strong>Scale-NMS 超参数搜索</strong>：缩放因子是类别特定的，需要在验证集上搜索。对行人和交通锥等小物体尤其关键</li>
 <li><strong>加速推理</strong>：将 cumulative sum 操作替换为辅助索引 + 矩阵 sum（预计算模式下），推理延迟从 137ms 降至 64ms（-53.3%）</li>
-<li><strong>深度范围扩展</strong>：BEVDet 将 LSS 原始的 4<del>45m 扩展到 1</del>60m，使用 $\Delta d &#x3D; 1.25 \times r$（$r$ 为 BEV 分辨率），增大了深度覆盖范围</li>
+<li><strong>深度范围扩展</strong>：BEVDet 将 LSS 原始的 4<del>45m 扩展到 1</del>60m，使用 $\Delta d = 1.25 \times r$（$r$ 为 BEV 分辨率），增大了深度覆盖范围</li>
 <li><strong>CBGS 采样</strong>：类别均衡采样策略对长尾分布的 10 类检测至关重要</li>
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong>：</p>
 <ul>
-<li><strong>显式深度监督 + Camera-Aware</strong>：<a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 利用 LiDAR 投影深度 + 相机内参 SE 编码显著提升定位精度（同配置 NDS +14.8）</li>
+<li><strong>显式深度监督 + Camera-Aware</strong>：BEVDepth 利用 LiDAR 投影深度 + 相机内参 SE 编码显著提升定位精度（同配置 NDS +14.8）</li>
 <li><strong>时序融合</strong>：BEVDet4D 引入历史帧 BEV 特征对齐和融合，获取运动信息和深度线索</li>
 </ul>
-<p><strong>速度优化 &#x2F; 部署优化（BEVPool 系列演进）</strong>：</p>
+<p><strong>速度优化 / 部署优化（BEVPool 系列演进）</strong>：</p>
 <p>BEVDet 系列在部署优化方面经历了三代 BEV Pooling 实现的演进：</p>
 <table>
 <thead>
@@ -524,13 +524,13 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <ul>
 <li>速度提升：低分辨率 3.1×，高分辨率 <strong>15.1×</strong></li>
 <li>显存节省：低分辨率 94.3%，高分辨率 <strong>98.0%</strong></li>
-<li>640×1600、D&#x3D;118 配置下视图变换仅 <strong>0.82 ms</strong></li>
+<li>640×1600、D=118 配置下视图变换仅 <strong>0.82 ms</strong></li>
 <li>TensorRT-FP16 下 BEVDet-R50 达 <strong>138.9 FPS</strong></li>
 </ul>
 <p>所有几何相关的索引仅依赖相机内外参，可完全<strong>离线预计算</strong>，推理时作为固定参数零开销输入。这使 LSS 范式在边缘设备上部署成为可能。</p>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
 <li><strong>数据增强的解耦分析</strong>：当模型中存在解耦不同特征空间的模块时，应分别为各空间设计独立的数据增强策略。这一思想可推广到任何涉及坐标变换的架构（如 NeRF 的世界坐标与像素坐标）</li>
-<li><strong>Scale-NMS 的类别自适应后处理</strong>：在 BEV&#x2F;3D 空间中，不同类别的尺度差异远大于 2D 空间，后处理策略需要类别自适应设计</li>
+<li><strong>Scale-NMS 的类别自适应后处理</strong>：在 BEV/3D 空间中，不同类别的尺度差异远大于 2D 空间，后处理策略需要类别自适应设计</li>
 <li><strong>先验结构 vs. 学习结构</strong>：BEVDet 表明，使用已知的几何变换（相机投影模型）作为先验结构，再通过数据增强充分训练后续模块，比完全数据驱动的方法更高效</li>
 <li><strong>“索引间接访问”的部署优化</strong>：BEVPoolv2 展示的”不存储中间张量、用索引按需访问”方案，是 GPU 算子优化的通用模式</li>
 </ul>
@@ -543,7 +543,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <li><strong>确立 BEV 3D 检测范式</strong>：BEVDet 是首个系统性地将 LSS 框架应用于 3D 目标检测并达到 SOTA 的工作，直接催生了 BEVDet4D、BEVDepth、BEVStereo 等系列演进；与之并行的 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> 则走向了 query-based Transformer 路线，两大技术流派的竞争推动了 BEV 感知的快速发展</li>
 <li><strong>BEV 数据增强成为标配</strong>：BDA 策略被后续几乎所有 BEV 检测方法采用，成为训练 BEV 模型的标准操作</li>
 <li><strong>推动 BEV 感知生态</strong>：BEVDet 代码库（mmdetection3d 风格）成为 BEV 感知研究的标准 codebase 之一，BEVPoolv2 成为工业部署的标准算子</li>
-<li><strong>工业量产落地</strong>：BEVDet 系列（尤其 dev2.0 分支）被国内多家 OEM 采纳为量产方案的基础，其模块化 + TensorRT 导出 + BEVPoolv2 优化的完整链路成为 BEV 感知部署的参考标准。其中 BEVDet → <a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a> 的跃升尤其关键——同等 R50 &#x2F; 256×704 配置下 NDS 从 32.7 到 47.5（+14.8），仅通过补强深度估计环节就实现，证明了 BEVDet 框架的性能天花板不在架构本身而在深度质量</li>
+<li><strong>工业量产落地</strong>：BEVDet 系列（尤其 dev2.0 分支）被国内多家 OEM 采纳为量产方案的基础，其模块化 + TensorRT 导出 + BEVPoolv2 优化的完整链路成为 BEV 感知部署的参考标准。其中 BEVDet → BEVDepth 的跃升尤其关键——同等 R50 / 256×704 配置下 NDS 从 32.7 到 47.5（+14.8），仅通过补强深度估计环节就实现，证明了 BEVDet 框架的性能天花板不在架构本身而在深度质量</li>
 </ul>
 <p>BEVDet 系列演进时间线：</p>
 <table>
@@ -559,7 +559,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <td>BEVDet</td>
 <td>2021.12</td>
 <td>LSS→3D 检测 + BDA + Scale-NMS</td>
-<td>39.2 (Tiny) &#x2F; 47.2 (Base)</td>
+<td>39.2 (Tiny) / 47.2 (Base)</td>
 </tr>
 <tr>
 <td>BEVDet4D</td>
@@ -568,7 +568,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{heatmap}} + \lambda_1 \mathcal{L}_{\text{offs
 <td>~50</td>
 </tr>
 <tr>
-<td><a href="/posts/2023/papers/2023_AAAI_BEVDepth_Acquisition_Reliable_Depth/">BEVDepth</a></td>
+<td>BEVDepth</td>
 <td>2022.06</td>
 <td>LiDAR 深度监督 + Camera-Aware DepthNet</td>
 <td>~50+</td>
@@ -601,7 +601,7 @@ $$\mathcal{F}'(T-1, P^{e(T)}) = \mathcal{F}(T-1, T_{e(T)}^{e(T-1)} P^{e(T)})$$
 <ul>
 <li>对齐包含旋转和平移（消融 Tab.3 F vs E：加入旋转对齐后 mAVE 从 0.435 降至 0.376，-13.6%）</li>
 <li>融合位置在 Extra BEV Encoder 之后（Tab.5 B vs A: mAVE 0.429 vs 0.480）</li>
-<li>BEV 特征太稀疏，石截融合前需额外 BEV Encoder（2 个 ResNet Basic Block）先精炼</li>
+<li>BEV 特征太稀疏，石截融合前需额外 BEV Encoder（2 个 <a href="/posts/2016/papers/2016_CVPR_ResNet_Deep_Residual_Learning/">ResNet</a> Basic Block）先精炼</li>
 </ul>
 <h4 id="改进-2：速度预测简化为位移预测"><a href="#改进-2：速度预测简化为位移预测" class="headerlink" title="改进 2：速度预测简化为位移预测"></a>改进 2：速度预测简化为位移预测</h4><p>传统做法直接预测目标的世界坐标系速度 $(v_x, v_y)$，但这需要网络同时学习位置差异和时间因子。BEVDet4D 将学习目标简化为相邻帧的<strong>位置偏移</strong>（消除时间因子），且通过对齐操作消除自车运动分量，使学习目标仅为目标自身的运动。</p>
 <p>消融 Tab.3 验证：</p>
@@ -609,7 +609,7 @@ $$\mathcal{F}'(T-1, P^{e(T)}) = \mathcal{F}(T-1, T_{e(T)}^{e(T-1)} P^{e(T)})$$
 <li>无对齐直接拼接（A）：NDS 从 39.2% 降至 37.6%，反而恶化</li>
 <li>仅平移对齐（B）：mAVE 从 1.544 降至 1.186（-23.2%）</li>
 <li>平移对齐 + 位移目标（C）：mAVE 急降至 0.479（-59.6%）</li>
-<li>完整配置 + 时间增强（G）：mAVE &#x3D; 0.328，比 BEVDet-Tiny 降 <strong>62.9%</strong></li>
+<li>完整配置 + 时间增强（G）：mAVE = 0.328，比 BEVDet-Tiny 降 <strong>62.9%</strong></li>
 </ul>
 <h3 id="BEVDet4D-主要结果"><a href="#BEVDet4D-主要结果" class="headerlink" title="BEVDet4D 主要结果"></a>BEVDet4D 主要结果</h3><p><strong>nuScenes val 集</strong>：</p>
 <table>
@@ -695,10 +695,11 @@ $$\mathcal{F}'(T-1, P^{e(T)}) = \mathcal{F}(T-1, T_{e(T)}^{e(T-1)} P^{e(T)})$$
 </tbody></table>
 <p><strong>关键发现</strong>：</p>
 <ol>
-<li>BEVDet4D-Tiny 以可忽略的额外计算量（+6.7 GFLOPs &#x2F; +1M 参数）实现 +8.4% NDS，速度几乎不变（15.6→15.5 FPS）</li>
+<li>BEVDet4D-Tiny 以可忽略的额外计算量（+6.7 GFLOPs / +1M 参数）实现 +8.4% NDS，速度几乎不变（15.6→15.5 FPS）</li>
 <li>速度估计误差降 62.9%（mAVE 0.909→0.337），纯视觉方法首次在速度精度上超越多传感器融合方法 CenterFusion（0.540）</li>
 <li>BEVDet4D-Base 在 test 集达 56.9% NDS（含 TTA），超越 BEVFormer +3.4% NDS</li>
 </ol>
+
 
             </div>
 

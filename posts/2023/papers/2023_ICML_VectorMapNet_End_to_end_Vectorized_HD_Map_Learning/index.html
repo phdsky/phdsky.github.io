@@ -55,12 +55,13 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: End-to-end Vectorized HD Map Learning<br>Method: DETR-style Element Detection + Autoregressive Polyline Generation<br>Venue: ICML<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2206.08920">https://arxiv.org/abs/2206.08920</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/Mrmoore98/VectorMapNet_code">https://github.com/Mrmoore98/VectorMapNet_code</a></p>
+                
+<p>Task: End-to-end Vectorized HD Map Learning<br>Method: DETR-style Element Detection + Autoregressive Polyline Generation<br>Venue: ICML<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2206.08920">https://arxiv.org/abs/2206.08920</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/Mrmoore98/VectorMapNet_code">https://github.com/Mrmoore98/VectorMapNet_code</a></p>
 <span id="more"></span>
 
 <!-- toc -->
 
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>VectorMapNet 是首个真正端到端输出<strong>矢量化高精地图</strong>的方法。HDMapNet 等前驱仍走”BEV 分割 + 后处理（DBSCAN + 贪心连接）”路线，矢量化质量受聚类启发式制约；而 VectorMapNet 把整张本地地图建模为一组<strong>多边形元素</strong>，每个元素由”类别 + 一组关键点 + 一条折线”刻画，并用两阶段架构直接预测：先用 DETR 风格的 element detector 检测出每个元素的关键点集合，再用一个<strong>自回归 polyline generator</strong> 在离散化的 BEV 坐标上逐顶点生成完整折线。在 nuScenes 上以多模态融合达到 mAP 52.3%，比 HDMapNet Fusion 高出 14.2 mAP，确立了”端到端矢量化”的新范式，是 MapTR &#x2F; MapTRv2 的直接前身。</p>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>VectorMapNet 是首个真正端到端输出<strong>矢量化高精地图</strong>的方法。<a href="/posts/2022/papers/2022_ICRA_HDMapNet_Online_HD_Map_Construction/">HDMapNet</a> 等前驱仍走”BEV 分割 + 后处理（DBSCAN + 贪心连接）”路线，矢量化质量受聚类启发式制约；而 VectorMapNet 把整张本地地图建模为一组<strong>多边形元素</strong>，每个元素由”类别 + 一组关键点 + 一条折线”刻画，并用两阶段架构直接预测：先用 <a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a> 风格的 element detector 检测出每个元素的关键点集合，再用一个<strong>自回归 polyline generator</strong> 在离散化的 BEV 坐标上逐顶点生成完整折线。在 nuScenes 上以多模态融合达到 mAP 52.3%，比 HDMapNet Fusion 高出 14.2 mAP，确立了”端到端矢量化”的新范式，是 <a href="/posts/2023/papers/2023_ICLR_MapTR_Structured_Modeling_Online_Vectorized_HD_Map/">MapTR</a> / <a href="/posts/2024/papers/2024_IJCV_MapTRv2_End_to_End_Vectorized_HD_Map/">MapTRv2</a> 的直接前身。</p>
 <p><strong>核心论点</strong>：HD 地图的本质是矢量集合而不是栅格，模型应该直接学习矢量空间上的分布，把”分割→后处理”换成”检测→生成”。</p>
 <h2 id="2-问题与动机"><a href="#2-问题与动机" class="headerlink" title="2. 问题与动机"></a>2. 问题与动机</h2><table>
 <thead>
@@ -76,9 +77,9 @@
 <td align="left">DBSCAN 聚类不稳定；同类邻近元素易错合</td>
 </tr>
 <tr>
-<td align="left">LaneGAP &#x2F; 早期车道线方法</td>
+<td align="left">LaneGAP / 早期车道线方法</td>
 <td align="left">仅车道线</td>
-<td align="left">元素类型单一，无法覆盖人行横道 &#x2F; 边界</td>
+<td align="left">元素类型单一，无法覆盖人行横道 / 边界</td>
 </tr>
 <tr>
 <td align="left">离线 HD 地图人工标注</td>
@@ -88,10 +89,10 @@
 </tbody></table>
 <p><strong>核心痛点</strong>：HDMapNet 的栅格表示决定了它必须依赖后处理来矢量化，而后处理一旦失败，前面所有像素级分割都白做。需要一种把”矢量”作为一等公民的模型表示。</p>
 <h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：跳过栅格中介，直接对矢量空间建模"><a href="#洞察-1：跳过栅格中介，直接对矢量空间建模" class="headerlink" title="洞察 1：跳过栅格中介，直接对矢量空间建模"></a>洞察 1：跳过栅格中介，直接对矢量空间建模</h3><p>HDMapNet 的 pipeline：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">images/LiDAR → BEV feat → semantic mask → DBSCAN → NMS → greedy → polylines</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">images/LiDAR → BEV feat → semantic mask → DBSCAN → NMS → greedy → polylines</span><br></pre></td></tr></tbody></table></figure>
 
 <p>VectorMapNet 的 pipeline：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">images/LiDAR → BEV feat → element queries (keypoints) → polyline generator → polylines</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">images/LiDAR → BEV feat → element queries (keypoints) → polyline generator → polylines</span><br></pre></td></tr></tbody></table></figure>
 
 <p>去掉中间的栅格 + 启发式后处理，整个矢量化是端到端可学习、可微的。这种”绕过中间表示”的思路与 DETR 当年绕过 NMS 极其相似。</p>
 <h3 id="洞察-2：用关键点集合表示一个矢量元素，最简关键点最好"><a href="#洞察-2：用关键点集合表示一个矢量元素，最简关键点最好" class="headerlink" title="洞察 2：用关键点集合表示一个矢量元素，最简关键点最好"></a>洞察 2：用关键点集合表示一个矢量元素，最简关键点最好</h3><p>矢量元素如何 query？论文比较了三种几何表示：</p>
@@ -104,7 +105,7 @@
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">Bounding Box (左上 &#x2F; 右下)</td>
+<td align="left">Bounding Box (左上 / 右下)</td>
 <td align="center">2</td>
 <td align="center"><strong>40.9</strong></td>
 </tr>
@@ -122,10 +123,7 @@
 <p>最简的 <strong>bbox 两点表示反而最好</strong>：少一个点，预测稳定性反而更高，给后续 polyline generator 留出更多空间去描述细节。这是一条非常工程化的洞察——粗位置预测越简单越好，精细形状交给生成器。</p>
 <h3 id="洞察-3：把”形状回归”换成”离散自回归生成”"><a href="#洞察-3：把”形状回归”换成”离散自回归生成”" class="headerlink" title="洞察 3：把”形状回归”换成”离散自回归生成”"></a>洞察 3：把”形状回归”换成”离散自回归生成”</h3><p>折线形状的复杂度（曲率突变、自交、回环）让连续坐标回归非常难收敛。VectorMapNet 把 BEV 坐标离散为 200×100 网格（0.3 m 量化），polyline generator 是一个标准的 Transformer，逐顶点输出离散 token，并以 keypoint 作为 prompt：</p>
 
-$$p_\theta(V_f | V_k, F_{BEV}) = \prod_{n=1}^{2N_v + 1} p_\theta(v^n_f | v^{<n}_f, V_k, F_{BEV})$$
-
-
-<p>其中每个 $v^n_f$ 是 200×100 个离散位置中的一个 token，外加结束符。离散化 + 自回归比连续回归在 Fréchet mAP 上从 41.9% 提升到 50.4%，是一次结构性收益。</p>
+$$p_\theta(V_f | V_k, F_{BEV}) = \prod_{n=1}^{2N_v + 1} p_\theta(v^n_f | v^{<n}_f, v_k,="" f_{bev})$$="" <p="">其中每个 $v^n_f$ 是 200×100 个离散位置中的一个 token，外加结束符。离散化 + 自回归比连续回归在 Fréchet mAP 上从 41.9% 提升到 50.4%，是一次结构性收益。<p></p>
 <h4 id="三个洞察的递进关系"><a href="#三个洞察的递进关系" class="headerlink" title="三个洞察的递进关系"></a>三个洞察的递进关系</h4><ol>
 <li>表示：用矢量集合替代栅格；</li>
 <li>接口：用关键点 query 锚定每个元素的粗位置；</li>
@@ -134,14 +132,13 @@ $$p_\theta(V_f | V_k, F_{BEV}) = \prod_{n=1}^{2N_v + 1} p_\theta(v^n_f | v^{<n}_
 <p><strong>三个关键数字</strong>：</p>
 <ul>
 <li><strong>Fusion mAP 52.3%（fine-tune）</strong> vs HDMapNet Fusion 31.0%：<strong>+14.2 mAP</strong> 的端到端跃迁；</li>
-<li><strong>Bbox 关键点（k&#x3D;2）40.9% mAP</strong>：最简表示反而最优；</li>
+<li><strong>Bbox 关键点（k=2）40.9% mAP</strong>：最简表示反而最优；</li>
 <li><strong>离散自回归 50.4% Fréchet mAP vs 连续回归 41.9%</strong>：把形状回归改造成 token 生成的纯收益。</li>
 </ul>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>$${\text{cams}, \text{LiDAR}} \rightarrow F_{BEV} \rightarrow {\text{element queries} \to \text{keypoints}} \rightarrow \text{polyline generator} \rightarrow {(\text{class}, \text{polyline})}$$</p>
 <p>ASCII 架构图：</p>
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-   surround cameras           LiDAR
+<pre>   surround cameras           LiDAR
         │                       │
         ▼                       ▼
    ┌──────────┐           ┌──────────┐
@@ -200,12 +197,12 @@ $$p_\theta(V_f | V_k, F_{BEV}) = \prod_{n=1}^{2N_v + 1} p_\theta(v^n_f | v^{<n}_
 <tr>
 <td align="left">IPM (4 planes)</td>
 <td align="left">PV → BEV</td>
-<td align="left">在 −1 &#x2F; 0 &#x2F; 1 &#x2F; 2 m 四个高度面分别做 IPM 并拼接，弥补单平面假设的不足</td>
+<td align="left">在 −1 / 0 / 1 / 2 m 四个高度面分别做 IPM 并拼接，弥补单平面假设的不足</td>
 </tr>
 <tr>
 <td align="left">LiDAR backbone</td>
 <td align="left">LiDAR BEV 特征</td>
-<td align="left">PointPillars</td>
+<td align="left"><a href="/posts/2019/papers/2019_CVPR_PointPillars_Fast_Encoders_LiDAR_3D_Object_Detection/">PointPillars</a></td>
 </tr>
 <tr>
 <td align="left">BEV fusion</td>
@@ -232,12 +229,12 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{gen}}$$
 <li>$\mathcal{L}_{\text{det}}$：DETR 风格的 set loss（class CE + keypoint L1，匈牙利匹配）；</li>
 <li>$\mathcal{L}_{\text{gen}}$：polyline token 的交叉熵（teacher forcing 训练）。</li>
 </ul>
-<h3 id="4-3-关键设计：4-plane-IPM"><a href="#4-3-关键设计：4-plane-IPM" class="headerlink" title="4.3 关键设计：4-plane IPM"></a>4.3 关键设计：4-plane IPM</h3><p>单平面 IPM 假设地面是 $z&#x3D;0$ 的水平面，远处误差大。VectorMapNet 在 $z \in {-1, 0, 1, 2}$ m 各做一次 IPM，把四个 BEV 特征沿通道拼接，让网络自己挑选合适的高度——以”代价低 + 几何先验”的方式部分弥补 IPM 的不足。这是工程上一个非常划算的小改动。</p>
+<h3 id="4-3-关键设计：4-plane-IPM"><a href="#4-3-关键设计：4-plane-IPM" class="headerlink" title="4.3 关键设计：4-plane IPM"></a>4.3 关键设计：4-plane IPM</h3><p>单平面 IPM 假设地面是 $z=0$ 的水平面，远处误差大。VectorMapNet 在 $z \in {-1, 0, 1, 2}$ m 各做一次 IPM，把四个 BEV 特征沿通道拼接，让网络自己挑选合适的高度——以”代价低 + 几何先验”的方式部分弥补 IPM 的不足。这是工程上一个非常划算的小改动。</p>
 <h3 id="4-4-关键代码"><a href="#4-4-关键代码" class="headerlink" title="4.4 关键代码"></a>4.4 关键代码</h3><p>polyline generator 的核心是 vertex-level 的 Transformer 自回归。下面整理生成阶段的关键流程：</p>
 <details>
 <summary>📄 点击展开 polyline generator 推理伪代码（依据论文与官方实现）</summary>
 
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：VectorMapNet_code, models/polyline_generator.py</span></span><br><span class="line"><span class="comment"># https://github.com/Mrmoore98/VectorMapNet_code</span></span><br><span class="line"></span><br><span class="line"><span class="meta">@torch.no_grad()</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">generate</span>(<span class="params">bev_feat, keypoints, cls, transformer,</span></span><br><span class="line"><span class="params">             grid_h=<span class="number">200</span>, grid_w=<span class="number">100</span>, max_len=<span class="number">80</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    bev_feat:  [C, H, W]      BEV 特征</span></span><br><span class="line"><span class="string">    keypoints: [k, 2]         元素粗位置（来自 element detector）</span></span><br><span class="line"><span class="string">    cls:       int            元素类别</span></span><br><span class="line"><span class="string">    返回:      [N, 2]         离散坐标序列</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="comment"># 1) 用 keypoints 在 BEV 上裁剪 RoI 特征</span></span><br><span class="line">    roi_feat = roi_pool(bev_feat, keypoints)        <span class="comment"># [C&#x27;, h&#x27;, w&#x27;]</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2) prompt：[CLS_emb, keypoint_emb_1..k, SEP]</span></span><br><span class="line">    prompt = make_prompt(cls, keypoints)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 3) 自回归生成 token，token ∈ &#123;0,...,grid_h*grid_w&#125; ∪ &#123;EOS&#125;</span></span><br><span class="line">    tokens = [BOS_ID]</span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(max_len):</span><br><span class="line">        logits = transformer(</span><br><span class="line">            decoder_input=tokens,</span><br><span class="line">            memory=cat([prompt, flatten(roi_feat)])</span><br><span class="line">        )                                           <span class="comment"># [V+1]</span></span><br><span class="line">        next_tok = logits[-<span class="number">1</span>].argmax()</span><br><span class="line">        <span class="keyword">if</span> next_tok == EOS_ID:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        tokens.append(<span class="built_in">int</span>(next_tok))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 4) 离散 token → BEV 坐标</span></span><br><span class="line">    coords = []</span><br><span class="line">    <span class="keyword">for</span> tok <span class="keyword">in</span> tokens[<span class="number">1</span>:]:                          <span class="comment"># 去掉 BOS</span></span><br><span class="line">        y, x = <span class="built_in">divmod</span>(tok, grid_w)</span><br><span class="line">        coords.append((x * <span class="number">0.3</span>, y * <span class="number">0.3</span>))           <span class="comment"># 0.3 m 量化</span></span><br><span class="line">    <span class="keyword">return</span> coords</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="comment"># 来源：VectorMapNet_code, models/polyline_generator.py</span></span><br><span class="line"><span class="comment"># https://github.com/Mrmoore98/VectorMapNet_code</span></span><br><span class="line"></span><br><span class="line"><span class="meta">@torch.no_grad()</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">generate</span>(<span class="params">bev_feat, keypoints, cls, transformer,</span></span><br><span class="line"><span class="params">             grid_h=<span class="number">200</span>, grid_w=<span class="number">100</span>, max_len=<span class="number">80</span></span>):</span><br><span class="line">    <span class="string">"""</span></span><br><span class="line"><span class="string">    bev_feat:  [C, H, W]      BEV 特征</span></span><br><span class="line"><span class="string">    keypoints: [k, 2]         元素粗位置（来自 element detector）</span></span><br><span class="line"><span class="string">    cls:       int            元素类别</span></span><br><span class="line"><span class="string">    返回:      [N, 2]         离散坐标序列</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    <span class="comment"># 1) 用 keypoints 在 BEV 上裁剪 RoI 特征</span></span><br><span class="line">    roi_feat = roi_pool(bev_feat, keypoints)        <span class="comment"># [C', h', w']</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 2) prompt：[CLS_emb, keypoint_emb_1..k, SEP]</span></span><br><span class="line">    prompt = make_prompt(cls, keypoints)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 3) 自回归生成 token，token ∈ {0,...,grid_h*grid_w} ∪ {EOS}</span></span><br><span class="line">    tokens = [BOS_ID]</span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(max_len):</span><br><span class="line">        logits = transformer(</span><br><span class="line">            decoder_input=tokens,</span><br><span class="line">            memory=cat([prompt, flatten(roi_feat)])</span><br><span class="line">        )                                           <span class="comment"># [V+1]</span></span><br><span class="line">        next_tok = logits[-<span class="number">1</span>].argmax()</span><br><span class="line">        <span class="keyword">if</span> next_tok == EOS_ID:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        tokens.append(<span class="built_in">int</span>(next_tok))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 4) 离散 token → BEV 坐标</span></span><br><span class="line">    coords = []</span><br><span class="line">    <span class="keyword">for</span> tok <span class="keyword">in</span> tokens[<span class="number">1</span>:]:                          <span class="comment"># 去掉 BOS</span></span><br><span class="line">        y, x = <span class="built_in">divmod</span>(tok, grid_w)</span><br><span class="line">        coords.append((x * <span class="number">0.3</span>, y * <span class="number">0.3</span>))           <span class="comment"># 0.3 m 量化</span></span><br><span class="line">    <span class="keyword">return</span> coords</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -307,17 +304,17 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{gen}}$$
 <td align="center">洞察 1</td>
 </tr>
 <tr>
-<td align="left">关键点表示：Bbox(k&#x3D;2) <strong>40.9</strong> &#x2F; SME(k&#x3D;3) 32.5 &#x2F; Extreme(k&#x3D;4) 33.6</td>
+<td align="left">关键点表示：Bbox(k=2) <strong>40.9</strong> / SME(k=3) 32.5 / Extreme(k=4) 33.6</td>
 <td align="left">最简 bbox 表示最优</td>
 <td align="center">洞察 2</td>
 </tr>
 <tr>
-<td align="left">形状解码：连续回归 41.9 &#x2F; <strong>离散自回归 50.4</strong>（Fréchet mAP）</td>
+<td align="left">形状解码：连续回归 41.9 / <strong>离散自回归 50.4</strong>（Fréchet mAP）</td>
 <td align="left">离散 token 显著优于连续坐标</td>
 <td align="center">洞察 3</td>
 </tr>
 <tr>
-<td align="left">IPM planes：1 plane &#x2F; <strong>4 planes</strong></td>
+<td align="left">IPM planes：1 plane / <strong>4 planes</strong></td>
 <td align="left">4 平面 BEV 特征更鲁棒</td>
 <td align="center">洞察 1</td>
 </tr>
@@ -342,10 +339,10 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{gen}}$$
 <li><strong>远距离目标</strong>：BEV 特征远端稀疏，生成器容易在 token 序列后段”跑偏”；</li>
 <li><strong>时序不一致</strong>：单帧推理，相邻帧之间生成的 polyline 不严格一致，需要外部时序滤波。</li>
 </ul>
-<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Camera backbone: ResNet-50 + FPN</span><br><span class="line">LiDAR backbone:  PointPillars</span><br><span class="line">View transform:  IPM at z ∈ &#123;-1, 0, 1, 2&#125; m, channel concat</span><br><span class="line">BEV res:         W=100, H=200, 0.3 m grid（覆盖 ±15 m × ±30 m）</span><br><span class="line">Element queries: 100, 每条 k=2 个 keypoints (Bbox 表示)</span><br><span class="line">Generator:       Transformer, 6 layers, autoregressive over 200×100 grid</span><br><span class="line">Loss:            DETR-style set loss + token CE</span><br><span class="line">Optimizer:       AdamW, lr 5e-4, weight decay 1e-2</span><br><span class="line">Schedule:        110 epochs on 8× RTX 3090</span><br></pre></td></tr></table></figure>
+<h2 id="6-工程实践"><a href="#6-工程实践" class="headerlink" title="6. 工程实践"></a>6. 工程实践</h2><h3 id="6-1-训练配置"><a href="#6-1-训练配置" class="headerlink" title="6.1 训练配置"></a>6.1 训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Camera backbone: ResNet-50 + FPN</span><br><span class="line">LiDAR backbone:  PointPillars</span><br><span class="line">View transform:  IPM at z ∈ {-1, 0, 1, 2} m, channel concat</span><br><span class="line">BEV res:         W=100, H=200, 0.3 m grid（覆盖 ±15 m × ±30 m）</span><br><span class="line">Element queries: 100, 每条 k=2 个 keypoints (Bbox 表示)</span><br><span class="line">Generator:       Transformer, 6 layers, autoregressive over 200×100 grid</span><br><span class="line">Loss:            DETR-style set loss + token CE</span><br><span class="line">Optimizer:       AdamW, lr 5e-4, weight decay 1e-2</span><br><span class="line">Schedule:        110 epochs on 8× RTX 3090</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="6-2-复现要点"><a href="#6-2-复现要点" class="headerlink" title="6.2 复现要点"></a>6.2 复现要点</h3><ol>
-<li><strong>关键点表示一定要先用 bbox(k&#x3D;2) 跑通</strong>，再考虑增加点数；</li>
+<li><strong>关键点表示一定要先用 bbox(k=2) 跑通</strong>，再考虑增加点数；</li>
 <li><strong>离散网格的步长要与 BEV 范围匹配</strong>——0.3 m × 100 列正好对应 ±15 m，改范围必须同步改 token vocab；</li>
 <li><strong>polyline generator 的 EOS token 训练样本要充分</strong>，否则推理时长度发散；</li>
 <li><strong>匈牙利匹配中 keypoint 距离的权重</strong>比 class 权重更敏感，调高 keypoint 权重通常更稳；</li>
@@ -353,19 +350,19 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{gen}}$$
 </ol>
 <h3 id="6-3-性能优化方向"><a href="#6-3-性能优化方向" class="headerlink" title="6.3 性能优化方向"></a>6.3 性能优化方向</h3><p><strong>精度提升</strong></p>
 <ul>
-<li>把 IPM 替换成 deformable attention 或 LSS 风格的可微 lift，缓解远端 BEV 稀疏；</li>
-<li>为 generator 引入时序记忆（参考 StreamPETR 的滑动 query），消除帧间不一致；</li>
+<li>把 IPM 替换成 deformable attention 或 <a href="/posts/2020/papers/2020_ECCV_LSS_Lift_Splat_Shoot/">LSS</a> 风格的可微 lift，缓解远端 BEV 稀疏；</li>
+<li>为 generator 引入时序记忆（参考 <a href="/posts/2023/papers/2023_ICCV_StreamPETR_Object_Centric_Temporal_Modeling/">StreamPETR</a> 的滑动 query），消除帧间不一致；</li>
 <li>让 element detector 与 polyline generator 共享同一套 BEV decoder（MapTR 走的就是这条路）。</li>
 </ul>
 <p><strong>速度优化</strong></p>
 <ul>
-<li>把自回归 generator 改为并行解码（parallel decoding，类似 MaskFormer &#x2F; MapTR 的 instance polyline query）；</li>
+<li>把自回归 generator 改为并行解码（parallel decoding，类似 MaskFormer / MapTR 的 instance polyline query）；</li>
 <li>这正是 MapTR 的核心改进——一次性预测固定点数的 polyline，整体 FPS 翻倍以上。</li>
 </ul>
 <h2 id="7-研究启示"><a href="#7-研究启示" class="headerlink" title="7. 研究启示"></a>7. 研究启示</h2><h3 id="7-1-可迁移的思想"><a href="#7-1-可迁移的思想" class="headerlink" title="7.1 可迁移的思想"></a>7.1 可迁移的思想</h3><ul>
 <li><strong>“检测 + 生成”两阶段范式</strong>：粗位置用 set prediction、细形状用自回归，可推广到任意”元素 + 形状”的结构化预测任务；</li>
-<li><strong>离散化 + 自回归</strong>：当目标空间有长尾、自交、突变时，把回归转成 token 分类是稳定的工程选择（与 PointE &#x2F; Pix2Seq 思路一致）；</li>
-<li><strong>最简关键点表示</strong>：少即是多——bbox(k&#x3D;2) 反胜于 SME(k&#x3D;3) &#x2F; Extreme(k&#x3D;4)，是反直觉但有用的观察；</li>
+<li><strong>离散化 + 自回归</strong>：当目标空间有长尾、自交、突变时，把回归转成 token 分类是稳定的工程选择（与 PointE / Pix2Seq 思路一致）；</li>
+<li><strong>最简关键点表示</strong>：少即是多——bbox(k=2) 反胜于 SME(k=3) / Extreme(k=4)，是反直觉但有用的观察；</li>
 <li><strong>多平面 IPM</strong>：用 4 个高度面拼接补 IPM 的不足，是低成本提升 BEV 几何鲁棒性的小技巧。</li>
 </ul>
 <h3 id="7-2-方法局限"><a href="#7-2-方法局限" class="headerlink" title="7.2 方法局限"></a>7.2 方法局限</h3><ol>
@@ -378,8 +375,11 @@ $$\mathcal{L} = \mathcal{L}_{\text{det}} + \mathcal{L}_{\text{gen}}$$
 <li>是矢量化建图的<strong>端到端范式起点</strong>，从此之后矢量化建图论文基本不再讨论”DBSCAN + 启发式连接”；</li>
 <li>直接催生 MapTR：把”检测 + 自回归生成”压缩为”polyline query 一次性并行预测”，速度提升一个数量级；</li>
 <li>也启发 MapTRv2、PivotNet 等后续工作在矢量表示上做更多尝试（pivot 点、解耦形状与位置等）；</li>
-<li>在范式层面验证了”用 DETR-style query 操控 BEV 任务”的普适性，与 BEVFormer &#x2F; Sparse4D 等共同构成 BEV+Transformer 的方法学版图。</li>
+<li>在范式层面验证了”用 DETR-style query 操控 BEV 任务”的普适性，与 <a href="/posts/2022/papers/2022_ECCV_BEVFormer_Spatiotemporal_Transformers/">BEVFormer</a> / <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a> 等共同构成 BEV+Transformer 的方法学版图。</li>
 </ul>
+
+            </n}_f,>
+
 
             </div>
 

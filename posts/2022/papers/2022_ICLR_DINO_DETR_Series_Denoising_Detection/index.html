@@ -55,7 +55,8 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Task: Object Detection<br>Method: DETR with Improved DeNoising Anchor Boxes<br>Venue: CVPR 2022 (DN-DETR) &#x2F; ICLR 2022 (DAB-DETR) &#x2F; ICLR 2023 (DINO)<br>Year: 2022–2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.01305">https://arxiv.org/abs/2203.01305</a> (DN-DETR) | <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2201.12329">https://arxiv.org/abs/2201.12329</a> (DAB-DETR) | <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.03605">https://arxiv.org/abs/2203.03605</a> (DINO)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/IDEACVR/DINO">https://github.com/IDEACVR/DINO</a></p>
+                
+<p>Task: Object Detection<br>Method: <a href="/posts/2020/papers/2020_ECCV_DETR_End_to_End_Object_Detection_with_Transformers/">DETR</a> with Improved DeNoising Anchor Boxes<br>Venue: CVPR 2022 (DN-DETR) / ICLR 2022 (DAB-DETR) / ICLR 2023 (DINO)<br>Year: 2022–2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.01305">https://arxiv.org/abs/2203.01305</a> (DN-DETR) | <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2201.12329">https://arxiv.org/abs/2201.12329</a> (DAB-DETR) | <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.03605">https://arxiv.org/abs/2203.03605</a> (DINO)<br>Code: <a target="_blank" rel="noopener" href="https://github.com/IDEACVR/DINO">https://github.com/IDEACVR/DINO</a></p>
 <span id="more"></span>
 
 <!-- toc -->
@@ -87,7 +88,7 @@
 <tr>
 <td>收敛速度慢</td>
 <td>DETR 需 500 epochs</td>
-<td>Faster R-CNN 仅需 12-36 epochs</td>
+<td>Faster <a href="/posts/2014/papers/2014_CVPR_RCNN_Series_Region_Based_Object_Detection/">R-CNN</a> 仅需 12-36 epochs</td>
 </tr>
 <tr>
 <td>小目标性能差</td>
@@ -102,7 +103,7 @@
 <li><strong>DINO</strong>：综合优化去噪、查询初始化和梯度传播</li>
 </ol>
 <p><strong>核心痛点</strong>：如何让 DETR-like 端到端检测器在训练效率和检测精度上全面超越经过多年优化的传统检测器？</p>
-<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：Query-动态锚框——让-DETR-的-query-有空间含义"><a href="#洞察-1：Query-动态锚框——让-DETR-的-query-有空间含义" class="headerlink" title="洞察 1：Query &#x3D; 动态锚框——让 DETR 的 query 有空间含义"></a>洞察 1：Query &#x3D; 动态锚框——让 DETR 的 query 有空间含义</h3><p><strong>传统做法</strong>（DETR）：decoder 的 query 是可学习的嵌入向量，无明确的空间含义。模型需要从零学习每个 query 应关注图像的哪个位置，这是收敛慢的重要原因。</p>
+<h2 id="核心洞察"><a href="#核心洞察" class="headerlink" title="核心洞察"></a>核心洞察</h2><h3 id="洞察-1：Query-动态锚框——让-DETR-的-query-有空间含义"><a href="#洞察-1：Query-动态锚框——让-DETR-的-query-有空间含义" class="headerlink" title="洞察 1：Query = 动态锚框——让 DETR 的 query 有空间含义"></a>洞察 1：Query = 动态锚框——让 DETR 的 query 有空间含义</h3><p><strong>传统做法</strong>（DETR）：decoder 的 query 是可学习的嵌入向量，无明确的空间含义。模型需要从零学习每个 query 应关注图像的哪个位置，这是收敛慢的重要原因。</p>
 <p><strong>DAB-DETR 做法</strong>：将每个 query 显式建模为 4D 锚框 $(x, y, w, h)$，其中位置 $(x, y)$ 用于参考点，宽高 $(w, h)$ 用于调制注意力范围。每层 decoder 输出偏移量，逐层精炼锚框。</p>
 <p><strong>为什么更好</strong>：</p>
 <ul>
@@ -113,8 +114,8 @@
 <h3 id="洞察-2：去噪训练——用-GT-噪声注入稳定匈牙利匹配"><a href="#洞察-2：去噪训练——用-GT-噪声注入稳定匈牙利匹配" class="headerlink" title="洞察 2：去噪训练——用 GT 噪声注入稳定匈牙利匹配"></a>洞察 2：去噪训练——用 GT 噪声注入稳定匈牙利匹配</h3><p><strong>传统做法</strong>（DETR）：每个训练步通过匈牙利匹配将预测与 GT 配对。由于早期 query 未学好，匹配结果在步间波动，导致同一 GT 被不同 query 匹配，梯度信号矛盾。</p>
 <p><strong>DN-DETR 做法</strong>：在正常 query 之外，额外添加一组<strong>去噪 query</strong>——将 GT 框和标签加上可控噪声后送入 decoder，训练模型重建原始 GT。去噪分支的 GT 分配是确定的（不经过匹配），提供稳定的训练信号。</p>
 <p><strong>DINO 的改进——对比去噪（CDN）</strong>：同时添加正样本（小噪声，需重建 GT）和负样本（大噪声，需预测”无物体”），教模型区分好锚框和坏锚框。在小目标上带来 +1.3 AP 的提升。</p>
-$$\text{CDN}: \text{noise} < \lambda_1 \to \text{正样本（重建GT）}$$
-$$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}$$
+$$\text{CDN}: \text{noise} &lt; \lambda_1 \to \text{正样本（重建GT）}$$
+$$\lambda_1 \leq \text{noise} &lt; \lambda_2 \to \text{负样本（预测背景）}$$
 
 <h3 id="洞察-3：混合查询-Look-Forward-Twice——最后的精度提升"><a href="#洞察-3：混合查询-Look-Forward-Twice——最后的精度提升" class="headerlink" title="洞察 3：混合查询 + Look Forward Twice——最后的精度提升"></a>洞察 3：混合查询 + Look Forward Twice——最后的精度提升</h3><p><strong>查询初始化对比</strong>：</p>
 <table>
@@ -136,7 +137,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 <td>纯选择</td>
 <td>编码器 top-K</td>
 <td>编码器 top-K</td>
-<td>Deformable DETR</td>
+<td><a href="/posts/2021/papers/2021_ICLR_Deformable_DETR_Deformable_Transformers/">Deformable DETR</a></td>
 </tr>
 <tr>
 <td><strong>混合选择</strong></td>
@@ -160,8 +161,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
-<pre>
-┌─────────────────────────────────────────────────────────────────┐
+<pre>┌─────────────────────────────────────────────────────────────────┐
 │                  DINO 检测器架构                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
@@ -243,7 +243,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 <td><strong>多尺度</strong></td>
 <td>DC5 (单尺度)</td>
 <td>4-scale</td>
-<td>4&#x2F;5-scale</td>
+<td>4/5-scale</td>
 </tr>
 </tbody></table>
 <h4 id="关键代码"><a href="#关键代码" class="headerlink" title="关键代码"></a>关键代码</h4><table>
@@ -256,7 +256,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 </thead>
 <tbody><tr>
 <td><code>prepare_for_cdn</code></td>
-<td>构造对比去噪正&#x2F;负 query</td>
+<td>构造对比去噪正/负 query</td>
 <td><code>dn_components.py</code></td>
 </tr>
 <tr>
@@ -267,15 +267,15 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 </tbody></table>
 <details><summary>📄 点击展开 prepare_for_cdn 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/IDEA-Research/DINO/blob/main/models/dino/dn_components.py">models&#x2F;dino&#x2F;dn_components.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">prepare_for_cdn</span>(<span class="params">dn_args, training, num_queries, num_classes, hidden_dim, label_enc</span>):</span><br><span class="line">    <span class="keyword">if</span> training:</span><br><span class="line">        targets, dn_number, label_noise_ratio, box_noise_scale = dn_args</span><br><span class="line">        <span class="comment"># 正样本 + 负样本，所以 dn_number 翻倍</span></span><br><span class="line">        dn_number = dn_number * <span class="number">2</span></span><br><span class="line">        known = [(torch.ones_like(t[<span class="string">&#x27;labels&#x27;</span>])).cuda() <span class="keyword">for</span> t <span class="keyword">in</span> targets]</span><br><span class="line">        batch_size = <span class="built_in">len</span>(known)</span><br><span class="line">        known_num = [<span class="built_in">sum</span>(k) <span class="keyword">for</span> k <span class="keyword">in</span> known]</span><br><span class="line">        <span class="comment"># 动态去噪分组：根据图像中 GT 数量调整组数</span></span><br><span class="line">        <span class="keyword">if</span> <span class="built_in">int</span>(<span class="built_in">max</span>(known_num)) == <span class="number">0</span>:</span><br><span class="line">            dn_number = <span class="number">1</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> dn_number &gt;= <span class="number">100</span>:</span><br><span class="line">                dn_number = dn_number // (<span class="built_in">int</span>(<span class="built_in">max</span>(known_num) * <span class="number">2</span>))</span><br><span class="line">            <span class="keyword">elif</span> dn_number &lt; <span class="number">1</span>:</span><br><span class="line">                dn_number = <span class="number">1</span></span><br><span class="line">        ...</span><br><span class="line">        <span class="comment"># 标签噪声：随机翻转部分标签</span></span><br><span class="line">        <span class="keyword">if</span> label_noise_ratio &gt; <span class="number">0</span>:</span><br><span class="line">            p = torch.rand_like(known_labels_expaned.<span class="built_in">float</span>())</span><br><span class="line">            chosen_indice = torch.nonzero(p &lt; (label_noise_ratio * <span class="number">0.5</span>)).view(-<span class="number">1</span>)</span><br><span class="line">            new_label = torch.randint_like(chosen_indice, <span class="number">0</span>, num_classes)</span><br><span class="line">            known_labels_expaned.scatter_(<span class="number">0</span>, chosen_indice, new_label)</span><br><span class="line">        ...</span><br><span class="line">        <span class="comment"># 正样本索引和负样本索引</span></span><br><span class="line">        positive_idx = torch.tensor(<span class="built_in">range</span>(<span class="built_in">len</span>(boxes))).long().cuda().unsqueeze(<span class="number">0</span>).repeat(dn_number, <span class="number">1</span>)</span><br><span class="line">        positive_idx += (torch.tensor(<span class="built_in">range</span>(dn_number)) * <span class="built_in">len</span>(boxes) * <span class="number">2</span>).long().cuda().unsqueeze(<span class="number">1</span>)</span><br><span class="line">        positive_idx = positive_idx.flatten()</span><br><span class="line">        negative_idx = positive_idx + <span class="built_in">len</span>(boxes)  <span class="comment"># 负样本紧跟正样本</span></span><br><span class="line">        <span class="comment"># 框噪声：负样本的噪声 &gt; 1.0（box_noise_scale），使其远离 GT</span></span><br><span class="line">        <span class="keyword">if</span> box_noise_scale &gt; <span class="number">0</span>:</span><br><span class="line">            ...</span><br><span class="line">            rand_part[negative_idx] += <span class="number">1.0</span>  <span class="comment"># 关键：负样本额外加 1.0 噪声</span></span><br><span class="line">            rand_part *= rand_sign</span><br><span class="line">            known_bbox_ = known_bbox_ + torch.mul(rand_part, diff).cuda() * box_noise_scale</span><br><span class="line">        ...</span><br><span class="line">        <span class="comment"># 注意力掩码：去噪 query 之间不可见，且匹配 query 看不到去噪 query</span></span><br><span class="line">        attn_mask[pad_size:, :pad_size] = <span class="literal">True</span>  <span class="comment"># 匹配部分看不到去噪部分</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(dn_number):</span><br><span class="line">            <span class="comment"># 不同去噪组之间互相不可见</span></span><br><span class="line">            ...</span><br><span class="line">        dn_meta = &#123;<span class="string">&#x27;pad_size&#x27;</span>: pad_size, <span class="string">&#x27;num_dn_group&#x27;</span>: dn_number&#125;</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        input_query_label = input_query_bbox = attn_mask = dn_meta = <span class="literal">None</span></span><br><span class="line">    <span class="keyword">return</span> input_query_label, input_query_bbox, attn_mask, dn_meta</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/IDEA-Research/DINO/blob/main/models/dino/dn_components.py">models/dino/dn_components.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">prepare_for_cdn</span>(<span class="params">dn_args, training, num_queries, num_classes, hidden_dim, label_enc</span>):</span><br><span class="line">    <span class="keyword">if</span> training:</span><br><span class="line">        targets, dn_number, label_noise_ratio, box_noise_scale = dn_args</span><br><span class="line">        <span class="comment"># 正样本 + 负样本，所以 dn_number 翻倍</span></span><br><span class="line">        dn_number = dn_number * <span class="number">2</span></span><br><span class="line">        known = [(torch.ones_like(t[<span class="string">'labels'</span>])).cuda() <span class="keyword">for</span> t <span class="keyword">in</span> targets]</span><br><span class="line">        batch_size = <span class="built_in">len</span>(known)</span><br><span class="line">        known_num = [<span class="built_in">sum</span>(k) <span class="keyword">for</span> k <span class="keyword">in</span> known]</span><br><span class="line">        <span class="comment"># 动态去噪分组：根据图像中 GT 数量调整组数</span></span><br><span class="line">        <span class="keyword">if</span> <span class="built_in">int</span>(<span class="built_in">max</span>(known_num)) == <span class="number">0</span>:</span><br><span class="line">            dn_number = <span class="number">1</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> dn_number &gt;= <span class="number">100</span>:</span><br><span class="line">                dn_number = dn_number // (<span class="built_in">int</span>(<span class="built_in">max</span>(known_num) * <span class="number">2</span>))</span><br><span class="line">            <span class="keyword">elif</span> dn_number &lt; <span class="number">1</span>:</span><br><span class="line">                dn_number = <span class="number">1</span></span><br><span class="line">        ...</span><br><span class="line">        <span class="comment"># 标签噪声：随机翻转部分标签</span></span><br><span class="line">        <span class="keyword">if</span> label_noise_ratio &gt; <span class="number">0</span>:</span><br><span class="line">            p = torch.rand_like(known_labels_expaned.<span class="built_in">float</span>())</span><br><span class="line">            chosen_indice = torch.nonzero(p &lt; (label_noise_ratio * <span class="number">0.5</span>)).view(-<span class="number">1</span>)</span><br><span class="line">            new_label = torch.randint_like(chosen_indice, <span class="number">0</span>, num_classes)</span><br><span class="line">            known_labels_expaned.scatter_(<span class="number">0</span>, chosen_indice, new_label)</span><br><span class="line">        ...</span><br><span class="line">        <span class="comment"># 正样本索引和负样本索引</span></span><br><span class="line">        positive_idx = torch.tensor(<span class="built_in">range</span>(<span class="built_in">len</span>(boxes))).long().cuda().unsqueeze(<span class="number">0</span>).repeat(dn_number, <span class="number">1</span>)</span><br><span class="line">        positive_idx += (torch.tensor(<span class="built_in">range</span>(dn_number)) * <span class="built_in">len</span>(boxes) * <span class="number">2</span>).long().cuda().unsqueeze(<span class="number">1</span>)</span><br><span class="line">        positive_idx = positive_idx.flatten()</span><br><span class="line">        negative_idx = positive_idx + <span class="built_in">len</span>(boxes)  <span class="comment"># 负样本紧跟正样本</span></span><br><span class="line">        <span class="comment"># 框噪声：负样本的噪声 &gt; 1.0（box_noise_scale），使其远离 GT</span></span><br><span class="line">        <span class="keyword">if</span> box_noise_scale &gt; <span class="number">0</span>:</span><br><span class="line">            ...</span><br><span class="line">            rand_part[negative_idx] += <span class="number">1.0</span>  <span class="comment"># 关键：负样本额外加 1.0 噪声</span></span><br><span class="line">            rand_part *= rand_sign</span><br><span class="line">            known_bbox_ = known_bbox_ + torch.mul(rand_part, diff).cuda() * box_noise_scale</span><br><span class="line">        ...</span><br><span class="line">        <span class="comment"># 注意力掩码：去噪 query 之间不可见，且匹配 query 看不到去噪 query</span></span><br><span class="line">        attn_mask[pad_size:, :pad_size] = <span class="literal">True</span>  <span class="comment"># 匹配部分看不到去噪部分</span></span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(dn_number):</span><br><span class="line">            <span class="comment"># 不同去噪组之间互相不可见</span></span><br><span class="line">            ...</span><br><span class="line">        dn_meta = {<span class="string">'pad_size'</span>: pad_size, <span class="string">'num_dn_group'</span>: dn_number}</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        input_query_label = input_query_bbox = attn_mask = dn_meta = <span class="literal">None</span></span><br><span class="line">    <span class="keyword">return</span> input_query_label, input_query_bbox, attn_mask, dn_meta</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
 <details><summary>📄 点击展开 dn_post_process 代码</summary>
 
-<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/IDEA-Research/DINO/blob/main/models/dino/dn_components.py">models&#x2F;dino&#x2F;dn_components.py</a>）</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">dn_post_process</span>(<span class="params">outputs_class, outputs_coord, dn_meta, aux_loss, _set_aux_loss</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;将 decoder 输出分离为去噪部分和匹配部分&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">if</span> dn_meta <span class="keyword">and</span> dn_meta[<span class="string">&#x27;pad_size&#x27;</span>] &gt; <span class="number">0</span>:</span><br><span class="line">        <span class="comment"># 前 pad_size 个位置是去噪 query 的输出</span></span><br><span class="line">        output_known_class = outputs_class[:, :, :dn_meta[<span class="string">&#x27;pad_size&#x27;</span>], :]</span><br><span class="line">        output_known_coord = outputs_coord[:, :, :dn_meta[<span class="string">&#x27;pad_size&#x27;</span>], :]</span><br><span class="line">        <span class="comment"># 后面是正常匹配 query 的输出</span></span><br><span class="line">        outputs_class = outputs_class[:, :, dn_meta[<span class="string">&#x27;pad_size&#x27;</span>]:, :]</span><br><span class="line">        outputs_coord = outputs_coord[:, :, dn_meta[<span class="string">&#x27;pad_size&#x27;</span>]:, :]</span><br><span class="line">        out = &#123;<span class="string">&#x27;pred_logits&#x27;</span>: output_known_class[-<span class="number">1</span>], <span class="string">&#x27;pred_boxes&#x27;</span>: output_known_coord[-<span class="number">1</span>]&#125;</span><br><span class="line">        <span class="keyword">if</span> aux_loss:</span><br><span class="line">            out[<span class="string">&#x27;aux_outputs&#x27;</span>] = _set_aux_loss(output_known_class, output_known_coord)</span><br><span class="line">        dn_meta[<span class="string">&#x27;output_known_lbs_bboxes&#x27;</span>] = out</span><br><span class="line">    <span class="keyword">return</span> outputs_class, outputs_coord</span><br></pre></td></tr></table></figure>
+<p>（来源：<a target="_blank" rel="noopener" href="https://github.com/IDEA-Research/DINO/blob/main/models/dino/dn_components.py">models/dino/dn_components.py</a>）</p>
+<figure class="highlight python"><table><tbody><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">dn_post_process</span>(<span class="params">outputs_class, outputs_coord, dn_meta, aux_loss, _set_aux_loss</span>):</span><br><span class="line">    <span class="string">"""将 decoder 输出分离为去噪部分和匹配部分"""</span></span><br><span class="line">    <span class="keyword">if</span> dn_meta <span class="keyword">and</span> dn_meta[<span class="string">'pad_size'</span>] &gt; <span class="number">0</span>:</span><br><span class="line">        <span class="comment"># 前 pad_size 个位置是去噪 query 的输出</span></span><br><span class="line">        output_known_class = outputs_class[:, :, :dn_meta[<span class="string">'pad_size'</span>], :]</span><br><span class="line">        output_known_coord = outputs_coord[:, :, :dn_meta[<span class="string">'pad_size'</span>], :]</span><br><span class="line">        <span class="comment"># 后面是正常匹配 query 的输出</span></span><br><span class="line">        outputs_class = outputs_class[:, :, dn_meta[<span class="string">'pad_size'</span>]:, :]</span><br><span class="line">        outputs_coord = outputs_coord[:, :, dn_meta[<span class="string">'pad_size'</span>]:, :]</span><br><span class="line">        out = {<span class="string">'pred_logits'</span>: output_known_class[-<span class="number">1</span>], <span class="string">'pred_boxes'</span>: output_known_coord[-<span class="number">1</span>]}</span><br><span class="line">        <span class="keyword">if</span> aux_loss:</span><br><span class="line">            out[<span class="string">'aux_outputs'</span>] = _set_aux_loss(output_known_class, output_known_coord)</span><br><span class="line">        dn_meta[<span class="string">'output_known_lbs_bboxes'</span>] = out</span><br><span class="line">    <span class="keyword">return</span> outputs_class, outputs_coord</span><br></pre></td></tr></tbody></table></figure>
 
 </details>
 
@@ -285,7 +285,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 <h4 id="CDN-超参数"><a href="#CDN-超参数" class="headerlink" title="CDN 超参数"></a>CDN 超参数</h4><ul>
 <li>$\lambda_1 = 1.0$（正样本噪声上界）</li>
 <li>$\lambda_2 = 2.0$（负样本噪声上界）</li>
-<li>100 CDN pairs（100 正 + 100 负 &#x3D; 200 个去噪 query）</li>
+<li>100 CDN pairs（100 正 + 100 负 = 200 个去噪 query）</li>
 <li>动态分组：根据图像中 GT 数量自动调整组数</li>
 </ul>
 <h2 id="实验与分析"><a href="#实验与分析" class="headerlink" title="实验与分析"></a>实验与分析</h2><h3 id="主要结果"><a href="#主要结果" class="headerlink" title="主要结果"></a>主要结果</h3><h4 id="COCO-val2017-ResNet-50-12-epochs"><a href="#COCO-val2017-ResNet-50-12-epochs" class="headerlink" title="COCO val2017 (ResNet-50, 12 epochs)"></a>COCO val2017 (ResNet-50, 12 epochs)</h4><table>
@@ -425,12 +425,12 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 </tr>
 </tbody></table>
 <blockquote>
-<p>DINO 用 1&#x2F;15 的参数（vs SwinV2-G）、1&#x2F;60 的 backbone 预训练数据（vs Florence）即达到最佳结果。</p>
+<p>DINO 用 1/15 的参数（vs SwinV2-G）、1/60 的 backbone 预训练数据（vs Florence）即达到最佳结果。</p>
 </blockquote>
 <p><strong>关键发现</strong>：</p>
 <ol>
 <li><strong>12 epoch 即超越所有方法</strong>：DINO-5scale (49.4 AP) 在仅 12 epochs 训练下超越了 DN-DETR 50 epochs (48.6 AP)，训练效率提升约 4 倍</li>
-<li><strong>小目标的巨大提升</strong>：DINO 12ep 的 APs &#x3D; 32.3，比 DN-DETR 高约 +7.5，对比去噪训练对小目标尤为有效</li>
+<li><strong>小目标的巨大提升</strong>：DINO 12ep 的 APs = 32.3，比 DN-DETR 高约 +7.5，对比去噪训练对小目标尤为有效</li>
 <li><strong>首次端到端 SOTA</strong>：63.3 AP 是第一次端到端 Transformer 检测器在 COCO 排行榜上超越所有传统检测器</li>
 </ol>
 <h3 id="消融实验：验证三个洞察"><a href="#消融实验：验证三个洞察" class="headerlink" title="消融实验：验证三个洞察"></a>消融实验：验证三个洞察</h3><h4 id="组件渐进消融（Table-4-R50-12ep-4-scale）"><a href="#组件渐进消融（Table-4-R50-12ep-4-scale）" class="headerlink" title="组件渐进消融（Table 4, R50, 12ep, 4-scale）"></a>组件渐进消融（Table 4, R50, 12ep, 4-scale）</h4><table>
@@ -494,7 +494,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 </tr>
 </tbody></table>
 <blockquote>
-<p>QS&#x3D;Query Selection, CDN&#x3D;Contrastive DeNoising, LFT&#x3D;Look Forward Twice。各步骤的具体中间 AP 数值未在论文中统一列表给出，以上为定性描述；最终 DINO-4scale 12ep 的 49.0 AP 来自论文 Table 1。</p>
+<p>QS=Query Selection, CDN=Contrastive DeNoising, LFT=Look Forward Twice。各步骤的具体中间 AP 数值未在论文中统一列表给出，以上为定性描述；最终 DINO-4scale 12ep 的 49.0 AP 来自论文 Table 1。</p>
 </blockquote>
 <h4 id="CDN-正负样本的效果（Figure-4c）"><a href="#CDN-正负样本的效果（Figure-4c）" class="headerlink" title="CDN 正负样本的效果（Figure 4c）"></a>CDN 正负样本的效果（Figure 4c）</h4><p>对比去噪相比标准去噪在小目标上带来 +1.3 AP 的提升，因为 CDN 的负样本教会模型拒绝离 GT 较远的锚框，减少了重复预测。</p>
 <h3 id="性能瓶颈分析"><a href="#性能瓶颈分析" class="headerlink" title="性能瓶颈分析"></a>性能瓶颈分析</h3><table>
@@ -508,7 +508,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 <tbody><tr>
 <td>可变形注意力的采样点固定</td>
 <td>采样灵活性有限</td>
-<td>后续 Sparse4D 等方法改进</td>
+<td>后续 <a href="/posts/2022/papers/2022_arXiv_Sparse4D_Sparse_Spatial_Temporal_Fusion/">Sparse4D</a> 等方法改进</td>
 </tr>
 <tr>
 <td>900 query 的计算开销</td>
@@ -526,7 +526,7 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 <li><strong>极密集场景</strong>：900 query 对极端密集场景（如百上千个目标的遥感图像）可能不足</li>
 <li><strong>极小目标</strong>：尽管相比前作有大幅提升，5-scale 特征对极小目标仍有局限</li>
 </ul>
-<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Backbone:        ResNet-50 (IN-1K) / SwinL (IN-22K)</span><br><span class="line">Encoder:         6 layers, 可变形注意力, hidden_dim=256</span><br><span class="line">Decoder:         6 layers, 可变形注意力, hidden_dim=256</span><br><span class="line">Queries:         900 (匹配部分) + 200 CDN (100 正 + 100 负)</span><br><span class="line">Optimizer:       AdamW, lr=1e-4, backbone_lr=1e-5, weight_decay=1e-4</span><br><span class="line">Training:        batch=16, 8× A100</span><br><span class="line">Schedule:        12/24/36 epochs, lr drop at 11th/20th/30th epoch (×0.1)</span><br><span class="line">Loss:            Focal (cls, α=0.25, γ=2) + L1 (bbox, w=5.0) + GIoU (w=2.0)</span><br><span class="line">CDN:             λ1=1.0, λ2=2.0, 动态分组</span><br><span class="line">Multi-Scale:     4 或 5 个尺度特征图</span><br><span class="line">SwinL Pre-train: Objects365, 64 A100, 26 epochs</span><br><span class="line">SwinL Fine-tune: COCO, 16 A100, 18 epochs, 1.5× 图像尺寸</span><br></pre></td></tr></table></figure>
+<h2 id="工程实践"><a href="#工程实践" class="headerlink" title="工程实践"></a>工程实践</h2><h3 id="训练配置"><a href="#训练配置" class="headerlink" title="训练配置"></a>训练配置</h3><figure class="highlight plaintext"><table><tbody><tr><td class="code"><pre><span class="line">Backbone:        ResNet-50 (IN-1K) / SwinL (IN-22K)</span><br><span class="line">Encoder:         6 layers, 可变形注意力, hidden_dim=256</span><br><span class="line">Decoder:         6 layers, 可变形注意力, hidden_dim=256</span><br><span class="line">Queries:         900 (匹配部分) + 200 CDN (100 正 + 100 负)</span><br><span class="line">Optimizer:       AdamW, lr=1e-4, backbone_lr=1e-5, weight_decay=1e-4</span><br><span class="line">Training:        batch=16, 8× A100</span><br><span class="line">Schedule:        12/24/36 epochs, lr drop at 11th/20th/30th epoch (×0.1)</span><br><span class="line">Loss:            Focal (cls, α=0.25, γ=2) + L1 (bbox, w=5.0) + GIoU (w=2.0)</span><br><span class="line">CDN:             λ1=1.0, λ2=2.0, 动态分组</span><br><span class="line">Multi-Scale:     4 或 5 个尺度特征图</span><br><span class="line">SwinL Pre-train: Objects365, 64 A100, 26 epochs</span><br><span class="line">SwinL Fine-tune: COCO, 16 A100, 18 epochs, 1.5× 图像尺寸</span><br></pre></td></tr></tbody></table></figure>
 
 <h3 id="复现要点"><a href="#复现要点" class="headerlink" title="复现要点"></a>复现要点</h3><ol>
 <li><strong>动态去噪分组</strong>：不同图像 GT 数量差异大（COCO 1-80 个），固定组数浪费显存。DINO 固定去噪 query 总数（200），根据 GT 数动态调整组数</li>
@@ -546,8 +546,8 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 <li>query 数从 900 减少到 300 在大多数场景下精度损失可接受</li>
 </ul>
 <h2 id="研究启示"><a href="#研究启示" class="headerlink" title="研究启示"></a>研究启示</h2><h3 id="可迁移的思想"><a href="#可迁移的思想" class="headerlink" title="可迁移的思想"></a>可迁移的思想</h3><ul>
-<li>**”去噪训练 &#x3D; 额外的确定性监督”**：DN&#x2F;CDN 的核心思想是通过注入已知答案（GT + noise）提供不依赖匹配结果的稳定梯度信号，这一策略可应用于任何需要匈牙利匹配的 set prediction 任务（分割、跟踪等）</li>
-<li>**”Query 锚框化”**：将抽象 query 显式绑定到空间位置，降低了学习难度。Sparse4D、PETR 等后续方法均采用了类似的 query 位置先验</li>
+<li>**”去噪训练 = 额外的确定性监督”**：DN/CDN 的核心思想是通过注入已知答案（GT + noise）提供不依赖匹配结果的稳定梯度信号，这一策略可应用于任何需要匈牙利匹配的 set prediction 任务（分割、跟踪等）</li>
+<li>**”Query 锚框化”**：将抽象 query 显式绑定到空间位置，降低了学习难度。Sparse4D、<a href="/posts/2022/papers/2022_ECCV_PETR_Position_Embedding_Transformation_for_Multi_View_3D_Object_Detection/">PETR</a> 等后续方法均采用了类似的 query 位置先验</li>
 <li>**”对比负样本抑制重复”**：CDN 中的负样本教模型对”差一点”的候选说 No，这一思路适用于任何需要 NMS 替代方案的场景</li>
 <li>**”混合初始化 &gt; 全动态初始化”**：仅初始化位置、保留内容可学习，避免了粗糙编码器特征对 decoder 的误导</li>
 </ul>
@@ -558,10 +558,11 @@ $$\lambda_1 \leq \text{noise} < \lambda_2 \to \text{负样本（预测背景）}
 </ul>
 <h3 id="技术影响"><a href="#技术影响" class="headerlink" title="技术影响"></a>技术影响</h3><ul>
 <li><strong>DETR 家族的拐点</strong>：DINO 是第一个在 COCO 上超越传统检测器的端到端 Transformer 检测器，证明了 DETR 范式的上限不低于甚至超越了传统方法</li>
-<li><strong>去噪训练成为标配</strong>：DN&#x2F;CDN 被 Co-DETR、RT-DETR、Grounding DINO 等后续工作广泛采用</li>
+<li><strong>去噪训练成为标配</strong>：DN/CDN 被 Co-DETR、RT-DETR、Grounding DINO 等后续工作广泛采用</li>
 <li><strong>推动了 Grounding DINO</strong>：DINO 的检测能力与 Grounded Pre-Training 结合，产生了强大的开放集检测器 Grounding DINO</li>
 <li><strong>影响工业部署</strong>：DINO 的高精度和无 NMS 特性使其成为工业级检测方案的有力候选</li>
 </ul>
+
 
             </div>
 
