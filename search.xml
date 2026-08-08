@@ -4,23 +4,25 @@
   
     
     <entry>
-      <title>从被动响应到双 Ego 交互世界模型：8 篇人机协作论文导读</title>
+      <title>从响应指令到预测共同未来：主动人机协作的统一问题视角</title>
       <link href="/posts/2026/Dual_Ego_Human_Robot_Collaboration_World_Model/"/>
       <url>/posts/2026/Dual_Ego_Human_Robot_Collaboration_World_Model/</url>
       
-        <content type="html"><![CDATA[<p>Topic: Dual-Ego Human-Robot Collaboration<br>Keywords: Proactive HRC, Handover, Egocentric Video, World Model, Robot Self-Modeling</p><span id="more"></span><!-- toc --><h2 id="引言：真正的协作，不应从一句命令开始"><a href="#引言：真正的协作，不应从一句命令开始" class="headerlink" title="引言：真正的协作，不应从一句命令开始"></a>引言：真正的协作，不应从一句命令开始</h2><p>今天的大多数人机协作系统仍然遵循一条熟悉的链路：人类给出语言指令，机器人识别物体、拆解任务、执行动作。VLM、LLM 和 VLA 让这条链路越来越强，但它的起点没有改变——<strong>机器人通常要等人开口，才知道协作已经开始</strong>。</p><p>真实的人类队友并不是这样工作的。一个熟练助手会观察你刚完成了什么、手里是否正忙、下一件工具是否即将用到；在递交物体时，他还会考虑你习惯从哪里接、是否看得见、是否已经抓稳。也就是说，协作不是一次从“指令”到“动作”的映射，而是一个持续闭环：</p><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">观察人类与环境</span><br><span class="line">  -&gt; 判断是否需要帮助</span><br><span class="line">  -&gt; 预测候选协作动作的后果</span><br><span class="line">  -&gt; 选择何时、以何种方式介入</span><br><span class="line">  -&gt; 安全执行并验证结果</span><br><span class="line">  -&gt; 根据新状态继续协作</span><br></pre></td></tr></table></figure><p>如果人和机器人各自都携带第一视角相机，这个问题会更有意思：Human Ego Camera 看到人的操作意图、注意方向和任务上下文；Robot Ego Camera 看到机器人自己的可达空间、执行结果和身体状态。二者并不是简单的双摄像头，而是<strong>两个行动主体对同一交互过程的互补观测</strong>。</p><p>本文围绕这一设定分析 8 篇论文。它们分别覆盖主动介入、自然任务中的 handover、交接几何、低层安全控制、语言规划、human-ego 数据迁移、ego world model 和视觉自我建模。单独看，每篇都只解决了链路中的一段；合起来看，它们恰好勾勒出一个尚未完成的研究方向：<strong>Dual-Ego、action-conditioned interaction world model</strong>。</p><h2 id="1-八篇论文在协作闭环中的位置"><a href="#1-八篇论文在协作闭环中的位置" class="headerlink" title="1. 八篇论文在协作闭环中的位置"></a>1. 八篇论文在协作闭环中的位置</h2><table><thead><tr><th>环节</th><th>代表论文</th><th>核心能力</th><th>主要证据</th><th>尚未解决</th></tr></thead><tbody><tr><td>主动介入</td><td>Event-Driven Proactive Assistive Manipulation</td><td>从人-物状态变化触发帮助</td><td>真实桌面任务，40 次决策</td><td>长时意图与交互未来</td></tr><tr><td>自然协作上下文</td><td>Crafting with a Robot Assistant</td><td>从社会线索和任务阶段调整 handover</td><td>20 人、565 次 handover</td><td>自主策略与闭环预测</td></tr><tr><td>交接几何</td><td>ContactHandover</td><td>兼顾机器人稳定抓取与人类自然接取</td><td>27 类物体、仿真消融</td><td>动态人、真实交互与任务意图</td></tr><tr><td>安全执行</td><td>Compliant Blind Handover</td><td>容顺接近、力觉释放与安全限速</td><td>20 人，失败 2&#x2F;60 vs. 16&#x2F;60</td><td>视觉理解与任务级推理</td></tr><tr><td>语言规划基线</td><td>LLM-Based HRC</td><td>指令分解、感知和 DMP 修正</td><td>2 页概念验证</td><td>充分实验、主动性与预测</td></tr><tr><td>人类数据迁移</td><td>Co-training Ego-centric Video</td><td>将人类行走视频转为机器人动作数据</td><td>真实机器人水果搜索</td><td>双人协作与复杂具身映射</td></tr><tr><td>Ego 世界模型</td><td>EgoExo-WM</td><td>动作条件的第一视角未来预测与 MPC</td><td>四个数据集、2 秒 rollout</td><td>人-机联合状态与机器人动作</td></tr><tr><td>机器人自我模型</td><td>Egocentric Visual Self-Modeling</td><td>从自身视觉预测动作后果并适应损伤</td><td>12-DoF 实机、多构型仿真</td><td>人类伙伴与任务语义</td></tr></tbody></table><p>这张表揭示了一个重要事实：<strong>“主动协作”不是一个模型模块，而是一条从高层判断到低层接触的完整证据链。</strong> 只会生成动作的 VLM 不等于会协作；只会安全递交的控制器也不等于理解任务。</p><h2 id="2-主动协作：从请求驱动切换到事件驱动"><a href="#2-主动协作：从请求驱动切换到事件驱动" class="headerlink" title="2. 主动协作：从请求驱动切换到事件驱动"></a>2. 主动协作：从请求驱动切换到事件驱动</h2><h3 id="2-1-Event-Driven-Proactive-Assistive-Manipulation"><a href="#2-1-Event-Driven-Proactive-Assistive-Manipulation" class="headerlink" title="2.1 Event-Driven Proactive Assistive Manipulation"></a>2.1 Event-Driven Proactive Assistive Manipulation</h3><p><a href="https://arxiv.org/abs/2603.23950">Event-Driven Proactive Assistive Manipulation with Grounded Vision-Language Planning</a> 最有价值的地方，不是又使用了一个 VLM，而是重新定义了<strong>什么时候调用高层推理</strong>。</p><p>传统系统通常由显式或隐式请求触发。本文把 trigger 改为“人-物交互造成的稳定状态变化”：系统通过光流活动信号维护 <code>pre-event -&gt; human action -&gt; post-event</code> 状态机，在事件前后各选一张稳定快照。VLM 不再只看当前画面，而是比较 $(I^-, I^+)$，推断人刚刚完成了什么、当前任务可能指向什么，然后在 <code>pick / place / wait</code> 三类动作中做选择。</p><p>这一设计有三个值得复用的接口：</p><ol><li><strong>事件边界代替固定频率查询</strong>：避免在手仍在移动、物体尚未放稳时过早推理。</li><li><strong>前后状态差代替单帧语义</strong>：变化本身比静态画面更接近“意图证据”。</li><li><strong>语义规划与几何执行解耦</strong>：VLM 只返回对象 ID 和相对关系，RGB-D 回投、抓取和碰撞检查留在本地控制器完成。</li></ol><p>作者在数字积木算式任务上进行了 40 次测试，其中 20 次有可用答案、20 次无解。所提方法在可解场景中达到 <strong>0.95 Execution Success Rate 和 1.00 Reasoning Success Rate</strong>；在无解场景中正确等待的比例为 <strong>0.60</strong>。相比之下，post-only 在两类场景的成功率分别为 0.60 和 0.25，always-on 为 0.65 和 0.35。结果说明事件对齐与状态差确实有用，但也暴露了更难的问题：当证据不足时，VLM 会把“没有合理动作”解释成“也许应该整理桌面”。</p><p><strong>我的判断</strong>：这篇论文适合作为 intervention trigger 与高层规划基线，但不能直接证明开放场景中的主动协作。它使用外部 RGB-D 视角，任务规则窄，且每次只判断一个局部事件；真正的 Dual-Ego 系统还需要维护人的隐状态、机器人的执行状态和长时任务进度，并显式建模“行动”与“等待”的不确定性。</p><h3 id="2-2-Crafting-with-a-Robot-Assistant"><a href="#2-2-Crafting-with-a-Robot-Assistant" class="headerlink" title="2.2 Crafting with a Robot Assistant"></a>2.2 Crafting with a Robot Assistant</h3><p><a href="https://arxiv.org/abs/2301.02938">Crafting with a Robot Assistant</a> 提供了另一种证据：协作中的 handover 不应该被从任务上下文中剪出来单独研究。</p><p>论文设计了持续约一小时的鸟屋组装与绘画任务。20 名参与者依次经历准备、功能性组装和创造性绘画三个阶段，Fetch 机器人在工作区与储物区之间移动并提供或回收物体。机器人由 Wizard-of-Oz 操控，目的是让研究者先观察“理想的人类操作者会根据什么调整机器人”，再把这些策略沉淀为数据。</p><p>最终 FACT HRC 数据集包含约 <strong>60 万条 0.1 秒粒度记录</strong>和 <strong>565 个 handover episode</strong>：52 次 human-to-robot、320 次 robot-to-human、193 次双向交换。操作者会综合观察 gaze、手势、上身动作、桌面布局、双手是否被占用以及任务阶段，再调整两个关键变量：何时从储物区出发，以及物体在什么位置交接。</p><p>有几个观察对建模尤其重要：</p><ul><li>17&#x2F;20 的参与者使用“看向机器人 + 前倾 + 单手挥动”作为常见开始信号，但 12 人会在过程中改变手势，11 人逐渐切换到更省力的信号。</li><li>人也会适应机器人：利用等待时间做其他事、改成双向交换、动态腾出桌面交接区域。</li><li>同一个 handover 在不同任务阶段的体验不同。Stage 2&#x2F;3 的 fluency、trust 和 satisfaction 普遍高于 Stage 1，说明人对机器人的评价受到整体协作进程影响，而非只由一次动作是否成功决定。</li></ul><p><strong>我的判断</strong>：这篇工作最大的价值是告诉我们该预测什么。human state 不能压缩成一个固定的“是否准备好”标签，而应包括 gaze、手占用、任务阶段、个人化手势和适应历史。局限同样明显：机器人并不自主，数据反映的是人类操作者的策略上限，而不是已验证的自动协作策略。</p><h2 id="3-交接不是一个点：几何、人体工学与接触反馈"><a href="#3-交接不是一个点：几何、人体工学与接触反馈" class="headerlink" title="3. 交接不是一个点：几何、人体工学与接触反馈"></a>3. 交接不是一个点：几何、人体工学与接触反馈</h2><h3 id="3-1-ContactHandover：决定“怎样递”"><a href="#3-1-ContactHandover：决定“怎样递”" class="headerlink" title="3.1 ContactHandover：决定“怎样递”"></a>3.1 ContactHandover：决定“怎样递”</h3><p><a href="https://arxiv.org/abs/2404.01402">ContactHandover</a> 将 robot-to-human handover 拆成两个互相制约的问题：机器人要抓稳物体，但又不能占据人最自然的接触区域；机器人要把物体送到可达位置，还要让常用部位朝向接收者。</p><p>方法分两阶段：</p><ol><li>从多视角 RGB-D 构建 TSDF 体素，预测 3D human contact affordance；同时由 Contact-GraspNet 生成 6-DoF 抓取候选。抓取评分同时考虑稳定性 $S(g)$ 和被夹爪遮挡的人类接触比例 $O(g)$：</li></ol>$$C(g) = \lambda S(g) - (1-\lambda)O(g).$$<ol start="2"><li>交接位置通过最小化人臂关节力矩与关节偏移得到；物体朝向则让主要 contact cluster 更靠近并面向人的眼睛。</li></ol><p>作者在 PyBullet 中测试 ContactDB 的 27 类日常物体，每类使用 5 个随机种子。完整方法达到 <strong>71.7% contact visibility、90.2% reachability 和 68.5% success rate</strong>；只有位置优化时成功率为 50.0%，去掉朝向优化后为 51.1%，完全不优化则为 0。消融说明：先把物体送到人体工学上可达的位置贡献最大，抓取重排序和朝向优化进一步释放人类接触区域。</p><p><strong>我的判断</strong>：这是一块很强的“how to hand over”几何模块，但实验主要在仿真中完成，并假设已知人的肩部位置、臂长和标准站姿；16 个环绕视角也远强于普通机器人在线观察条件。它还没有回答何时递、是否该递，以及人接过后要做什么。</p><h3 id="3-2-Compliant-Blind-Handover：决定“何时松手”"><a href="#3-2-Compliant-Blind-Handover：决定“何时松手”" class="headerlink" title="3.2 Compliant Blind Handover：决定“何时松手”"></a>3.2 Compliant Blind Handover：决定“何时松手”</h3><p><a href="https://arxiv.org/abs/2409.07155">Compliant Blind Handover Control</a> 研究更靠近执行末端的场景：人背对机器人、注意力在另一项任务上，只伸手请求工具。由于人没有视觉反馈，机器人必须独立完成安全接近、容顺接触和释放判断。</p><p>系统把四个组件组合起来：语音请求、轨迹规划、导纳控制，以及结合 ISO&#x2F;TS 15066 中 Speed and Separation Monitoring 与 Power and Force Limiting 的在线速度安全层。腕部力&#x2F;力矩传感器最近 500 个读数（约 1 秒）输入 LSTM，识别物体载荷从机器人向人手转移的曲线，再触发松爪。训练集由 300 次不同物体、姿态和扰动下的 handover 样本构成。</p><p>20 名参与者分别体验所提方法与非容顺 PD + 固定力阈值基线。每种系统执行 60 次交接：所提方法仅失败 <strong>2 次</strong>，基线失败 <strong>16 次</strong>；7 个主观维度的平均评分为 <strong>4.07&#x2F;5 vs. 2.22&#x2F;5</strong>。这说明“预测人已经抓稳”不能只靠瞬时阈值，短时接触历史与容顺控制会显著改善可靠性和体验。</p><p><strong>我的判断</strong>：它证明了高层模型无法替代低层闭环。即便世界模型正确判断“应该递工具”，系统仍需要独立的安全层、接触反馈和结果验证。但本文刻意弱化视觉，只覆盖 handover 最后几秒；它更适合作为 Dual-Ego 系统的执行器，而不是感知与决策核心。</p><h2 id="4-语言规划的价值与边界"><a href="#4-语言规划的价值与边界" class="headerlink" title="4. 语言规划的价值与边界"></a>4. 语言规划的价值与边界</h2><p><a href="https://arxiv.org/abs/2308.14972">LLM-Based Human-Robot Collaboration Framework for Manipulation Tasks</a> 把用户、语言模型和机器人构成一个交互循环：GPT-2 将长时指令分解为短任务和运动函数，YOLO 提供目标位置；当语言模型给出不可执行动作时，人通过遥操作示范，系统再用 Dynamic Movement Primitives 记录和复用轨迹。</p><p>这套分层接口——<code>long-horizon task -&gt; short-horizon task -&gt; motion function</code>——在工程上是合理的，也明确承认语言模型会出错，需要人类修正。然而论文只有 2 页，缺少足够的定量实验、失败分析和泛化证据；而且它仍然由明确语言命令启动。</p><p><strong>我的判断</strong>：这篇工作应该被当作“request-driven language planning”弱基线，而不是 8 篇中需要重点继承的方法。它的作用是帮助论文清晰回答：如果不用 human-ego 观察、不预测交互未来，只把指令交给语言模型，系统能做到什么、又缺少什么。</p><h2 id="5-Human-Ego-Video：廉价数据不等于可直接执行的动作"><a href="#5-Human-Ego-Video：廉价数据不等于可直接执行的动作" class="headerlink" title="5. Human Ego Video：廉价数据不等于可直接执行的动作"></a>5. Human Ego Video：廉价数据不等于可直接执行的动作</h2><p><a href="https://arxiv.org/abs/2606.01951">Co-training with Ego-centric Video and Demonstration for Robot Navigation Task</a> 研究如何把人类第一视角行走视频转成移动机器人的训练数据。</p><p>方法先用 SuperPoint + LightGlue 匹配相邻帧，通过 Essential Matrix 恢复 6-DoF 相机运动；再把运动投影到地面机器人的 $SE(2)$ 约束，只保留前后移动与 yaw。由于单目平移没有绝对尺度，作者把平移解释为“运动意图强度”，经过裁剪、中值滤波、Kalman 滤波和离散化，映射为机器人可执行的线速度与角速度。最后，将 human-derived 数据和真实机器人示范共同训练 VLA。</p><p>实验使用水果搜索导航：机器人侧收集 150 次示范，只包含红苹果；人类侧构造 240 段视频，包含红苹果、绿苹果和橙子，并加入 distractor。结果很说明问题：</p><ul><li>无 distractor 时，robot-only 平均约 88.9%，human-only 只有 5.56%-22.2%，联合训练达到 88.9%-100%。</li><li>有 distractor 时，robot-only 各目标均为 22.2%，联合训练达到 88.9%、88.9% 和 94.4%。</li><li>未见初始位置上，robot-only 为 41.7%，human-only 为 0，联合训练为 75.0%。</li></ul><p><strong>我的判断</strong>：human ego data 提供了行为多样性和语言泛化，robot data 则提供视角、动力学与执行稳定性的“具身锚点”。只靠人类视频不能直接控制机器人。这一结论对 Dual-Ego 很关键：human ego 与 robot ego 不应粗暴拼接，二者需要显式的 embodiment alignment；不过本文任务是单体导航，与人机协作操作的距离仍较远。</p><h2 id="6-从预测动作到预测世界"><a href="#6-从预测动作到预测世界" class="headerlink" title="6. 从预测动作到预测世界"></a>6. 从预测动作到预测世界</h2><h3 id="6-1-EgoExo-WM：动作条件的第一视角世界模型"><a href="#6-1-EgoExo-WM：动作条件的第一视角世界模型" class="headerlink" title="6.1 EgoExo-WM：动作条件的第一视角世界模型"></a>6.1 EgoExo-WM：动作条件的第一视角世界模型</h3><p><a href="https://arxiv.org/abs/2605.15477">EgoExo-WM</a> 面对两个数据瓶颈：真实 ego 视频稀缺，而且手和身体经常遮挡关键交互；exo 视频丰富、能看清全身，但视角和动作空间都与 ego model 不对齐。</p><p>作者先从 exo 视频恢复 3D 人体姿态，用根节点位移和 22 个关节的相对旋转构造 <strong>69 维动作</strong>。EgoX-Body 再结合人体骨架、手部关键点与 3D 场景先验，把 exo 视频转换成近似 ego 视频。世界模型不直接生成像素，而是在 DINOv3-L latent 中自回归预测：</p>$$\hat{z}_{t+1}=f_\theta(z_{t-H+1:t}, a_t),$$<p>并加入 wrist heatmap consistency loss，防止视觉 latent 在预测中丢失细粒度手部位置。</p><p>在相同 200 小时训练预算下，完整模型使用 190 小时真实 ego 数据和 10 小时转换后的 exo 数据。它在 HOMAGE、LEMMA、Ego-Exo4D Bike 和 Cooking 四个测试集上普遍降低 2 秒 rollout 的 DINOv3 latent L2，并提高 wrist PCK@20。更关键的是，作者让 UniEgoMotion 生成 4 条候选 3D 动作序列，再由世界模型预测每条动作后的未来，选择最接近目标图像的一条；四个数据集上的 whole-body 与 wrist MPJPE 都优于不使用世界模型排序或只用 ego 数据训练的版本。</p><p><strong>我的判断</strong>：这是 8 篇中与“交互世界模型”接口最接近的一篇。它已经具备结构化 action、latent future prediction、candidate rollout 和 MPC selection。但它预测的是<strong>单个人类执行身体动作后的 ego future</strong>，不是人、机器人和物体的联合未来；2 秒 horizon、4 个候选也不足以覆盖长时协作，exo-to-ego 转换在遮挡、精细接触和小物体操作上仍不稳定。</p><h3 id="6-2-Egocentric-Visual-Self-Modeling：机器人也要知道自己会发生什么"><a href="#6-2-Egocentric-Visual-Self-Modeling：机器人也要知道自己会发生什么" class="headerlink" title="6.2 Egocentric Visual Self-Modeling：机器人也要知道自己会发生什么"></a>6.2 Egocentric Visual Self-Modeling：机器人也要知道自己会发生什么</h3><p><a href="https://arxiv.org/abs/2207.03386">Egocentric Visual Self-Modeling for Autonomous Robot Dynamics Prediction and Adaptation</a> 将“自我模型”定义得很具体：给定机器人最近看到的画面和将要执行的电机命令，预测身体接下来会产生什么位姿变化。</p><p>模型输入 5 张连续的 $128\times128$ 第一视角图像和 12 个电机角度命令。ResNet&#x2F;LSTM 视觉编码器与动作编码器融合，输出机器人坐标系下的 $(\Delta x,\Delta y,\Delta z,\Delta roll,\Delta pitch,\Delta yaw)$。部署时，系统在 RTX 3090 上以约 5 Hz 并行评估 100 组候选电机命令，选择预测回报最高的动作。</p><p>实验从四个方面支持其主张：</p><ul><li>12-DoF 实机在只使用视觉与动作命令、没有 IMU 反馈的条件下完成前进、后退和转向。</li><li>在多种纹理上，视觉模型的状态预测误差低于 action-only 与 IMU-only 基线。</li><li>冻结视觉编码器后，仅用更少数据即可适配三种不同构型；在 Atlas 仿真上也能实现基础移动。</li><li>当一条腿损坏时，预测运动与视觉里程计观测出现显著偏差，可触发异常；机器人用约 30 分钟、7000 步实机 motor babbling 数据重新学习后恢复前进能力。</li></ul><p><strong>我的判断</strong>：这篇论文给 Robot Ego 提供了最清楚的定义——不是在画面中识别“那是我”，而是学习 <code>robot observation + robot action -&gt; robot state change</code>。但它只预测自身基础动力学，没有人类伙伴、任务语义、物体状态或接触后果。Dual-Ego 系统需要把这种 self-dynamics 作为联合交互模型中的一个条件分支，而不是让它独自承担协作推理。</p><h2 id="7-八篇论文拼起来，还缺哪一块？"><a href="#7-八篇论文拼起来，还缺哪一块？" class="headerlink" title="7. 八篇论文拼起来，还缺哪一块？"></a>7. 八篇论文拼起来，还缺哪一块？</h2><p>现有工作大多只回答一个局部问题：</p><ul><li>Event-Driven 与 FACT HRC 回答<strong>何时可能需要帮助、应该观察哪些社会线索</strong>。</li><li>ContactHandover 回答<strong>物体怎样抓、放在哪里、以什么朝向递出</strong>。</li><li>Blind Handover 回答<strong>如何安全接近、怎样判断人已经抓稳</strong>。</li><li>Ego Video Co-training 回答<strong>如何把人类第一视角数据迁移到机器人动作空间</strong>。</li><li>EgoExo-WM 回答<strong>如何在动作条件下预测第一视角未来并比较候选动作</strong>。</li><li>Visual Self-Modeling 回答<strong>机器人怎样从自己的视角预测自身动力学与异常</strong>。</li></ul><p>真正空缺的是把这些接口统一起来：</p><blockquote><p>给定 human ego、robot ego、对象状态和交互历史，模型能否在候选机器人动作条件下，同时预测人、机器人和对象的未来，并据此决定是否介入？</p></blockquote><p>一个最小的联合状态可以写成：</p>$$s_t = \{z_t^h, z_t^r, o_t, b_t^h, b_t^r, q_t\},$$<p>其中 $z_t^h$ 与 $z_t^r$ 分别是 human&#x2F;robot ego latent，$o_t$ 是对象与接触状态，$b_t^h$ 是对人类意图和 readiness 的 belief，$b_t^r$ 是机器人自我状态，$q_t$ 是任务进度。交互世界模型学习：</p>$$p(s_{t+1:t+H}, y_{t+H}\mid s_{\le t}, a^r_{t:t+H}),$$<p>其中 $a^r$ 是候选机器人动作，$y$ 是任务结果、协作收益与安全事件。这样，机器人不再只问“这条动作能不能执行”，而会比较：</p><ul><li>如果现在递出工具，人会不会腾出手并顺利接取？</li><li>如果等待两秒，人是否会自己完成、从而避免不必要打扰？</li><li>如果从另一个方向递出，human ego 中的可见性是否更好？</li><li>机器人实际动作是否偏离预期，是否需要重规划或停止？</li></ul><h2 id="8-一个可落地的-Dual-Ego-系统框架"><a href="#8-一个可落地的-Dual-Ego-系统框架" class="headerlink" title="8. 一个可落地的 Dual-Ego 系统框架"></a>8. 一个可落地的 Dual-Ego 系统框架</h2><h3 id="8-1-双视角对齐，而非特征拼接"><a href="#8-1-双视角对齐，而非特征拼接" class="headerlink" title="8.1 双视角对齐，而非特征拼接"></a>8.1 双视角对齐，而非特征拼接</h3><p>Human Ego 与 Robot Ego 看到的是不同坐标系、不同遮挡和不同职责。建议先建立共享的 <code>human-hand / robot-gripper / object / workspace</code> 交互图，再用时间同步、对象对应和相对位姿把两个 latent 连接起来。Co-training 的结果已经提醒我们：没有具身对齐，更多 human data 可能只会制造不稳定动作。</p><h3 id="8-2-事件触发的-belief-update"><a href="#8-2-事件触发的-belief-update" class="headerlink" title="8.2 事件触发的 belief update"></a>8.2 事件触发的 belief update</h3><p>沿用 Event-Driven 的思想，但 trigger 不应只依赖外部光流。human ego 中的手-物接触结束、robot ego 中的可执行空间变化、语音或 gaze cue 都可以更新 assistance belief：</p>$$p(g_t, n_t \mid o^h_{\le t}, o^r_{\le t}),$$<p>其中 $g_t$ 是人的任务目标，$n_t$ 是当前是否需要帮助。低置信度时要保留 <code>wait / ask / observe</code>，而不是强制生成动作。</p><h3 id="8-3-候选动作条件的交互-rollout"><a href="#8-3-候选动作条件的交互-rollout" class="headerlink" title="8.3 候选动作条件的交互 rollout"></a>8.3 候选动作条件的交互 rollout</h3><p>为 <code>wait</code>、<code>ask</code>、<code>fetch</code>、<code>handover</code>、<code>hold</code> 等高层 action 生成候选，再预测双方视角和对象状态的短期未来。EgoExo-WM 的 latent rollout 可作为起点，但 action 必须从 human body motion 换成 robot command，并显式加入 human response 与 object contact。</p><h3 id="8-4-几何执行器与安全壳"><a href="#8-4-几何执行器与安全壳" class="headerlink" title="8.4 几何执行器与安全壳"></a>8.4 几何执行器与安全壳</h3><p>高层模型只决定是否递、递什么和期望结果；ContactHandover 负责接触可供性、位置和朝向，Blind Handover 式控制器负责容顺接触、ISO 安全速度、载荷转移和松爪。生成模型不能绕过这些确定性约束。</p><h3 id="8-5-结果验证与自我校正"><a href="#8-5-结果验证与自我校正" class="headerlink" title="8.5 结果验证与自我校正"></a>8.5 结果验证与自我校正</h3><p>执行后同时检查两类 residual：任务状态是否按预期变化，以及 robot self-model 的预测与实际运动是否一致。前者决定是否完成或重规划，后者用于检测碰撞、夹持失败、执行偏差与硬件异常。</p><h2 id="9-实验应该怎样设计，才能证明“协作”而非“拼模块”？"><a href="#9-实验应该怎样设计，才能证明“协作”而非“拼模块”？" class="headerlink" title="9. 实验应该怎样设计，才能证明“协作”而非“拼模块”？"></a>9. 实验应该怎样设计，才能证明“协作”而非“拼模块”？</h2><p>最小实验不应一开始追求开放世界，而应选择一个包含连续任务、可重复 handover 和明确结果的桌面场景，例如装配、烹饪准备或工具传递。实验需要逐层回答五个问题：</p><table><thead><tr><th>层级</th><th>核心问题</th><th>建议指标</th><th>关键基线</th></tr></thead><tbody><tr><td>Assistance need</td><td>何时介入，何时等待？</td><td>act&#x2F;wait F1、false intervention、abstention accuracy</td><td>request-driven、post-only、event-only</td></tr><tr><td>Future prediction</td><td>是否预测对人-机-物未来？</td><td>latent error、hand&#x2F;object trajectory error、contact state accuracy</td><td>human-only ego、robot-only ego、late fusion</td></tr><tr><td>Counterfactual selection</td><td>是否选到更好的候选动作？</td><td>task success、regret、oracle gap、selection accuracy</td><td>无 world model、单动作回归、VLM direct plan</td></tr><tr><td>Handover quality</td><td>是否递得自然、可达、可见？</td><td>visibility、reachability、handover time、human effort</td><td>固定位置&#x2F;朝向、ContactHandover ablation</td></tr><tr><td>Safety and verification</td><td>是否抓稳、释放正确、异常可恢复？</td><td>drop rate、peak force、false release、recovery rate</td><td>force threshold、无 self-model verification</td></tr></tbody></table><p>最关键的消融不是“去掉某个 backbone”，而是验证 Dual-Ego 是否真的产生互补证据：</p><ul><li>Human Ego only vs. Robot Ego only vs. Dual-Ego。</li><li>特征拼接 vs. 对象&#x2F;接触对齐后的交互图。</li><li>直接规划 vs. action-conditioned rollout 后选择。</li><li>只预测视觉未来 vs. 同时预测任务结果与安全事件。</li><li>高层正确率 vs. 端到端物理成功率，避免把推理正确误当成协作完成。</li></ul><h2 id="10-阅读优先级与综合评价"><a href="#10-阅读优先级与综合评价" class="headerlink" title="10. 阅读优先级与综合评价"></a>10. 阅读优先级与综合评价</h2><table><thead><tr><th>论文</th><th>新颖性</th><th>证据充分度</th><th>对 Dual-Ego 的价值</th><th>建议</th></tr></thead><tbody><tr><td>Event-Driven Proactive Assistance</td><td>4&#x2F;5</td><td>3&#x2F;5</td><td>5&#x2F;5</td><td>精读 trigger、grounding 与失败类型</td></tr><tr><td>Crafting with a Robot Assistant</td><td>4&#x2F;5</td><td>4&#x2F;5</td><td>5&#x2F;5</td><td>精读数据协议、社会线索与共适应</td></tr><tr><td>ContactHandover</td><td>4&#x2F;5</td><td>3&#x2F;5</td><td>4&#x2F;5</td><td>复用几何与人体工学接口</td></tr><tr><td>LLM-Based HRC</td><td>2&#x2F;5</td><td>1&#x2F;5</td><td>2&#x2F;5</td><td>仅作 request-driven 弱基线</td></tr><tr><td>Compliant Blind Handover</td><td>4&#x2F;5</td><td>4&#x2F;5</td><td>4&#x2F;5</td><td>复用低层控制与释放验证</td></tr><tr><td>Ego Video Co-training</td><td>3&#x2F;5</td><td>3&#x2F;5</td><td>3&#x2F;5</td><td>用于数据迁移与 embodiment gap 论证</td></tr><tr><td>EgoExo-WM</td><td>5&#x2F;5</td><td>4&#x2F;5</td><td>5&#x2F;5</td><td>精读 world model、latent rollout 与 MPC</td></tr><tr><td>Visual Self-Modeling</td><td>5&#x2F;5</td><td>4&#x2F;5</td><td>5&#x2F;5</td><td>精读 robot self-state 与异常适应</td></tr></tbody></table><h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>这 8 篇论文共同给出的答案不是“再训练一个更大的 VLM”，而是把协作拆成可验证的闭环：<strong>状态变化触发意图更新，双视角提供互补证据，世界模型比较候选动作后果，几何与控制模块保证可达和安全，自我模型验证真实执行。</strong></p><p>其中最值得继承的四条线是：Event-Driven 的主动触发、FACT HRC 的自然任务与社会线索、EgoExo-WM 的动作条件 rollout，以及 Visual Self-Modeling 的机器人自我预测。ContactHandover 与 Blind Handover 则提供不可缺少的物理执行层。</p><p>真正的研究机会位于它们之间的断点：现有系统要么理解人、要么理解机器人自己，要么只预测单主体第一视角未来。把 Human Ego 与 Robot Ego 统一为 self-human-object 联合状态，并在候选机器人动作下预测双方未来与任务结果，才可能让机器人从“等你下命令的工具”变成“知道何时该帮、也知道何时不该打扰的队友”。</p><h2 id="论文索引"><a href="#论文索引" class="headerlink" title="论文索引"></a>论文索引</h2><ol><li><a href="https://arxiv.org/abs/2603.23950">Event-Driven Proactive Assistive Manipulation with Grounded Vision-Language Planning</a></li><li><a href="https://arxiv.org/abs/2301.02938">Crafting with a Robot Assistant: Use Social Cues to Inform Adaptive Handovers in Human-Robot Collaboration</a></li><li><a href="https://arxiv.org/abs/2404.01402">ContactHandover: Contact-Guided Robot-to-Human Object Handover</a></li><li><a href="https://arxiv.org/abs/2308.14972">LLM-Based Human-Robot Collaboration Framework for Manipulation Tasks</a></li><li><a href="https://arxiv.org/abs/2409.07155">Compliant Blind Handover Control for Human-Robot Collaboration</a></li><li><a href="https://arxiv.org/abs/2606.01951">Co-training with Ego-centric Video and Demonstration for Robot Navigation Task</a></li><li><a href="https://arxiv.org/abs/2605.15477">EgoExo-WM: Unlocking Exo Video for Ego World Models</a></li><li><a href="https://arxiv.org/abs/2207.03386">Egocentric Visual Self-Modeling for Autonomous Robot Dynamics Prediction and Adaptation</a></li></ol>]]></content>
+        <content type="html"><![CDATA[<p>Topic: Proactive Human-Robot Collaboration<br>Keywords: Mixed-Initiative HRC, Egocentric Vision, Handover, VLA, World Model, Robot Self-Modeling</p><span id="more"></span><!-- toc --><h2 id="引言：协作不是把命令翻译成动作"><a href="#引言：协作不是把命令翻译成动作" class="headerlink" title="引言：协作不是把命令翻译成动作"></a>引言：协作不是把命令翻译成动作</h2><p>过去几年，机器人最显眼的进展来自语言接口：LLM 可以分解任务，VLM 可以识别开放词汇对象，VLA 可以从图像和指令直接生成动作。它们让“告诉机器人做什么”变得越来越自然。</p><p>但<strong>听懂命令</strong>和<strong>理解协作</strong>并不是同一件事。</p><p>真正的协作常常发生在没有明确命令的地方：</p><ul><li>人刚放下一个部件，机器人是否应该递来下一个？</li><li>人的双手正忙，机器人应该立刻介入，还是等待两秒？</li><li>同一件工具应该从哪里递出，才不会挡住人自然接取的位置？</li><li>人已经碰到物体，机器人何时松手才不会掉落或拉扯？</li><li>如果机器人预测错了，它是否知道自己不确定，并选择观察或询问？</li></ul><p>这些问题把人机协作从 <code>instruction -&gt; action</code> 的单向映射，变成一个更本质的问题：</p><blockquote><p><strong>机器人如何在部分可观测、双方都会适应、物理接触不可逆的环境中，判断何时介入，并预测一次行动将如何改变共同未来？</strong></p></blockquote><p>这也是本文的统一视角。主动协作不是某个模型名称，而是一条连续证据链：</p><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">观察事件与任务上下文</span><br><span class="line">  -&gt; 推断人的状态和帮助需求</span><br><span class="line">  -&gt; 区分“能做”与“应该做”</span><br><span class="line">  -&gt; 比较候选行动的联合后果</span><br><span class="line">  -&gt; 以人体工学和安全约束执行</span><br><span class="line">  -&gt; 验证结果并更新对人、物体和自身的认识</span><br></pre></td></tr></table></figure><p>沿着这条链路看，语言规划、第一视角视频、handover、VLA、world model 和 robot self-modeling 不再是相互独立的热门方向，而是同一个协作问题的不同接口。</p><h2 id="1-为什么“更强的动作生成”仍不等于协作"><a href="#1-为什么“更强的动作生成”仍不等于协作" class="headerlink" title="1. 为什么“更强的动作生成”仍不等于协作"></a>1. 为什么“更强的动作生成”仍不等于协作</h2><h3 id="1-1-请求驱动系统把最难的问题交给了人"><a href="#1-1-请求驱动系统把最难的问题交给了人" class="headerlink" title="1.1 请求驱动系统把最难的问题交给了人"></a>1.1 请求驱动系统把最难的问题交给了人</h3><p>请求驱动机器人默认一件事：用户知道什么时候需要帮助，也愿意把需求说清楚。</p><p>这个假设在实验演示中很方便，却会把真实协作中的判断成本留给人。人在装配、烹饪、护理或维修时，可能双手被占用、注意力在任务对象上，或者根本不确定机器人能做什么。</p><p>早期的 <a href="https://arxiv.org/abs/2308.14972">LLM-Based Human-Robot Collaboration Framework</a> 已经展示了一个典型结构：语言模型把长任务拆成运动函数，YOLO 提供对象位置，人类在动作错误时通过遥操作纠正，再用 DMP 保存新技能。这个两页工作实验很弱，但它准确反映了请求驱动范式的责任分配：人负责提出目标、发现错误和补充技能，机器人主要负责执行。</p><p>后来的语言机器人显著增强了可执行性。<a href="https://arxiv.org/abs/2204.01691">SayCan</a> 将语言模型判断的任务相关性与技能 value function 给出的可行性结合；<a href="https://arxiv.org/abs/2207.05608">Inner Monologue</a> 把成功检测、场景描述和人类反馈重新送回规划循环；<a href="https://arxiv.org/abs/2209.07753">Code as Policies</a> 让模型生成包含条件、循环和 API 调用的程序；<a href="https://arxiv.org/abs/2307.05973">VoxPoser</a> 则把语言约束落到三维 value map 和六自由度轨迹。</p><p>这些工作逐步解决了“如何让语言计划落地”，却仍通常从一条用户指令开始。换句话说，它们越来越擅长回答：</p><blockquote><p>已知目标后，机器人可以做什么？</p></blockquote><p>而主动协作还必须回答：</p><blockquote><p>当前是否真的需要机器人做什么？</p></blockquote><h3 id="1-2-VLA-扩大了策略能力，却没有自动获得团队目标"><a href="#1-2-VLA-扩大了策略能力，却没有自动获得团队目标" class="headerlink" title="1.2 VLA 扩大了策略能力，却没有自动获得团队目标"></a>1.2 VLA 扩大了策略能力，却没有自动获得团队目标</h3><p><a href="https://arxiv.org/abs/2307.15818">RT-2</a> 把机器人动作表示为 token，让网络语义知识进入端到端控制；<a href="https://arxiv.org/abs/2406.09246">OpenVLA</a> 用 970K 真实机器人示范训练开放的 7B VLA，并强调高效微调；<a href="https://arxiv.org/abs/2410.24164">$\pi_0$</a> 在预训练 VLM 上加入 flow matching action expert，覆盖单臂、双臂和移动操作。</p><p>VLA 解决的是通用动作策略的规模化问题。它可以让机器人在更多物体、指令和平台上完成任务，但“完成指令的成功率”仍不同于“协作质量”。</p><p>如果指令本身来得太晚，VLA 再强也只能晚一点开始行动；如果机器人不必要地打断人，动作执行成功也可能降低团队效率；如果人不愿适应机器人，单次 task success 无法反映长期信任变化。</p><p>所以，主动协作不能只在 VLA 输出端再加一个 <code>wait</code> token。它需要在策略之前建立对人的状态、任务阶段和不确定性的持续认识。</p><h2 id="2-第一次范式变化：从请求触发到-mixed-initiative"><a href="#2-第一次范式变化：从请求触发到-mixed-initiative" class="headerlink" title="2. 第一次范式变化：从请求触发到 mixed initiative"></a>2. 第一次范式变化：从请求触发到 mixed initiative</h2><h3 id="2-1-主动性首先是证据问题"><a href="#2-1-主动性首先是证据问题" class="headerlink" title="2.1 主动性首先是证据问题"></a>2.1 主动性首先是证据问题</h3><p><a href="https://arxiv.org/abs/2306.11862">Proactive Human-Robot Co-Assembly</a> 利用任务先验和 human-in-the-loop 数据预测人的意图，再结合鲁棒安全控制完成协作装配。它代表一条经典路线：持续估计人接下来要做什么，让机器人提前准备。</p><p><a href="https://arxiv.org/abs/2603.23950">Event-Driven Proactive Assistive Manipulation</a> 采取了不同切口。它不持续运行复杂意图模型，而是监控人—物交互的光流事件，在动作前后选择稳定快照，让 VLM 根据状态差决定 <code>pick / place / wait</code>。在数字积木任务中，事件对齐的前后状态明显优于只看最终画面或固定窗口查询。</p><p>这两条路线的差别很重要：</p><ul><li>intention prediction 试图持续回答“人下一步会做什么”；</li><li>event gating 试图判断“什么时候已经有足够证据值得推理”。</li></ul><p>主动性不只是更早行动，而是<strong>证据不足时仍能克制地不行动</strong>。Event-Driven 在无解场景中的正确等待率只有 0.60，恰好说明 false intervention 比可解任务上的动作生成更难。</p><h3 id="2-2-mixed-initiative-还包含长期相互适应"><a href="#2-2-mixed-initiative-还包含长期相互适应" class="headerlink" title="2.2 mixed initiative 还包含长期相互适应"></a>2.2 mixed initiative 还包含长期相互适应</h3><p><a href="https://arxiv.org/abs/1701.07851">Human-Robot Mutual Adaptation in Shared Autonomy</a> 把人的适应性作为部分可观察变量：当人愿意改变策略时，机器人可以引导团队走向更有效方案；当人坚持偏好时，机器人应顺应人以保留信任。</p><p>这比“识别一次手势”更接近长期协作。机器人动作会改变人的下一次动作，人的经验也会改变其对机器人的预期。因此，人的行为不能被当成独立同分布的数据源。</p><p><a href="https://arxiv.org/abs/2301.02938">Crafting with a Robot Assistant</a> 在自然手工任务中给出了具体观察。20 名参与者与 Fetch 机器人完成鸟屋组装和绘画，共产生 565 个 handover episode。参与者会逐渐从明显的注视、前倾和挥手，切换到更省力的信号；他们也会利用机器人移动时间整理桌面、改变物体交换方式。</p><p>近期 <a href="https://openaccess.thecvf.com/content/WACV2026/html/Ragusa_Ego-EXTRA_video-language_Egocentric_Dataset_for_EXpert-TRAinee_assistance_WACV_2026_paper.html">Ego-EXTRA</a> 将这种 mixed initiative 扩展到约 50 小时非脚本化程序活动：专家既回答学员问题，也从第一视角观察中主动提出建议。</p><p>这些工作共同说明，主动协作的状态不只是“help needed: yes&#x2F;no”，还包括：</p><ul><li>人是否已经注意到机器人；</li><li>人是否愿意被打断；</li><li>人的双手与注意力是否可用；</li><li>当前手势对这个人意味着什么；</li><li>机器人过去的行为是否改变了人的策略。</li></ul><h2 id="3-第二次范式变化：从单帧识别到具身、多视角记忆"><a href="#3-第二次范式变化：从单帧识别到具身、多视角记忆" class="headerlink" title="3. 第二次范式变化：从单帧识别到具身、多视角记忆"></a>3. 第二次范式变化：从单帧识别到具身、多视角记忆</h2><h3 id="3-1-第一视角看到的不是更多像素，而是行动者的可见世界"><a href="#3-1-第一视角看到的不是更多像素，而是行动者的可见世界" class="headerlink" title="3.1 第一视角看到的不是更多像素，而是行动者的可见世界"></a>3.1 第一视角看到的不是更多像素，而是行动者的可见世界</h3><p><a href="https://openaccess.thecvf.com/content/CVPR2022/html/Grauman_Ego4D_Around_the_World_in_3000_Hours_of_Egocentric_Video_CVPR_2022_paper.html">Ego4D</a> 用 3,670 小时第一视角视频把 episodic memory、forecasting、hand-object interaction 和 social interaction 推到大规模数据阶段。<a href="https://openaccess.thecvf.com/content/CVPR2024/html/Grauman_Ego-Exo4D_Understanding_Skilled_Human_Activity_from_First-_and_Third-Person_Perspectives_CVPR_2024_paper.html">Ego-Exo4D</a> 又提供 1,286 小时同步 ego&#x2F;exo 熟练活动，并附带眼动、相机位姿、三维点云和语言描述。</p><p>这些数据集的价值不只是相机更靠近人。第一视角天然编码了行动者当时能看见什么、手在做什么、哪些区域被身体遮挡；外部或机器人视角则更容易看到全身姿态、工作区关系和另一主体的动作。</p><p>在人机协作中，多视角不是传统意义上的冗余传感器：</p><ul><li>Human Ego 更接近人的注意、手—物操作和局部任务上下文；</li><li>Robot Ego 更接近机器人的可达性、夹爪状态、执行偏差和自身遮挡；</li><li>外部视角更适合全局姿态、相对位置和安全距离。</li></ul><p>它们属于不同主体，具有不同的控制能力和盲区。</p><h3 id="3-2-跨视角学习的核心是-correspondence，不是拼接"><a href="#3-2-跨视角学习的核心是-correspondence，不是拼接" class="headerlink" title="3.2 跨视角学习的核心是 correspondence，不是拼接"></a>3.2 跨视角学习的核心是 correspondence，不是拼接</h3><p><a href="https://openaccess.thecvf.com/content/CVPR2021/html/Li_Ego-Exo_Transferring_Visual_Representations_From_Third-Person_to_First-Person_Videos_CVPR_2021_paper.html">Ego-Exo</a> 通过第三人称预训练辅助第一视角识别；<a href="https://openaccess.thecvf.com/content/CVPR2024/html/Huang_EgoExoLearn_A_Dataset_for_Bridging_Asynchronous_Ego-_and_Exo-centric_View_CVPR_2024_paper.html">EgoExoLearn</a> 研究异步示范和第一视角执行；<a href="https://openaccess.thecvf.com/content/CVPR2025/html/Luo_Viewpoint_Rosetta_Stone_Unlocking_Unpaired_Ego-Exo_Videos_for_View-invariant_Representation_CVPR_2025_paper.html">Viewpoint Rosetta Stone</a> 利用少量同步视频学习 feature translator，再对齐大规模未配对数据；<a href="https://openaccess.thecvf.com/content/WACV2026/html/Su_RegionAligner_Bridging_Ego-Exo_Views_for_Object_Correspondence_via_Unified_Text-Visual_WACV_2026_paper.html">RegionAligner</a> 把问题推进到对象区域级对应。</p><p>这条发展线从 clip-level view invariance 走向 object-level correspondence。对协作而言，真正需要对齐的并不是整张图，而是：</p><ul><li>两个视角中的同一个对象；</li><li>人手与机器人夹爪围绕对象的接触关系；</li><li>同一事件在不同视角中的起止时间；</li><li>两个行动者相对于任务对象的可达性和可见性。</li></ul><p><a href="https://arxiv.org/abs/2606.01951">Co-training with Ego-centric Video and Demonstration</a> 用一个很窄但清楚的例子说明了这一点。它通过视觉里程计把人类行走视频转换为 $SE(2)$ 运动意图，再与真实机器人示范共同训练导航 VLA。Human-only 几乎不能直接控制机器人，robot-only 在干扰物和未见起点上泛化不足，联合训练才同时保留语义覆盖和可执行性。</p><p>结论不是“人类视频越多越好”，而是：<strong>跨载体数据必须先找到共享、可执行的中间表示。</strong></p><h3 id="3-3-长时协作需要事件化记忆"><a href="#3-3-长时协作需要事件化记忆" class="headerlink" title="3.3 长时协作需要事件化记忆"></a>3.3 长时协作需要事件化记忆</h3><p>连续视频不能简单压进无限上下文。<a href="https://openaccess.thecvf.com/content/ICCV2025/html/Fan_Embodied_VideoAgent_Persistent_Memory_from_Egocentric_Videos_and_Embodied_Sensors_ICCV_2025_paper.html">Embodied VideoAgent</a> 将 egocentric video 与 depth、pose 等具身传感结合，持续更新动态三维场景记忆。它代表一种不同于固定窗口 Transformer 的方向：把对象活动转化为可检索、可更新的 persistent memory。</p><p>对于协作，记忆的核心不是保存所有帧，而是保留会改变决策的事件：谁拿起了什么、哪个步骤完成了、人的手是否腾空、机器人上次介入是否被接受、对象状态是否与预期一致。</p><p>这使 event detection 与 memory construction 成为同一问题的两面：前者决定什么时候写入，后者决定什么值得留下。</p><h2 id="4-Handover-是主动协作的最小完整实验"><a href="#4-Handover-是主动协作的最小完整实验" class="headerlink" title="4. Handover 是主动协作的最小完整实验"></a>4. Handover 是主动协作的最小完整实验</h2><p>Handover 看似只是把物体从一个夹爪交到一只手里，却几乎包含协作的全部困难：意图、时机、空间协调、接触、安全、信任和结果确认。</p><p><a href="https://is.mpg.de/publications/ortenzi21-tro-handovers">Object Handovers: A Review for Robotics</a> 将一次交接拆成 pre-handover cognitive phase 与 physical exchange。沿着这条时间线，相关研究形成了互补版图：</p><table><thead><tr><th>阶段</th><th>核心问题</th><th>代表进展</th><th>尚未解决</th></tr></thead><tbody><tr><td>交接前：是否与何时</td><td>人是否准备好、任务是否需要交接</td><td>FACT HRC、mixed-initiative HRC、event-driven assistance</td><td>个体化 readiness、错误介入</td></tr><tr><td>交接前：在哪里与怎么拿</td><td>giver&#x2F;receiver 抓取是否冲突、位置是否可达</td><td>H2O、HandoverSim、ContactHandover</td><td>动态人体、任务语义、真实泛化</td></tr><tr><td>接触中：如何适应</td><td>人手轨迹、机器人速度、接触力如何协调</td><td>视觉—触觉 handover control</td><td>多模态在线融合、异常情况</td></tr><tr><td>接触后：何时释放</td><td>是否抓稳、载荷是否转移</td><td>Compliant Blind Handover</td><td>个体差异、物体多样性、模块消融</td></tr><tr><td>完成后：结果如何</td><td>是否掉落、是否打断任务、体验是否自然</td><td>结果检测、问卷、任务指标</td><td>缺少统一端到端 benchmark</td></tr></tbody></table><p><a href="https://arxiv.org/abs/2104.11466">H2O</a> 从 18K 人—人交接视频预测 receiver grasp；<a href="https://arxiv.org/abs/2205.09747">HandoverSim</a> 为 human-to-robot 交接建立仿真 benchmark；<a href="https://arxiv.org/abs/2404.01402">ContactHandover</a> 在 robot-to-human 场景中预测人体接触区域，并让机器人抓取避开人最可能接触的位置，同时优化可见性、可达性和关节负担。</p><p>这些方法解决“怎么递”，却不一定知道“是否该递”。另一方面，<a href="https://arxiv.org/abs/2409.07155">Compliant Blind Handover</a> 让背对机器人的人通过触觉完成交接：导纳控制吸收位置误差，最近约一秒力&#x2F;力矩序列进入 LSTM 判断载荷转移。20 人实验中，完整方法 60 次只失败 2 次，而刚性 PD + 固定力阈值失败 16 次。</p><p>Handover 因而揭示一个重要边界：高层智能和低层控制不可互相替代。</p><ul><li>语义模型无法保证人已经抓稳；</li><li>柔顺控制器无法判断当前工具是否真的需要；</li><li>几何规划器无法决定一次打断是否合适；</li><li>task success 也无法单独代表人的信任与负担。</li></ul><p>一个声称“会协作”的系统必须让这些层级形成闭环，同时又能分别归因。</p><h2 id="5-第三次范式变化：从生成动作到预测行动后果"><a href="#5-第三次范式变化：从生成动作到预测行动后果" class="headerlink" title="5. 第三次范式变化：从生成动作到预测行动后果"></a>5. 第三次范式变化：从生成动作到预测行动后果</h2><h3 id="5-1-policy-回答“做什么”，world-model-回答“做了会怎样”"><a href="#5-1-policy-回答“做什么”，world-model-回答“做了会怎样”" class="headerlink" title="5.1 policy 回答“做什么”，world model 回答“做了会怎样”"></a>5.1 policy 回答“做什么”，world model 回答“做了会怎样”</h3><p>行为策略通常学习：</p>$$\pi(a_t\mid o_{\le t}, g).$$<p>它直接从观察和目标生成动作。世界模型则学习：</p>$$p(z_{t+1:t+H}, y_{t+H}\mid z_{\le t}, a_{t:t+H}),$$<p>其中 $z$ 是状态表征，$a$ 是候选动作，$y$ 是任务或安全结果。</p><p>对协作来说，第二种接口尤其重要，因为机器人必须比较的不只是多个可执行动作，还包括 <code>wait</code>、<code>ask</code>、<code>observe</code> 和“不介入”。这些选择的差异体现在未来，而不是当前画面。</p><h3 id="5-2-世界模型正在从像素生成分化出多条路线"><a href="#5-2-世界模型正在从像素生成分化出多条路线" class="headerlink" title="5.2 世界模型正在从像素生成分化出多条路线"></a>5.2 世界模型正在从像素生成分化出多条路线</h3><p><a href="https://arxiv.org/abs/2405.15223">iVideoGPT</a> 把视觉、动作和奖励压缩成 token，以 next-token prediction 预训练交互视频模型；<a href="https://arxiv.org/abs/2508.05635">Genie Envisioner</a> 进一步尝试让统一视频生成平台承担策略、评价与模拟。这条路线追求高容量、可视化和生成式仿真。</p><p><a href="https://arxiv.org/abs/2411.04983">DINO-WM</a> 采取更轻的 latent dynamics 路线：在 DINOv2 patch feature 上预测动作后果，并直接优化动作序列，不要求重建像素。<a href="https://openreview.net/forum?id=vJwjWyt4Ed">Learning View-invariant World Models for Visual Robotic Manipulation</a> 则研究多视角表征能否使世界模型在视点扰动下保持控制鲁棒性。</p><p><a href="https://arxiv.org/abs/2605.15477">EgoExo-WM</a> 把问题带回人的第一视角。它从外部视频恢复全身动作，再生成近似 ego 视频，与真实 ego 数据共同训练动作条件 latent world model。模型预测约 2 秒未来，并为多个候选人体动作排序。</p><p>这些工作没有给出唯一答案，而是形成三种取舍：</p><ol><li><strong>像素生成</strong>：信息丰富、可视化强，但计算昂贵，物理细节可能幻觉；</li><li><strong>通用视觉 latent</strong>：训练和规划更轻，但距离是否真正对应任务结果并不总是清楚；</li><li><strong>结构化状态</strong>：对象、接触、姿态和任务阶段可解释，但可能漏掉开放世界细节。</li></ol><p>主动协作需要的未必是最漂亮的未来视频，而是<strong>足以区分不同介入选择的未来表示</strong>。</p><h3 id="5-3-共同未来不能只预测机器人自身"><a href="#5-3-共同未来不能只预测机器人自身" class="headerlink" title="5.3 共同未来不能只预测机器人自身"></a>5.3 共同未来不能只预测机器人自身</h3><p><a href="https://pubmed.ncbi.nlm.nih.gov/17110570/">Resilient Machines through Continuous Self-Modeling</a> 很早就展示机器人可以从 actuation-sensation 关系推断自身结构，并在损坏后重新寻找步态。<a href="https://arxiv.org/abs/2111.06389">Full-Body Visual Self-Modeling</a> 用隐式占用场表达给定关节状态下的全身形态。</p><p><a href="https://arxiv.org/abs/2207.03386">Egocentric Visual Self-Modeling</a> 又把传感压缩到单个机载第一视角相机：模型根据最近图像和电机角度预测六自由度位姿变化，在线评估 100 个候选动作，并利用预测残差检测腿部损坏。</p><p>这类 self-model 回答：</p><blockquote><p>机器人执行动作后，自己的身体会发生什么？</p></blockquote><p>而协作 world model 还必须回答：</p><blockquote><p>机器人执行动作后，人会如何反应，共同对象会发生什么，任务关系会怎样改变？</p></blockquote><p>两个问题之间的缺口不是再增加一条视频流，而是增加<strong>主体之间的耦合因果关系</strong>。</p><h2 id="6-一个统一的五层分析框架"><a href="#6-一个统一的五层分析框架" class="headerlink" title="6. 一个统一的五层分析框架"></a>6. 一个统一的五层分析框架</h2><p>面对任何“主动协作”方法，可以用五个问题判断它究竟解决到了哪一层。</p><h3 id="6-1-Evidence：机器人依据什么认为帮助是必要的？"><a href="#6-1-Evidence：机器人依据什么认为帮助是必要的？" class="headerlink" title="6.1 Evidence：机器人依据什么认为帮助是必要的？"></a>6.1 Evidence：机器人依据什么认为帮助是必要的？</h3><p>证据可能来自语言、gaze、手势、手部占用、事件前后状态差、任务图或长期行为历史。</p><p>关键不是传感器数量，而是能否区分：</p><ul><li>真正需要帮助；</li><li>人可以自己完成；</li><li>信息不足，需要观察；</li><li>目标含糊，需要询问；</li><li>行动会打断人，不应介入。</li></ul><h3 id="6-2-Shared-state：不同主体如何形成可用的共同状态？"><a href="#6-2-Shared-state：不同主体如何形成可用的共同状态？" class="headerlink" title="6.2 Shared state：不同主体如何形成可用的共同状态？"></a>6.2 Shared state：不同主体如何形成可用的共同状态？</h3><p>一个抽象的协作 belief 可以写成：</p>$$b_t=p(x_t^h,x_t^r,x_t^o,q_t\mid o^h_{\le t},o^r_{\le t},h_{\le t}),$$<p>其中 $x^h$ 是人的状态，$x^r$ 是机器人状态，$x^o$ 是对象与接触状态，$q$ 是任务阶段，$h$ 是历史交互。</p><p>所谓 shared state 不是要求双方拥有完全相同的世界模型，而是让机器人知道哪些信息只在人视角可见、哪些只在自身传感中可靠、哪些对象关系可以跨视角对应。</p><h3 id="6-3-Counterfactual-future：机器人能否比较不同选择的后果？"><a href="#6-3-Counterfactual-future：机器人能否比较不同选择的后果？" class="headerlink" title="6.3 Counterfactual future：机器人能否比较不同选择的后果？"></a>6.3 Counterfactual future：机器人能否比较不同选择的后果？</h3><p>主动系统至少需要比较：</p><ul><li>现在行动；</li><li>等待；</li><li>询问；</li><li>改变观察位置；</li><li>使用另一种递交方式。</li></ul><p>只预测“最可能发生什么”还不够；需要预测“如果我采取不同动作，会发生什么”。这要求数据中包含行动变化，或拥有可信的交互模拟器。</p><h3 id="6-4-Physical-coordination：高层意图如何安全进入接触？"><a href="#6-4-Physical-coordination：高层意图如何安全进入接触？" class="headerlink" title="6.4 Physical coordination：高层意图如何安全进入接触？"></a>6.4 Physical coordination：高层意图如何安全进入接触？</h3><p>协作最终发生在物理世界。对象接触区域、人体可达性、速度限制、柔顺控制、载荷转移和异常停止不能被语言模型的语义置信度替代。</p><p>这一层的原则是：学习模型给出目标、候选和预测，确定性安全模块保留否决权，执行反馈重新进入 belief。</p><h3 id="6-5-Calibration-and-agency：系统是否知道何时不该替人决定？"><a href="#6-5-Calibration-and-agency：系统是否知道何时不该替人决定？" class="headerlink" title="6.5 Calibration and agency：系统是否知道何时不该替人决定？"></a>6.5 Calibration and agency：系统是否知道何时不该替人决定？</h3><p>最危险的主动系统不是不会行动，而是把高置信度错误包装成“贴心”。</p><p>协作评价必须同时考虑：</p><ul><li>false intervention；</li><li>missed assistance；</li><li>用户是否保有控制感；</li><li>机器人是否让人形成错误能力预期；</li><li>长期适应是否以牺牲信任为代价。</li></ul><p>因此，uncertainty calibration、abstention 和 mixed-initiative user study 不是附加项，而是主动协作的核心能力。</p><h2 id="7-当前路线的五个根本张力"><a href="#7-当前路线的五个根本张力" class="headerlink" title="7. 当前路线的五个根本张力"></a>7. 当前路线的五个根本张力</h2><h3 id="7-1-主动帮助-vs-人的自主性"><a href="#7-1-主动帮助-vs-人的自主性" class="headerlink" title="7.1 主动帮助 vs. 人的自主性"></a>7.1 主动帮助 vs. 人的自主性</h3><p>越主动的机器人越可能减少等待，也越可能制造打断、催促和控制感丧失。最佳策略不是最大化介入次数，而是最大化团队收益，同时给人保留拒绝和修正的通道。</p><h3 id="7-2-开放语义-vs-可验证物理"><a href="#7-2-开放语义-vs-可验证物理" class="headerlink" title="7.2 开放语义 vs. 可验证物理"></a>7.2 开放语义 vs. 可验证物理</h3><p>LLM&#x2F;VLA 擅长开放对象和任务语言，几何与控制器擅长可达性、碰撞、力和时序保证。端到端模型提高了表达能力，却让失败归因和安全认证更困难；模块化系统更容易验证，却可能在接口处丢失语义。</p><h3 id="7-3-更多视角-vs-更重的对齐负担"><a href="#7-3-更多视角-vs-更重的对齐负担" class="headerlink" title="7.3 更多视角 vs. 更重的对齐负担"></a>7.3 更多视角 vs. 更重的对齐负担</h3><p>增加 Human Ego、Robot Ego 和外部相机并不自动提高协作理解。若对象 correspondence、时间同步和主体身份没有解决，多视角只会增加不一致证据和计算成本。</p><h3 id="7-4-视觉逼真度-vs-决策充分性"><a href="#7-4-视觉逼真度-vs-决策充分性" class="headerlink" title="7.4 视觉逼真度 vs. 决策充分性"></a>7.4 视觉逼真度 vs. 决策充分性</h3><p>视频 world model 可以生成可解释未来，但小物体、手指和接触错误可能被逼真的背景掩盖。latent model 更高效，却可能优化与任务无关的视觉距离。结构化状态易于评价，却依赖标注和封闭 ontology。</p><h3 id="7-5-通用策略-vs-个体化协作"><a href="#7-5-通用策略-vs-个体化协作" class="headerlink" title="7.5 通用策略 vs. 个体化协作"></a>7.5 通用策略 vs. 个体化协作</h3><p>大规模 VLA 倾向学习跨任务平均策略，而自然协作依赖个人节奏、惯用手、交流方式、身体能力和对机器人的熟悉程度。平均成功率可能掩盖对少数用户持续不适配的问题。</p><h2 id="8-怎样评价“协作”，而不是只评价机器人动作？"><a href="#8-怎样评价“协作”，而不是只评价机器人动作？" class="headerlink" title="8. 怎样评价“协作”，而不是只评价机器人动作？"></a>8. 怎样评价“协作”，而不是只评价机器人动作？</h2><p>一个有说服力的评测应覆盖四个层级：</p><table><thead><tr><th>层级</th><th>要回答的问题</th><th>代表指标</th><th>容易出现的错误结论</th></tr></thead><tbody><tr><td>状态理解</td><td>是否理解人、对象和任务阶段？</td><td>readiness F1、contact F1、task-stage accuracy、calibration</td><td>识别准确就等于会协作</td></tr><tr><td>行动选择</td><td>是否在正确时机选对介入方式？</td><td>false intervention、missed assistance、ask precision、regret</td><td>act accuracy 高就代表主动性好</td></tr><tr><td>物理执行</td><td>是否可达、安全、接触稳定？</td><td>success、peak force、drop rate、false release、recovery</td><td>高层判断正确就算任务完成</td></tr><tr><td>团队结果</td><td>是否真正改善人与团队？</td><td>completion time、human effort、fluency、trust、workload、agency</td><td>机器人更快就一定更好</td></tr></tbody></table><p>还需要三个常被忽略的控制变量：</p><ol><li><strong>数据量与模型容量匹配</strong>：多视角方法不能仅因输入帧和参数更多获胜；</li><li><strong>按参与者划分测试集</strong>：否则模型可能记住个人动作风格；</li><li><strong>报告不行动场景</strong>：没有 negative events，就无法评价错误介入。</li></ol><p>对于 world model，还应报告 horizon-wise degradation、action ranking regret 和不确定性校准，而不只展示生成视频或单步 latent loss。</p><h2 id="9-仍然开放的七个问题"><a href="#9-仍然开放的七个问题" class="headerlink" title="9. 仍然开放的七个问题"></a>9. 仍然开放的七个问题</h2><h3 id="9-1-什么才是“共同未来”的最小充分表示？"><a href="#9-1-什么才是“共同未来”的最小充分表示？" class="headerlink" title="9.1 什么才是“共同未来”的最小充分表示？"></a>9.1 什么才是“共同未来”的最小充分表示？</h3><p>像素、视觉 latent、人体姿态、对象—接触图、任务阶段各有优缺点。领域仍缺少证据说明哪种表示最适合区分协作行动，而不是一般视频预测。</p><h3 id="9-2-如何获得反事实的人类反应？"><a href="#9-2-如何获得反事实的人类反应？" class="headerlink" title="9.2 如何获得反事实的人类反应？"></a>9.2 如何获得反事实的人类反应？</h3><p>同一时刻只能真实执行一个机器人动作。要比较 <code>act / wait / ask</code>，需要多次可比试验、可信模拟、离线因果假设或人类行为模型。缺少反事实数据，是交互 world model 比单体 dynamics 更难的根本原因。</p><h3 id="9-3-机器人是否应该主动选择观察？"><a href="#9-3-机器人是否应该主动选择观察？" class="headerlink" title="9.3 机器人是否应该主动选择观察？"></a>9.3 机器人是否应该主动选择观察？</h3><p>当人的手被遮挡或对象对应不确定时，最佳动作可能不是操作，而是改变相机位置、等待事件完成或请求确认。Active perception 应成为协作 action space 的一部分。</p><h3 id="9-4-怎样建模双方长期互相适应？"><a href="#9-4-怎样建模双方长期互相适应？" class="headerlink" title="9.4 怎样建模双方长期互相适应？"></a>9.4 怎样建模双方长期互相适应？</h3><p>一次用户研究很难说明几周后的行为。机器人是否会让人变得依赖、是否会诱导更高效策略、是否会形成错误能力预期，都需要 longitudinal HRC 数据。</p><h3 id="9-5-不确定性如何跨层传播？"><a href="#9-5-不确定性如何跨层传播？" class="headerlink" title="9.5 不确定性如何跨层传播？"></a>9.5 不确定性如何跨层传播？</h3><p>视觉 correspondence、意图 belief、world model rollout、几何规划和力觉释放各自都有置信度。系统需要知道哪个不确定性会改变行动选择，而不是简单平均多个分数。</p><h3 id="9-6-第一视角数据的隐私与可部署性如何处理？"><a href="#9-6-第一视角数据的隐私与可部署性如何处理？" class="headerlink" title="9.6 第一视角数据的隐私与可部署性如何处理？"></a>9.6 第一视角数据的隐私与可部署性如何处理？</h3><p>Human Ego 会记录视线、手部行为、工作内容和周围人员。大规模采集必须同时解决同意、去标识、数据最小化和本地处理；否则技术上更强的观察会带来不可接受的社会成本。</p><h3 id="9-7-是否可能建立统一-benchmark？"><a href="#9-7-是否可能建立统一-benchmark？" class="headerlink" title="9.7 是否可能建立统一 benchmark？"></a>9.7 是否可能建立统一 benchmark？</h3><p>当前 proactive assistance、handover、ego video、VLA 和 world model 使用完全不同的任务与指标。一个有价值的 benchmark 不必覆盖开放世界，但应同时包含需要行动、不需要行动、需要询问、动态接触和结果验证，并报告人类体验。</p><h2 id="10-一张面向问题的阅读地图"><a href="#10-一张面向问题的阅读地图" class="headerlink" title="10. 一张面向问题的阅读地图"></a>10. 一张面向问题的阅读地图</h2><p>如果从问题而不是论文批次出发，可以按以下顺序阅读：</p><ul><li><strong>主动性与互相适应</strong>：<a href="https://arxiv.org/abs/1701.07851">Human-Robot Mutual Adaptation</a>、<a href="https://arxiv.org/abs/2306.11862">Proactive Co-Assembly</a>、<a href="https://arxiv.org/abs/2603.23950">Event-Driven Assistance</a>、<a href="https://openaccess.thecvf.com/content/WACV2026/html/Ragusa_Ego-EXTRA_video-language_Egocentric_Dataset_for_EXpert-TRAinee_assistance_WACV_2026_paper.html">Ego-EXTRA</a>。</li><li><strong>自然协作与 handover</strong>：<a href="https://is.mpg.de/publications/ortenzi21-tro-handovers">Object Handovers Review</a>、<a href="https://arxiv.org/abs/2301.02938">FACT HRC</a>、<a href="https://arxiv.org/abs/2104.11466">H2O</a>、<a href="https://arxiv.org/abs/2205.09747">HandoverSim</a>、<a href="https://arxiv.org/abs/2404.01402">ContactHandover</a>、<a href="https://arxiv.org/abs/2409.07155">Compliant Blind Handover</a>。</li><li><strong>语言与通用动作策略</strong>：<a href="https://arxiv.org/abs/2204.01691">SayCan</a>、<a href="https://arxiv.org/abs/2207.05608">Inner Monologue</a>、<a href="https://arxiv.org/abs/2209.07753">Code as Policies</a>、<a href="https://arxiv.org/abs/2307.05973">VoxPoser</a>、<a href="https://arxiv.org/abs/2307.15818">RT-2</a>、<a href="https://arxiv.org/abs/2406.09246">OpenVLA</a>、<a href="https://arxiv.org/abs/2410.24164">$\pi_0$</a>。</li><li><strong>第一视角与跨视角学习</strong>：<a href="https://openaccess.thecvf.com/content/CVPR2022/html/Grauman_Ego4D_Around_the_World_in_3000_Hours_of_Egocentric_Video_CVPR_2022_paper.html">Ego4D</a>、<a href="https://openaccess.thecvf.com/content/CVPR2024/html/Grauman_Ego-Exo4D_Understanding_Skilled_Human_Activity_from_First-_and_Third-Person_Perspectives_CVPR_2024_paper.html">Ego-Exo4D</a>、<a href="https://openaccess.thecvf.com/content/CVPR2024/html/Huang_EgoExoLearn_A_Dataset_for_Bridging_Asynchronous_Ego-_and_Exo-centric_View_CVPR_2024_paper.html">EgoExoLearn</a>、<a href="https://openaccess.thecvf.com/content/CVPR2025/html/Luo_Viewpoint_Rosetta_Stone_Unlocking_Unpaired_Ego-Exo_Videos_for_View-invariant_Representation_CVPR_2025_paper.html">Viewpoint Rosetta Stone</a>、<a href="https://openaccess.thecvf.com/content/WACV2026/html/Su_RegionAligner_Bridging_Ego-Exo_Views_for_Object_Correspondence_via_Unified_Text-Visual_WACV_2026_paper.html">RegionAligner</a>。</li><li><strong>世界模型与自模型</strong>：<a href="https://arxiv.org/abs/2405.15223">iVideoGPT</a>、<a href="https://arxiv.org/abs/2411.04983">DINO-WM</a>、<a href="https://arxiv.org/abs/2605.15477">EgoExo-WM</a>、<a href="https://arxiv.org/abs/2508.05635">Genie Envisioner</a>、<a href="https://pubmed.ncbi.nlm.nih.gov/17110570/">Resilient Machines</a>、<a href="https://arxiv.org/abs/2111.06389">Full-Body Visual Self-Modeling</a>、<a href="https://arxiv.org/abs/2207.03386">Egocentric Visual Self-Modeling</a>。</li></ul><p>这张地图不是封闭书单。它的作用是显示研究接口如何递进：从人的意图与任务阶段，到跨视角共同状态，再到行动条件未来、接触执行和长期适应。</p><h2 id="结语：协作智能的核心是共同后果，而不是单体能力"><a href="#结语：协作智能的核心是共同后果，而不是单体能力" class="headerlink" title="结语：协作智能的核心是共同后果，而不是单体能力"></a>结语：协作智能的核心是共同后果，而不是单体能力</h2><p>机器人学正在同时经历几次扩张：语言模型扩大了任务语义，VLA 扩大了动作覆盖，第一视角数据扩大了对人类行为的观察，world model 让行动后果可以在执行前被比较，自模型让机器人开始检测自身偏差。</p><p>但这些能力只有围绕“共同后果”组织起来，才会成为协作智能。</p><p>真正值得追问的不是机器人是否能识别更多对象、生成更长计划或合成更逼真的未来，而是：</p><ul><li>它是否知道人的目标仍不确定？</li><li>它是否能区分帮助与打扰？</li><li>它是否理解自己的动作会改变人的行为？</li><li>它是否能在接触发生前预测风险，在执行后承认偏差？</li><li>它是否给人留下拒绝、修正和重新取得控制的空间？</li></ul><p>从响应指令到预测共同未来，主动人机协作的真正进步不会由单一模型规模定义，而会由一套更严格的能力标准定义：<strong>证据充分、视角对齐、后果可预测、执行可验证、不确定时懂得克制。</strong></p>]]></content>
       
       
       
         <tags>
-            
-            <tag> 世界模型 </tag>
             
             <tag> 人机协作 </tag>
             
             <tag> 机器人学 </tag>
             
             <tag> 第一视角视觉 </tag>
+            
+            <tag> 世界模型 </tag>
+            
+            <tag> VLA </tag>
             
         </tags>
       
@@ -39,9 +41,9 @@
       
         <tags>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 第一视角视觉 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 机器人学习 </tag>
             
@@ -66,9 +68,9 @@
       
         <tags>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 人机协作 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> Handover </tag>
             
@@ -91,40 +93,13 @@
       
         <tags>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 人机协作 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 大语言模型 </tag>
             
             <tag> 任务规划 </tag>
-            
-        </tags>
-      
-    </entry>
-    
-    
-    
-    <entry>
-      <title>Compliant Blind Handover：面向背身用户的柔顺安全递交控制</title>
-      <link href="/posts/2026/papers/2024_arXiv_Compliant_Blind_Handover_Control/"/>
-      <url>/posts/2026/papers/2024_arXiv_Compliant_Blind_Handover_Control/</url>
-      
-        <content type="html"><![CDATA[<p>Task: Blind Robot-to-Human Handover<br>Method: Admittance Control, Safety Velocity Scaling, LSTM Release Detection<br>Venue: arXiv<br>Year: 2024<br>Paper: <a href="https://arxiv.org/abs/2409.07155">https://arxiv.org/abs/2409.07155</a><br>Code: <a href="https://github.com/davideferrari95/blind_handover_controller">blind_handover_controller</a></p><span id="more"></span><!-- toc --><h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>论文用速度安全缩放、导纳控制和基于最近一秒力&#x2F;力矩序列的 LSTM 释放判断，让机器人能把工具递给背对机器人的用户；在 20 人、120 次递交的对比实验中，失败次数从基线的 16 次降到 2 次。</p><h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>很多递交研究默认接收者能看见机器人并主动配合。</p><p>但在装配、维修和厨房等场景中，人可能正在看向工作面，双手忙碌，或背对机器人。</p><p>此时机器人仍需要安全地把工具送到人的手边，并从触觉交互判断人是否已稳定接住物体。</p><p>这类“blind handover”存在三个关键问题：</p><ol><li>用户没有视觉预告，机器人运动必须可预测且安全；</li><li>人手接触会产生复杂、短暂的力&#x2F;力矩变化；</li><li>固定力阈值容易把碰撞、扰动和真实接取混淆。</li></ol><p>论文试图用柔顺控制与时序力觉分类器，把递交过程从“到点后等待固定拉力”升级为连续的物理交互判断。</p><h2 id="方法详解"><a href="#方法详解" class="headerlink" title="方法详解"></a>方法详解</h2><h3 id="1-交互流程"><a href="#1-交互流程" class="headerlink" title="1. 交互流程"></a>1. 交互流程</h3><p>用户通过语音请求某个工具。</p><p>机器人规划到目标递交区域的轨迹，并在接近用户时执行符合安全规范的速度调节。</p><p>到达交互区域后，控制器切换为柔顺模式，让末端能够响应用户施加的力。</p><p>系统持续读取腕部六轴力&#x2F;力矩传感器，并用 LSTM 判断当前信号是否表示“用户已经接取，可以释放”。</p><h3 id="2-安全速度缩放"><a href="#2-安全速度缩放" class="headerlink" title="2. 安全速度缩放"></a>2. 安全速度缩放</h3><p>方法结合 ISO&#x2F;TS 15066 中常见的两类协作安全思想：</p><ul><li>Speed and Separation Monitoring（SSM）；</li><li>Power and Force Limiting（PFL）。</li></ul><p>机器人根据与人的距离和允许的碰撞能量缩放速度。</p><p>这一部分负责降低接近过程中的风险，但论文的核心创新更集中在接触后的柔顺行为和释放判断。</p><h3 id="3-导纳控制"><a href="#3-导纳控制" class="headerlink" title="3. 导纳控制"></a>3. 导纳控制</h3><p>导纳控制把外部力映射为末端位姿或速度调整，使机器人在用户接触后不会像刚性位置控制器那样强行维持原轨迹。</p><p>它允许用户以自然的拉、推或扭转动作调整物体。</p><p>对背身用户而言，这一点尤其重要，因为用户无法通过视觉精确预测末端位置。</p><h3 id="4-基于-LSTM-的释放检测"><a href="#4-基于-LSTM-的释放检测" class="headerlink" title="4. 基于 LSTM 的释放检测"></a>4. 基于 LSTM 的释放检测</h3><p>分类器输入最近 500 个力&#x2F;力矩读数，对应约 1 秒历史。</p><p>网络包含两个 LSTM 隐层：</p><ul><li>第一层 512 个隐藏单元；</li><li>第二层 256 个隐藏单元。</li></ul><p>输出是二分类：</p><ul><li>release；</li><li>no release。</li></ul><p>训练数据来自 300 次递交，覆盖不同物体、递交姿态和外部扰动。</p><p>与单一力阈值相比，LSTM 可以利用时间结构区分：</p><ul><li>短暂碰撞；</li><li>用户试探性触碰；</li><li>持续抓取并拉走；</li><li>递交过程中的方向变化。</li></ul><h3 id="5-对比基线"><a href="#5-对比基线" class="headerlink" title="5. 对比基线"></a>5. 对比基线</h3><p>基线采用标准 PD 位置控制，并用固定力阈值触发释放。</p><p>这个对比能够直接检验“柔顺控制 + 时序力觉判断”是否优于常见刚性方案。</p><p>不过它没有把导纳控制和 LSTM 分开消融，因此无法精确判断两者各自贡献多少。</p><h2 id="实验关键数据"><a href="#实验关键数据" class="headerlink" title="实验关键数据"></a>实验关键数据</h2><h3 id="1-用户实验设置"><a href="#1-用户实验设置" class="headerlink" title="1. 用户实验设置"></a>1. 用户实验设置</h3><ul><li>参与者：20 人；</li><li>年龄：20–30 岁；</li><li>机器人：UR10e；</li><li>工具：3 种；</li><li>条件：提出方法与标准 PD + 力阈值基线；</li><li>每种架构：60 次递交；</li><li>总递交次数：120 次。</li></ul><p>参与者在递交时背对机器人，符合论文所定义的 blind handover 场景。</p><h3 id="2-客观失败率"><a href="#2-客观失败率" class="headerlink" title="2. 客观失败率"></a>2. 客观失败率</h3><table><thead><tr><th>方法</th><th align="right">递交次数</th><th align="right">失败次数</th><th align="right">成功次数</th><th align="right">成功率</th></tr></thead><tbody><tr><td>柔顺控制 + LSTM</td><td align="right">60</td><td align="right"><strong>2</strong></td><td align="right">58</td><td align="right"><strong>96.7%</strong></td></tr><tr><td>PD + 固定力阈值</td><td align="right">60</td><td align="right">16</td><td align="right">44</td><td align="right">73.3%</td></tr></tbody></table><p>提出方法将失败数减少了 14 次，绝对成功率提高约 23.4 个百分点。</p><h3 id="3-主观评价"><a href="#3-主观评价" class="headerlink" title="3. 主观评价"></a>3. 主观评价</h3><p>问卷覆盖 7 个维度。</p><p>提出方法的平均评分为 4.07，基线为 2.22。</p><p>方差分析结果为：</p><p>$$<br>F&#x3D;134.521,\quad p&#x3D;7.06\times 10^{-8}.<br>$$</p><p>这表明两个条件的主观体验差异显著。</p><h3 id="4-结果解释"><a href="#4-结果解释" class="headerlink" title="4. 结果解释"></a>4. 结果解释</h3><p>客观失败率和主观评分方向一致，说明柔顺交互不仅减少了释放错误，也让用户感到更自然或更安全。</p><p>但实验设计仍不能证明 LSTM 本身就是主要增益来源，因为完整方法同时更换了控制策略和释放检测器。</p><p>还需注意参与者年龄范围较窄，无法直接推广到老年人、儿童或上肢运动受限群体。</p><h2 id="亮点与洞察"><a href="#亮点与洞察" class="headerlink" title="亮点与洞察"></a>亮点与洞察</h2><h3 id="1-用时序模式替代单点阈值"><a href="#1-用时序模式替代单点阈值" class="headerlink" title="1. 用时序模式替代单点阈值"></a>1. 用时序模式替代单点阈值</h3><p>人机接触不是一个瞬时事件，而是一段有阶段结构的过程。</p><p>最近一秒的力&#x2F;力矩历史能表达接触、抓稳和拉走之间的变化，这比单一阈值更符合真实交互。</p><h3 id="2-高层决策与安全控制需要分层"><a href="#2-高层决策与安全控制需要分层" class="headerlink" title="2. 高层决策与安全控制需要分层"></a>2. 高层决策与安全控制需要分层</h3><p>论文解决的是“决定递交之后如何安全完成接触与释放”。</p><p>它并不负责判断此刻是否应该递交，也不决定递交什么。</p><p>因此，论文的性能只能证明低层递交执行更安全、可靠，不能据此推断系统已经解决了递交时机或工具选择问题。</p><h3 id="3-非视觉反馈是协作状态的重要组成"><a href="#3-非视觉反馈是协作状态的重要组成" class="headerlink" title="3. 非视觉反馈是协作状态的重要组成"></a>3. 非视觉反馈是协作状态的重要组成</h3><p>递交状态不应被简化为视觉特征。</p><p>在接触阶段，力&#x2F;力矩历史比外观信息更直接。</p><p>因此一个实用的递交系统还应考虑：</p><ul><li>人体姿态与机器人末端观察；</li><li>对象和接触区域；</li><li>近期动作历史；</li><li>力觉或其他执行反馈。</li></ul><h3 id="4-背身场景是有价值的压力测试"><a href="#4-背身场景是有价值的压力测试" class="headerlink" title="4. 背身场景是有价值的压力测试"></a>4. 背身场景是有价值的压力测试</h3><p>当人无法持续看机器人时，系统不能依赖理想化的视线配合。</p><p>这类场景能检验机器人是否真正利用多模态反馈，而不是只在高度脚本化的面对面递交中工作。</p><h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><h3 id="1-没有视觉状态与高层任务理解"><a href="#1-没有视觉状态与高层任务理解" class="headerlink" title="1. 没有视觉状态与高层任务理解"></a>1. 没有视觉状态与高层任务理解</h3><p>系统依赖语音请求启动，无法自主识别用户是否需要工具。</p><p>它也不判断人的双手是否被占用、目标工具是否合适或递交是否会打断任务。</p><h3 id="2-完整方法缺少模块级消融"><a href="#2-完整方法缺少模块级消融" class="headerlink" title="2. 完整方法缺少模块级消融"></a>2. 完整方法缺少模块级消融</h3><p>导纳控制和 LSTM 同时加入，难以知道性能提升分别来自哪里。</p><p>更严谨的实验应至少比较：</p><ul><li>PD + 阈值；</li><li>导纳 + 阈值；</li><li>PD + LSTM；</li><li>导纳 + LSTM。</li></ul><h3 id="3-数据与参与者范围有限"><a href="#3-数据与参与者范围有限" class="headerlink" title="3. 数据与参与者范围有限"></a>3. 数据与参与者范围有限</h3><p>训练集 300 次递交，用户实验集中在 20–30 岁参与者和 3 种工具。</p><p>对软物体、易碎物、重物、手套、不同握力和异常扰动的泛化仍不明确。</p><h3 id="4-没有长期适应"><a href="#4-没有长期适应" class="headerlink" title="4. 没有长期适应"></a>4. 没有长期适应</h3><p>不同用户的接取习惯和力量模式可能不同。</p><p>论文没有探索个体校准、在线适应或跨用户不确定性估计。</p><h3 id="5-只评价递交末端，不评价完整协作收益"><a href="#5-只评价递交末端，不评价完整协作收益" class="headerlink" title="5. 只评价递交末端，不评价完整协作收益"></a>5. 只评价递交末端，不评价完整协作收益</h3><p>递交成功不等于任务更流畅。</p><p>系统是否减少任务时间、认知负担和不必要打断，仍需要更上层的协作实验。</p><h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与接触引导几何规划的关系"><a href="#与接触引导几何规划的关系" class="headerlink" title="与接触引导几何规划的关系"></a>与接触引导几何规划的关系</h3><p><a href="/posts/2026/papers/2024_IROS_ContactHandover_Contact_Guided_Object_Handover/">ContactHandover</a> 决定机器人应该在哪里抓、以什么位姿递交。</p><p>本论文决定接触发生后如何柔顺响应并判断释放。</p><p>两者可以串成完整管线：</p><ol><li>预测人体接触区域；</li><li>选择不占用该区域的机器人抓取；</li><li>优化人体可达的递交位姿；</li><li>用导纳控制响应真实接触；</li><li>用时序力觉判断是否释放。</li></ol><h3 id="与自适应社会线索的关系"><a href="#与自适应社会线索的关系" class="headerlink" title="与自适应社会线索的关系"></a>与自适应社会线索的关系</h3><p><a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a> 说明人会通过手势、身体前倾和手部占用状态改变递交方式。</p><p>本论文补充了视觉或社会线索之后的物理接触层证据。</p><h3 id="可推广的系统设计原则"><a href="#可推广的系统设计原则" class="headerlink" title="可推广的系统设计原则"></a>可推广的系统设计原则</h3><p>完整的物体递交应把不同责任分层验证：</p><ul><li>几何规划器决定抓取和递交位姿；</li><li>轨迹与安全模块负责接近过程；</li><li>柔顺控制器负责接触后的物理响应；</li><li>释放检测器判断载荷是否已经转移；</li><li>结果验证模块确认物体是否真正被用户接稳。</li></ul><p>这种分层有助于定位失败来自规划、接触控制还是释放判断，也能避免用单一“递交成功率”掩盖具体错误。</p><h2 id="评分"><a href="#评分" class="headerlink" title="评分"></a>评分</h2><table><thead><tr><th>维度</th><th align="right">评分</th><th>说明</th></tr></thead><tbody><tr><td>问题重要性</td><td align="right">8.5&#x2F;10</td><td>背身用户与柔顺递交具有真实应用价值</td></tr><tr><td>方法新颖性</td><td align="right">7.5&#x2F;10</td><td>时序力觉释放与安全柔顺控制组合合理</td></tr><tr><td>实验可信度</td><td align="right">8.0&#x2F;10</td><td>有用户实验、明确基线和显著性，但缺模块消融</td></tr><tr><td>可复现性</td><td align="right">7.5&#x2F;10</td><td>数据规模、模型和平台较清楚，代码可进一步核验</td></tr><tr><td>研究启发性</td><td align="right">8.0&#x2F;10</td><td>清楚展示了接触控制、释放检测与安全规范的接口</td></tr></tbody></table><p><strong>综合评分：7.9&#x2F;10。</strong></p><p>这篇论文的贡献集中在递交执行末段：它不能说明机器人何时应该递交，但有力证明柔顺控制和时序力觉比刚性控制与固定阈值更适合背身递交。</p><h2 id="来源与相关论文"><a href="#来源与相关论文" class="headerlink" title="来源与相关论文"></a>来源与相关论文</h2><ul><li>原论文：<a href="https://arxiv.org/abs/2409.07155">Compliant Blind Handover Control</a></li><li>论文所列代码：<a href="https://github.com/davideferrari95/blind_handover_controller">blind_handover_controller</a></li><li>递交前的接触几何规划：<a href="/posts/2026/papers/2024_IROS_ContactHandover_Contact_Guided_Object_Handover/">ContactHandover</a></li><li>自然任务中的社会线索：<a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a></li></ul>]]></content>
-      
-      
-      
-        <tags>
-            
-            <tag> 论文笔记 </tag>
-            
-            <tag> 人机协作 </tag>
-            
-            <tag> Handover </tag>
-            
-            <tag> 柔顺控制 </tag>
-            
-            <tag> 机器人安全 </tag>
             
         </tags>
       
@@ -143,13 +118,40 @@
       
         <tags>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 人机协作 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> Handover </tag>
             
             <tag> 抓取规划 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>Compliant Blind Handover：面向背身用户的柔顺安全递交控制</title>
+      <link href="/posts/2026/papers/2024_arXiv_Compliant_Blind_Handover_Control/"/>
+      <url>/posts/2026/papers/2024_arXiv_Compliant_Blind_Handover_Control/</url>
+      
+        <content type="html"><![CDATA[<p>Task: Blind Robot-to-Human Handover<br>Method: Admittance Control, Safety Velocity Scaling, LSTM Release Detection<br>Venue: arXiv<br>Year: 2024<br>Paper: <a href="https://arxiv.org/abs/2409.07155">https://arxiv.org/abs/2409.07155</a><br>Code: <a href="https://github.com/davideferrari95/blind_handover_controller">blind_handover_controller</a></p><span id="more"></span><!-- toc --><h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>论文用速度安全缩放、导纳控制和基于最近一秒力&#x2F;力矩序列的 LSTM 释放判断，让机器人能把工具递给背对机器人的用户；在 20 人、120 次递交的对比实验中，失败次数从基线的 16 次降到 2 次。</p><h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>很多递交研究默认接收者能看见机器人并主动配合。</p><p>但在装配、维修和厨房等场景中，人可能正在看向工作面，双手忙碌，或背对机器人。</p><p>此时机器人仍需要安全地把工具送到人的手边，并从触觉交互判断人是否已稳定接住物体。</p><p>这类“blind handover”存在三个关键问题：</p><ol><li>用户没有视觉预告，机器人运动必须可预测且安全；</li><li>人手接触会产生复杂、短暂的力&#x2F;力矩变化；</li><li>固定力阈值容易把碰撞、扰动和真实接取混淆。</li></ol><p>论文试图用柔顺控制与时序力觉分类器，把递交过程从“到点后等待固定拉力”升级为连续的物理交互判断。</p><h2 id="方法详解"><a href="#方法详解" class="headerlink" title="方法详解"></a>方法详解</h2><h3 id="1-交互流程"><a href="#1-交互流程" class="headerlink" title="1. 交互流程"></a>1. 交互流程</h3><p>用户通过语音请求某个工具。</p><p>机器人规划到目标递交区域的轨迹，并在接近用户时执行符合安全规范的速度调节。</p><p>到达交互区域后，控制器切换为柔顺模式，让末端能够响应用户施加的力。</p><p>系统持续读取腕部六轴力&#x2F;力矩传感器，并用 LSTM 判断当前信号是否表示“用户已经接取，可以释放”。</p><h3 id="2-安全速度缩放"><a href="#2-安全速度缩放" class="headerlink" title="2. 安全速度缩放"></a>2. 安全速度缩放</h3><p>方法结合 ISO&#x2F;TS 15066 中常见的两类协作安全思想：</p><ul><li>Speed and Separation Monitoring（SSM）；</li><li>Power and Force Limiting（PFL）。</li></ul><p>机器人根据与人的距离和允许的碰撞能量缩放速度。</p><p>这一部分负责降低接近过程中的风险，但论文的核心创新更集中在接触后的柔顺行为和释放判断。</p><h3 id="3-导纳控制"><a href="#3-导纳控制" class="headerlink" title="3. 导纳控制"></a>3. 导纳控制</h3><p>导纳控制把外部力映射为末端位姿或速度调整，使机器人在用户接触后不会像刚性位置控制器那样强行维持原轨迹。</p><p>它允许用户以自然的拉、推或扭转动作调整物体。</p><p>对背身用户而言，这一点尤其重要，因为用户无法通过视觉精确预测末端位置。</p><h3 id="4-基于-LSTM-的释放检测"><a href="#4-基于-LSTM-的释放检测" class="headerlink" title="4. 基于 LSTM 的释放检测"></a>4. 基于 LSTM 的释放检测</h3><p>分类器输入最近 500 个力&#x2F;力矩读数，对应约 1 秒历史。</p><p>网络包含两个 LSTM 隐层：</p><ul><li>第一层 512 个隐藏单元；</li><li>第二层 256 个隐藏单元。</li></ul><p>输出是二分类：</p><ul><li>release；</li><li>no release。</li></ul><p>训练数据来自 300 次递交，覆盖不同物体、递交姿态和外部扰动。</p><p>与单一力阈值相比，LSTM 可以利用时间结构区分：</p><ul><li>短暂碰撞；</li><li>用户试探性触碰；</li><li>持续抓取并拉走；</li><li>递交过程中的方向变化。</li></ul><h3 id="5-对比基线"><a href="#5-对比基线" class="headerlink" title="5. 对比基线"></a>5. 对比基线</h3><p>基线采用标准 PD 位置控制，并用固定力阈值触发释放。</p><p>这个对比能够直接检验“柔顺控制 + 时序力觉判断”是否优于常见刚性方案。</p><p>不过它没有把导纳控制和 LSTM 分开消融，因此无法精确判断两者各自贡献多少。</p><h2 id="实验关键数据"><a href="#实验关键数据" class="headerlink" title="实验关键数据"></a>实验关键数据</h2><h3 id="1-用户实验设置"><a href="#1-用户实验设置" class="headerlink" title="1. 用户实验设置"></a>1. 用户实验设置</h3><ul><li>参与者：20 人；</li><li>年龄：20–30 岁；</li><li>机器人：UR10e；</li><li>工具：3 种；</li><li>条件：提出方法与标准 PD + 力阈值基线；</li><li>每种架构：60 次递交；</li><li>总递交次数：120 次。</li></ul><p>参与者在递交时背对机器人，符合论文所定义的 blind handover 场景。</p><h3 id="2-客观失败率"><a href="#2-客观失败率" class="headerlink" title="2. 客观失败率"></a>2. 客观失败率</h3><table><thead><tr><th>方法</th><th align="right">递交次数</th><th align="right">失败次数</th><th align="right">成功次数</th><th align="right">成功率</th></tr></thead><tbody><tr><td>柔顺控制 + LSTM</td><td align="right">60</td><td align="right"><strong>2</strong></td><td align="right">58</td><td align="right"><strong>96.7%</strong></td></tr><tr><td>PD + 固定力阈值</td><td align="right">60</td><td align="right">16</td><td align="right">44</td><td align="right">73.3%</td></tr></tbody></table><p>提出方法将失败数减少了 14 次，绝对成功率提高约 23.4 个百分点。</p><h3 id="3-主观评价"><a href="#3-主观评价" class="headerlink" title="3. 主观评价"></a>3. 主观评价</h3><p>问卷覆盖 7 个维度。</p><p>提出方法的平均评分为 4.07，基线为 2.22。</p><p>方差分析结果为：</p><p>$$<br>F&#x3D;134.521,\quad p&#x3D;7.06\times 10^{-8}.<br>$$</p><p>这表明两个条件的主观体验差异显著。</p><h3 id="4-结果解释"><a href="#4-结果解释" class="headerlink" title="4. 结果解释"></a>4. 结果解释</h3><p>客观失败率和主观评分方向一致，说明柔顺交互不仅减少了释放错误，也让用户感到更自然或更安全。</p><p>但实验设计仍不能证明 LSTM 本身就是主要增益来源，因为完整方法同时更换了控制策略和释放检测器。</p><p>还需注意参与者年龄范围较窄，无法直接推广到老年人、儿童或上肢运动受限群体。</p><h2 id="亮点与洞察"><a href="#亮点与洞察" class="headerlink" title="亮点与洞察"></a>亮点与洞察</h2><h3 id="1-用时序模式替代单点阈值"><a href="#1-用时序模式替代单点阈值" class="headerlink" title="1. 用时序模式替代单点阈值"></a>1. 用时序模式替代单点阈值</h3><p>人机接触不是一个瞬时事件，而是一段有阶段结构的过程。</p><p>最近一秒的力&#x2F;力矩历史能表达接触、抓稳和拉走之间的变化，这比单一阈值更符合真实交互。</p><h3 id="2-高层决策与安全控制需要分层"><a href="#2-高层决策与安全控制需要分层" class="headerlink" title="2. 高层决策与安全控制需要分层"></a>2. 高层决策与安全控制需要分层</h3><p>论文解决的是“决定递交之后如何安全完成接触与释放”。</p><p>它并不负责判断此刻是否应该递交，也不决定递交什么。</p><p>因此，论文的性能只能证明低层递交执行更安全、可靠，不能据此推断系统已经解决了递交时机或工具选择问题。</p><h3 id="3-非视觉反馈是协作状态的重要组成"><a href="#3-非视觉反馈是协作状态的重要组成" class="headerlink" title="3. 非视觉反馈是协作状态的重要组成"></a>3. 非视觉反馈是协作状态的重要组成</h3><p>递交状态不应被简化为视觉特征。</p><p>在接触阶段，力&#x2F;力矩历史比外观信息更直接。</p><p>因此一个实用的递交系统还应考虑：</p><ul><li>人体姿态与机器人末端观察；</li><li>对象和接触区域；</li><li>近期动作历史；</li><li>力觉或其他执行反馈。</li></ul><h3 id="4-背身场景是有价值的压力测试"><a href="#4-背身场景是有价值的压力测试" class="headerlink" title="4. 背身场景是有价值的压力测试"></a>4. 背身场景是有价值的压力测试</h3><p>当人无法持续看机器人时，系统不能依赖理想化的视线配合。</p><p>这类场景能检验机器人是否真正利用多模态反馈，而不是只在高度脚本化的面对面递交中工作。</p><h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><h3 id="1-没有视觉状态与高层任务理解"><a href="#1-没有视觉状态与高层任务理解" class="headerlink" title="1. 没有视觉状态与高层任务理解"></a>1. 没有视觉状态与高层任务理解</h3><p>系统依赖语音请求启动，无法自主识别用户是否需要工具。</p><p>它也不判断人的双手是否被占用、目标工具是否合适或递交是否会打断任务。</p><h3 id="2-完整方法缺少模块级消融"><a href="#2-完整方法缺少模块级消融" class="headerlink" title="2. 完整方法缺少模块级消融"></a>2. 完整方法缺少模块级消融</h3><p>导纳控制和 LSTM 同时加入，难以知道性能提升分别来自哪里。</p><p>更严谨的实验应至少比较：</p><ul><li>PD + 阈值；</li><li>导纳 + 阈值；</li><li>PD + LSTM；</li><li>导纳 + LSTM。</li></ul><h3 id="3-数据与参与者范围有限"><a href="#3-数据与参与者范围有限" class="headerlink" title="3. 数据与参与者范围有限"></a>3. 数据与参与者范围有限</h3><p>训练集 300 次递交，用户实验集中在 20–30 岁参与者和 3 种工具。</p><p>对软物体、易碎物、重物、手套、不同握力和异常扰动的泛化仍不明确。</p><h3 id="4-没有长期适应"><a href="#4-没有长期适应" class="headerlink" title="4. 没有长期适应"></a>4. 没有长期适应</h3><p>不同用户的接取习惯和力量模式可能不同。</p><p>论文没有探索个体校准、在线适应或跨用户不确定性估计。</p><h3 id="5-只评价递交末端，不评价完整协作收益"><a href="#5-只评价递交末端，不评价完整协作收益" class="headerlink" title="5. 只评价递交末端，不评价完整协作收益"></a>5. 只评价递交末端，不评价完整协作收益</h3><p>递交成功不等于任务更流畅。</p><p>系统是否减少任务时间、认知负担和不必要打断，仍需要更上层的协作实验。</p><h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与接触引导几何规划的关系"><a href="#与接触引导几何规划的关系" class="headerlink" title="与接触引导几何规划的关系"></a>与接触引导几何规划的关系</h3><p><a href="/posts/2026/papers/2024_IROS_ContactHandover_Contact_Guided_Object_Handover/">ContactHandover</a> 决定机器人应该在哪里抓、以什么位姿递交。</p><p>本论文决定接触发生后如何柔顺响应并判断释放。</p><p>两者可以串成完整管线：</p><ol><li>预测人体接触区域；</li><li>选择不占用该区域的机器人抓取；</li><li>优化人体可达的递交位姿；</li><li>用导纳控制响应真实接触；</li><li>用时序力觉判断是否释放。</li></ol><h3 id="与自适应社会线索的关系"><a href="#与自适应社会线索的关系" class="headerlink" title="与自适应社会线索的关系"></a>与自适应社会线索的关系</h3><p><a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a> 说明人会通过手势、身体前倾和手部占用状态改变递交方式。</p><p>本论文补充了视觉或社会线索之后的物理接触层证据。</p><h3 id="可推广的系统设计原则"><a href="#可推广的系统设计原则" class="headerlink" title="可推广的系统设计原则"></a>可推广的系统设计原则</h3><p>完整的物体递交应把不同责任分层验证：</p><ul><li>几何规划器决定抓取和递交位姿；</li><li>轨迹与安全模块负责接近过程；</li><li>柔顺控制器负责接触后的物理响应；</li><li>释放检测器判断载荷是否已经转移；</li><li>结果验证模块确认物体是否真正被用户接稳。</li></ul><p>这种分层有助于定位失败来自规划、接触控制还是释放判断，也能避免用单一“递交成功率”掩盖具体错误。</p><h2 id="评分"><a href="#评分" class="headerlink" title="评分"></a>评分</h2><table><thead><tr><th>维度</th><th align="right">评分</th><th>说明</th></tr></thead><tbody><tr><td>问题重要性</td><td align="right">8.5&#x2F;10</td><td>背身用户与柔顺递交具有真实应用价值</td></tr><tr><td>方法新颖性</td><td align="right">7.5&#x2F;10</td><td>时序力觉释放与安全柔顺控制组合合理</td></tr><tr><td>实验可信度</td><td align="right">8.0&#x2F;10</td><td>有用户实验、明确基线和显著性，但缺模块消融</td></tr><tr><td>可复现性</td><td align="right">7.5&#x2F;10</td><td>数据规模、模型和平台较清楚，代码可进一步核验</td></tr><tr><td>研究启发性</td><td align="right">8.0&#x2F;10</td><td>清楚展示了接触控制、释放检测与安全规范的接口</td></tr></tbody></table><p><strong>综合评分：7.9&#x2F;10。</strong></p><p>这篇论文的贡献集中在递交执行末段：它不能说明机器人何时应该递交，但有力证明柔顺控制和时序力觉比刚性控制与固定阈值更适合背身递交。</p><h2 id="来源与相关论文"><a href="#来源与相关论文" class="headerlink" title="来源与相关论文"></a>来源与相关论文</h2><ul><li>原论文：<a href="https://arxiv.org/abs/2409.07155">Compliant Blind Handover Control</a></li><li>论文所列代码：<a href="https://github.com/davideferrari95/blind_handover_controller">blind_handover_controller</a></li><li>递交前的接触几何规划：<a href="/posts/2026/papers/2024_IROS_ContactHandover_Contact_Guided_Object_Handover/">ContactHandover</a></li><li>自然任务中的社会线索：<a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a></li></ul>]]></content>
+      
+      
+      
+        <tags>
+            
+            <tag> 人机协作 </tag>
+            
+            <tag> 论文笔记 </tag>
+            
+            <tag> Handover </tag>
+            
+            <tag> 柔顺控制 </tag>
+            
+            <tag> 机器人安全 </tag>
             
         </tags>
       
@@ -168,6 +170,8 @@
       
         <tags>
             
+            <tag> VLA </tag>
+            
             <tag> 论文笔记 </tag>
             
             <tag> 机器人学习 </tag>
@@ -175,8 +179,6 @@
             <tag> 第一视角视频 </tag>
             
             <tag> 机器人导航 </tag>
-            
-            <tag> VLA </tag>
             
         </tags>
       
@@ -195,9 +197,9 @@
       
         <tags>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 世界模型 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 第一视角视频 </tag>
             
@@ -222,11 +224,11 @@
       
         <tags>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 人机协作 </tag>
             
             <tag> 机器人学 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 视觉语言模型 </tag>
             
@@ -276,9 +278,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
         </tags>
       
@@ -299,9 +301,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
         </tags>
       
@@ -322,9 +324,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
         </tags>
       
@@ -345,9 +347,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -370,9 +372,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
         </tags>
       
@@ -416,9 +418,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
         </tags>
       
@@ -537,9 +539,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -560,9 +562,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -614,9 +616,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 世界模型 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> Occupancy </tag>
             
@@ -639,9 +641,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 世界模型 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> Occupancy </tag>
             
@@ -664,9 +666,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -689,9 +691,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 世界模型 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 生成模型 </tag>
             
@@ -714,9 +716,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 世界模型 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 预训练 </tag>
             
@@ -739,9 +741,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -789,9 +791,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -812,9 +814,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -837,9 +839,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 世界模型 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 生成模型 </tag>
             
@@ -862,9 +864,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -887,9 +889,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 论文笔记 </tag>
-            
             <tag> 世界模型 </tag>
+            
+            <tag> 论文笔记 </tag>
             
             <tag> 预训练 </tag>
             
@@ -935,9 +937,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -962,9 +964,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -989,9 +991,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1014,9 +1016,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1041,9 +1043,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1068,9 +1070,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1116,9 +1118,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1141,9 +1143,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1168,9 +1170,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1193,9 +1195,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1218,9 +1220,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1245,9 +1247,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1316,9 +1318,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1343,9 +1345,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1391,9 +1393,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1416,9 +1418,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1443,9 +1445,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1466,9 +1468,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1493,9 +1495,9 @@
             
             <tag> 自动驾驶 </tag>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1518,9 +1520,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1543,9 +1545,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1593,9 +1595,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1618,9 +1620,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1643,9 +1645,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1666,9 +1668,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
@@ -1691,9 +1693,9 @@
       
         <tags>
             
-            <tag> 深度学习 </tag>
-            
             <tag> 计算机视觉 </tag>
+            
+            <tag> 深度学习 </tag>
             
             <tag> 论文笔记 </tag>
             
