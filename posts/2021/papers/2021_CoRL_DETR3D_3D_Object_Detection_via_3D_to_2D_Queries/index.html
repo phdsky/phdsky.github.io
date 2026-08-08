@@ -90,23 +90,23 @@
 <li>NMS 不可并行，是推理瓶颈。</li>
 </ul>
 <p><strong>核心痛点</strong>：如何在不依赖 dense depth、不依赖 NMS 的前提下，让多相机几何信息从一开始就参与到检测计算中？</p>
-<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：用-3D-to-2D-反向投影替代-depth-估计"><a href="#洞察-1：用-3D-to-2D-反向投影替代-depth-估计" class="headerlink" title="洞察 1：用 3D-to-2D 反向投影替代 depth 估计"></a>洞察 1：用 3D-to-2D 反向投影替代 depth 估计</h3><p>传统 pseudo-LiDAR 路线是 <code>2D image → depth → 3D point → 3D detector</code>，每个像素都要估一次深度，误差沿链路累积。本文反过来：从 3D 空间中一组可学习的 object query 出发，每个 query 解码出一个 3D 参考点 $\bm{c}_{\ell i} \in \mathbb{R}^3$，再用相机变换矩阵把它<strong>反投影</strong>到每个相机的图像平面：</p>
+<h2 id="3-核心洞察"><a href="#3-核心洞察" class="headerlink" title="3. 核心洞察"></a>3. 核心洞察</h2><h3 id="洞察-1：用-3D-to-2D-反向投影替代-depth-估计"><a href="#洞察-1：用-3D-to-2D-反向投影替代-depth-估计" class="headerlink" title="洞察 1：用 3D-to-2D 反向投影替代 depth 估计"></a>洞察 1：用 3D-to-2D 反向投影替代 depth 估计</h3><p>传统 pseudo-LiDAR 路线是 <code>2D image → depth → 3D point → 3D detector</code>，每个像素都要估一次深度，误差沿链路累积。本文反过来：从 3D 空间中一组可学习的 object query 出发，每个 query 解码出一个 3D 参考点 $\boldsymbol{c}_{\ell i} \in \mathbb{R}^3$，再用相机变换矩阵把它<strong>反投影</strong>到每个相机的图像平面：</p>
 
-$$\bm{c}^*_{\ell i} = \bm{c}_{\ell i} \oplus 1, \quad \bm{c}_{\ell mi} = T_m \bm{c}^*_{\ell i}$$
+$$\boldsymbol{c}^*_{\ell i} = \boldsymbol{c}_{\ell i} \oplus 1, \quad \boldsymbol{c}_{\ell mi} = T_m \boldsymbol{c}^*_{\ell i}$$
 
 
 <p>只在反投影点处做双线性插值取特征，不需要在整张图上估 depth。这样把”先估深度后回归”改为”先假设 3D 位置后取证据”，从根本上避免了 depth 预测模块的复合误差。</p>
 <h3 id="洞察-2：单点投影到全部相机，自动完成多视角融合"><a href="#洞察-2：单点投影到全部相机，自动完成多视角融合" class="headerlink" title="洞察 2：单点投影到全部相机，自动完成多视角融合"></a>洞察 2：单点投影到全部相机，自动完成多视角融合</h3><p>同一个 3D 参考点天然会落到所有可见的相机视图里。本文对每个 query 收集<strong>所有相机 × 所有 FPN 层级</strong>的特征，按可见性掩码 $\sigma_{\ell kmi}$（投影是否落在图像平面内）做归一化平均：</p>
 
-$$\bm{f}_{\ell i} = \frac{1}{\sum_k\sum_m \sigma_{\ell kmi} + \epsilon} \sum_k \sum_m \bm{f}_{\ell kmi}\, \sigma_{\ell kmi}$$
+$$\boldsymbol{f}_{\ell i} = \frac{1}{\sum_k\sum_m \sigma_{\ell kmi} + \epsilon} \sum_k \sum_m \boldsymbol{f}_{\ell kmi}\, \sigma_{\ell kmi}$$
 
-$$\bm{q}_{(\ell+1) i} = \bm{f}_{\ell i} + \bm{q}_{\ell i}$$
+$$\boldsymbol{q}_{(\ell+1) i} = \boldsymbol{f}_{\ell i} + \boldsymbol{q}_{\ell i}$$
 
 
 <p>不再需要”先各相机出框，再跨相机合并”这种后处理逻辑。论文在 nuScenes 重叠区域的对比中，DETR3D 的 NDS 比 FCOS3D 高出约 5–6 个点，验证了”在每一层就跨视角融合”的优势。</p>
 <h3 id="洞察-3：Set-to-set-loss-迭代精修，去掉-NMS"><a href="#洞察-3：Set-to-set-loss-迭代精修，去掉-NMS" class="headerlink" title="洞察 3：Set-to-set loss + 迭代精修，去掉 NMS"></a>洞察 3：Set-to-set loss + 迭代精修，去掉 NMS</h3><p>延续 DETR / <a href="/posts/2021/papers/2021_ICLR_Deformable_DETR_Deformable_Transformers/">Deformable DETR</a> 的思想，用 Hungarian 匹配 + focal + L1 loss 做集合预测：</p>
 
-$$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \mathbb{1}_{\{c_j \neq \varnothing\}} \mathcal{L}_{\text{box}}(\bm{b}_j, \hat{\bm{b}}_{\sigma^*(j)})$$
+$$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \mathbb{1}_{\{c_j \neq \varnothing\}} \mathcal{L}_{\text{box}}(\boldsymbol{b}_j, \hat{\boldsymbol{b}}_{\sigma^*(j)})$$
 
 
 <p>并把 detection head 堆叠成 6 层，每一层都做 “解码参考点 → 投影 → 采样 → self-attention → 输出 box”，逐层精修。消融显示从 layer 0 到 layer 5，NDS 从 0.380 单调上升到 0.425，验证了迭代精修的必要性。整套推理过程<strong>完全不需要 NMS</strong>。</p>
@@ -122,7 +122,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 <li><strong>900 个 object queries</strong>：消融显示 query 数量增加到 900 后性能饱和（mAP 0.346）。</li>
 </ul>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>一行公式概括：</p>
-<p>$$\bm{q} \xrightarrow{\Phi_{\text{ref}}} \bm{c} \xrightarrow{T_m} \text{2D pixel} \xrightarrow{\text{bilinear}} \bm{f} \rightarrow \bm{q}’ \rightarrow \hat{\bm{b}}, \hat{c}$$</p>
+<p>$$\boldsymbol{q} \xrightarrow{\Phi_{\text{ref}}} \boldsymbol{c} \xrightarrow{T_m} \text{2D pixel} \xrightarrow{\text{bilinear}} \boldsymbol{f} \rightarrow \boldsymbol{q}' \rightarrow \hat{\boldsymbol{b}}, \hat{c}$$</p>
 <p>论文原图：</p>
 <div style="text-align:center; margin: 24px 0;">
   <img src="https://ar5iv.labs.arxiv.org/html/2110.06922/assets/x1.png" alt="DETR3D 整体架构" style="max-width:100%;">
@@ -188,17 +188,17 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 </tr>
 <tr>
 <td align="left">Reference predictor $\Phi_{\text{ref}}$</td>
-<td align="left">3D 点 $\bm{c} \in \mathbb{R}^3$</td>
+<td align="left">3D 点 $\boldsymbol{c} \in \mathbb{R}^3$</td>
 <td align="left">从 query 解码 3D 假设位置</td>
 </tr>
 <tr>
 <td align="left">Backward projection + bilinear sampling</td>
-<td align="left">$\bm{f}_{\ell kmi}$</td>
+<td align="left">$\boldsymbol{f}_{\ell kmi}$</td>
 <td align="left">跨相机、跨尺度取证据</td>
 </tr>
 <tr>
 <td align="left">Multi-head self-attention</td>
-<td align="left">refined $\bm{q}_{\ell+1}$</td>
+<td align="left">refined $\boldsymbol{q}_{\ell+1}$</td>
 <td align="left">query 之间交互去重</td>
 </tr>
 <tr>
@@ -208,7 +208,7 @@ $$\mathcal{L}_{\text{sup}} = \sum_{j=1}^{N} -\log \hat{p}_{\sigma^*(j)}(c_j) + \
 </tr>
 </tbody></table>
 <p><strong>损失函数</strong>：focal loss（分类） + L1 loss（box 9 维参数：位置、尺寸、朝向、速度）：</p>
-<p>$$\mathcal{L} = \mathcal{L}_{\text{focal}}(\hat{c}, c) + \lambda \cdot \mathcal{L}_1(\hat{\bm{b}}, \bm{b})$$</p>
+<p>$$\mathcal{L} = \mathcal{L}_{\text{focal}}(\hat{c}, c) + \lambda \cdot \mathcal{L}_1(\hat{\boldsymbol{b}}, \boldsymbol{b})$$</p>
 <p>每层都计算损失，推理时只用最后一层输出。</p>
 <h3 id="4-3-关键代码"><a href="#4-3-关键代码" class="headerlink" title="4.3 关键代码"></a>4.3 关键代码</h3><p>DETR3D 的核心是 detection head 中的 3D 参考点反投影 + 多相机特征采样模块，对应仓库中的 <code>feature_sampling</code> 函数。</p>
 <details>

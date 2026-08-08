@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Crafting with a Robot Assistant: Use Social Cues to Inform Adaptive Handovers in Human-Robot Collaboration - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Crafting with a Robot Assistant: Use Social Cues to Inform Adaptive Handovers in Human-Robot Collaboration</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年08月08日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Naturalistic Human-Robot Collaboration and Adaptive Handovers<br>Method: Wizard-of-Oz User Study, Social Cues, FACT HRC Dataset<br>Venue: HRI 2023<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2301.02938">https://arxiv.org/abs/2301.02938</a><br>Code&#x2F;Data: <a target="_blank" rel="noopener" href="https://doi.org/10.26180/21671768.v1">FACT HRC processed data</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>这篇论文没有提出自主 handover 策略，而是用 20 人、持续约一小时的自然手工任务和 565 个交接 episode，系统揭示 gaze、手势、手占用、桌面布局与任务阶段如何共同决定交接时机和位置，并形成 FACT HRC 数据集。</p>
+<h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p><strong>领域现状</strong>：机器人 handover 研究常在独立、短时、受控实验中测量成功率、交接时间或固定姿态，默认物体传递本身就是任务。</p>
+<p><strong>现有痛点</strong>：真实协作中，handover 只是连续任务的一小段。人可能正在装配、绘画或思考，机器人过早出现会造成催促感，过晚又降低效率；相同动作在不同阶段具有不同社会含义。</p>
+<p><strong>核心矛盾</strong>：受控实验便于比较，但会剪掉决定交接自然度的上下文；自然任务保留真实行为，却难以直接评估自主算法。</p>
+<p><strong>本文要解决什么？</strong></p>
+<ol>
+<li>人在自然协作任务中用哪些社会线索启动、调整和结束 handover？</li>
+<li>功能性任务与创造性任务如何改变时空协调和主观体验？</li>
+<li>人与机器人是否会在长时交互中相互适应？</li>
+</ol>
+<p><strong>切入角度</strong>：先用 Wizard-of-Oz 让人类操作者实现尽可能自然的自适应机器人，再观察其策略与参与者行为，作为未来自主模型的数据和设计依据。</p>
+<p><strong>核心 idea 一句话</strong>：把 handover 放回完整任务，用社会线索、前后任务上下文和人机共适应解释“何时递、在哪递、怎样等待”。</p>
+<h2 id="方法详解"><a href="#方法详解" class="headerlink" title="方法详解"></a>方法详解</h2><h3 id="整体框架"><a href="#整体框架" class="headerlink" title="整体框架"></a>整体框架</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">20 participants</span><br><span class="line">  -&gt; Stage 1 preparation</span><br><span class="line">  -&gt; Stage 2 functional birdhouse assembly</span><br><span class="line">  -&gt; Stage 3 creative painting</span><br><span class="line">  -&gt; Fetch robot moves between storage/work space</span><br><span class="line">  -&gt; Wizard observes cues and adapts timing + OTP</span><br><span class="line">  -&gt; synchronized robot/camera/body/emotion logs</span><br><span class="line">  -&gt; questionnaire + interview + behavior analysis</span><br><span class="line">  -&gt; FACT HRC dataset</span><br></pre></td></tr></table></figure>
+
+<p>每个 session 约一小时。参与者在小桌面工作，无法一次放下所有工具；机器人必须在储物区和工作区间往返，物体通过机器人夹持的篮子传递，从而把重点放在 timing 与 object transfer point，而非异构抓取。</p>
+<h3 id="关键设计"><a href="#关键设计" class="headerlink" title="关键设计"></a>关键设计</h3><ol>
+<li><p><strong>三阶段自然任务</strong></p>
+<ul>
+<li>功能：构造从熟悉到功能协作再到创造性协作的连续上下文。</li>
+<li>核心思路：Stage 1 准备与隐式互相学习；Stage 2 组装强调效率和结构正确；Stage 3 绘画强调个人设计与开放选择。</li>
+<li>设计动机：检验同一种 handover 是否会因任务目标不同而改变。</li>
+<li>相比已有方法：不把 object transfer 隔离成一次单独 trial。</li>
+</ul>
+</li>
+<li><p><strong>Wizard-of-Oz 自适应控制</strong></p>
+<ul>
+<li>功能：在自主系统尚未具备足够社会理解前生成高质量交互轨迹。</li>
+<li>核心思路：隐藏操作者同时查看 robot onboard camera、桌边 RGB-D、3D map、上身关键点和情绪估计，并调整何时出发、何时伸臂与 OTP。</li>
+<li>设计动机：先发现真实策略与标签，再训练自治模型。</li>
+<li>相比已有方法：研究对象是“应该如何适应”，不是某个已固定算法的性能。</li>
+</ul>
+</li>
+<li><p><strong>多模态社会线索</strong></p>
+<ul>
+<li>功能：解释 handover 的开始、继续和结束。</li>
+<li>核心思路：记录 gaze、手势、上身前倾、手是否被占用、桌面空间、语言与任务阶段；操作者也用机器人位置、头部倾斜和等待地点表达意图。</li>
+<li>设计动机：社会线索是双向的，机器人不仅感知人，也通过动作塑造人的行为。</li>
+<li>相比已有方法：从单一 gaze&#x2F;gesture cue 扩展到任务条件下的 cue combination。</li>
+</ul>
+</li>
+<li><p><strong>FACT HRC 数据结构</strong></p>
+<ul>
+<li>功能：支持后续 handover timing、OTP、social cue 与体验研究。</li>
+<li>核心思路：提供 identifiable raw ROS bags、去标识的 0.1 秒粒度 processed data，以及实验材料和处理脚本。</li>
+<li>设计动机：让未来工作不仅引用定性结论，还能训练和比较模型。</li>
+<li>相比已有方法：同时包含连续协作、机器人状态、操作者控制、人体关键点、问卷和访谈。</li>
+</ul>
+</li>
+</ol>
+<h3 id="损失函数-训练策略"><a href="#损失函数-训练策略" class="headerlink" title="损失函数 &#x2F; 训练策略"></a>损失函数 &#x2F; 训练策略</h3><p>本文是观察性用户研究，不训练自主模型。核心“策略”由 Wizard 在线实现，分析由行为统计、阶段比较、问卷量表和半结构访谈构成。</p>
+<p>这意味着数据可以告诉我们哪些变量重要，但不能把 Wizard 的行为效果归因于一个可复现的学习算法。</p>
+<h2 id="实验关键数据"><a href="#实验关键数据" class="headerlink" title="实验关键数据"></a>实验关键数据</h2><h3 id="数据规模"><a href="#数据规模" class="headerlink" title="数据规模"></a>数据规模</h3><table>
+<thead>
+<tr>
+<th>项目</th>
+<th align="right">数量 &#x2F; 设置</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>参与者</td>
+<td align="right">20</td>
+<td>10 女 &#x2F; 10 男，年龄 $27.00\pm5.17$</td>
+</tr>
+<tr>
+<td>Processed samples</td>
+<td align="right">约 600K</td>
+<td>0.1 s 间隔同步数据</td>
+</tr>
+<tr>
+<td>Handover episodes</td>
+<td align="right">565</td>
+<td>覆盖三阶段任务</td>
+</tr>
+<tr>
+<td>Human-to-robot</td>
+<td align="right">52 (9.2%)</td>
+<td>人把物体放入机器人篮子</td>
+</tr>
+<tr>
+<td>Robot-to-human</td>
+<td align="right">320 (56.6%)</td>
+<td>人从篮子中取物</td>
+</tr>
+<tr>
+<td>Bidirectional</td>
+<td align="right">193 (34.2%)</td>
+<td>同时或连续交换物体</td>
+</tr>
+</tbody></table>
+<h3 id="主观评价"><a href="#主观评价" class="headerlink" title="主观评价"></a>主观评价</h3><table>
+<thead>
+<tr>
+<th>指标</th>
+<th align="right">Stage 1</th>
+<th align="right">Stage 2</th>
+<th align="right">Stage 3</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Likeability</td>
+<td align="right">3.76</td>
+<td align="right">4.10</td>
+<td align="right">4.13</td>
+</tr>
+<tr>
+<td>Perceived safety</td>
+<td align="right">3.77</td>
+<td align="right">3.99</td>
+<td align="right">4.04</td>
+</tr>
+<tr>
+<td>Fluency</td>
+<td align="right">3.62</td>
+<td align="right">3.95</td>
+<td align="right">4.12</td>
+</tr>
+<tr>
+<td>Trust</td>
+<td align="right">3.93</td>
+<td align="right">4.18</td>
+<td align="right">4.20</td>
+</tr>
+<tr>
+<td>Satisfaction</td>
+<td align="right">3.65</td>
+<td align="right">4.10</td>
+<td align="right">4.10</td>
+</tr>
+</tbody></table>
+<p>量表范围为 1-5。Stage 2&#x2F;3 整体比 Stage 1 更积极，但提升同时受到操作者学习、参与者适应和任务注意力变化影响，不能视为单一因果效应。</p>
+<h3 id="关键行为发现"><a href="#关键行为发现" class="headerlink" title="关键行为发现"></a>关键行为发现</h3><ul>
+<li>17&#x2F;20 参与者用“看向机器人 + 前倾 + 单手挥动”作为常见 start cue。</li>
+<li>12 人使用过不止一种 start cue，11 人后来切换到更省力的信号。</li>
+<li>5 人即使知道机器人不支持语音仍会对它说“谢谢”等话语。</li>
+<li>人会使用双向交换、填充等待时间和动态整理桌面来适应机器人速度。</li>
+<li>15 人认为机器人具有适应性；只有 9 人认为它完全自主，说明“过于聪明的适应”反而暴露了 WoZ 可能性。</li>
+</ul>
+<h2 id="亮点与洞察"><a href="#亮点与洞察" class="headerlink" title="亮点与洞察"></a>亮点与洞察</h2><ul>
+<li><strong>handover 是任务中的社会事件</strong>：离开 pre&#x2F;post task context，单次成功率不能解释自然度。</li>
+<li><strong>人类状态是时变且个体化的</strong>：固定 gesture dictionary 难以覆盖同一人随熟悉度变化的低努力信号。</li>
+<li><strong>适应是双向的</strong>：系统只学习 human adaptation 而不建模 robot-induced behavior，会遗漏闭环效应。</li>
+<li><strong>数据协议本身可复用</strong>：阶段化任务、同步社会线索、问卷和访谈适合构造更完整的自然协作数据集。</li>
+</ul>
+<h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><ul>
+<li>机器人由 Wizard 控制，无法衡量自主感知、推理和规划误差。</li>
+<li>物体放在篮子中，回避了真实抓取、朝向、接触可供性和释放判断。</li>
+<li>参与者主要来自大学环境，样本量 20，文化、年龄和长期使用差异未覆盖。</li>
+<li>情绪估计没有被操作者实际依赖，自动情绪信号是否有用仍未验证。</li>
+<li>数据包含 robot onboard view 与桌边相机，但没有记录参与者的头戴第一视角。</li>
+<li>后续数据集可同步记录参与者视角、机器人视角、对象接触状态和真实机器人动作，并增加动作结果验证。</li>
+</ul>
+<h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><ul>
+<li>**vs <a href="/posts/2026/papers/2026_arXiv_Event_Driven_Proactive_Assistive_Manipulation/">Event-Driven Proactive Assistance</a>**：本文发现自然社会线索与任务状态；Event-Driven 提供自动触发和执行闭环，但任务更窄。</li>
+<li>**vs <a href="/posts/2026/papers/2024_IROS_ContactHandover_Contact_Guided_Object_Handover/">ContactHandover</a>**：本文关心 timing&#x2F;context；ContactHandover 关心 grasp、position 与 orientation。</li>
+<li>**vs <a href="/posts/2026/papers/2024_arXiv_Compliant_Blind_Handover_Control/">Compliant Blind Handover</a>**：本文观察交接前后的社会协调；Blind Handover 解决接触末段的安全释放。</li>
+<li><strong>数据集价值</strong>：FACT HRC 为 handover timing、任务阶段、社会线索组合和长期共适应提供了少见的自然任务证据。</li>
+</ul>
+<h2 id="评分"><a href="#评分" class="headerlink" title="评分"></a>评分</h2><ul>
+<li>新颖性: ⭐⭐⭐⭐☆ 把 handover 放回自然任务，并系统研究共适应。</li>
+<li>实验充分度: ⭐⭐⭐⭐☆ 数据丰富、混合定量定性证据，但 WoZ 限制因果结论。</li>
+<li>写作质量: ⭐⭐⭐⭐☆ 研究问题、协议、数据与观察关联清楚。</li>
+<li>实用价值: ⭐⭐⭐⭐☆ 对场景设计、状态变量和数据采集非常有帮助。</li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%A1%86%E6%9E%B6"><span class="toc-text">整体框架</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E8%AE%BE%E8%AE%A1"><span class="toc-text">关键设计</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-%E8%AE%AD%E7%BB%83%E7%AD%96%E7%95%A5"><span class="toc-text">损失函数 &#x2F; 训练策略</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E8%A7%84%E6%A8%A1"><span class="toc-text">数据规模</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E8%A7%82%E8%AF%84%E4%BB%B7"><span class="toc-text">主观评价</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E8%A1%8C%E4%B8%BA%E5%8F%91%E7%8E%B0"><span class="toc-text">关键行为发现</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E4%B8%8E%E6%B4%9E%E5%AF%9F"><span class="toc-text">亮点与洞察</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">局限性</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">相关工作与启发</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%84%E5%88%86"><span class="toc-text">评分</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%BA%BA%E6%9C%BA%E5%8D%8F%E4%BD%9C/" class="tag">#人机协作</a>
+                            
+                            <a href="/tags/Handover/" class="tag">#Handover</a>
+                            
+                            <a href="/tags/%E7%94%A8%E6%88%B7%E7%A0%94%E7%A9%B6/" class="tag">#用户研究</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

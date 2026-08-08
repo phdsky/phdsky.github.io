@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Co-training Egocentric Video and Robot Demonstrations：用人类第一视角视频增强机器人导航 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Co-training Egocentric Video and Robot Demonstrations：用人类第一视角视频增强机器人导航</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年08月08日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Language-conditioned Mobile Robot Navigation<br>Method: Egocentric Visual Odometry, Motion-intention Conversion, Human-Robot Co-training<br>Venue: arXiv<br>Year: 2026<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2606.01951">https://arxiv.org/abs/2606.01951</a><br>Code: 未公开</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>论文把人类第一视角视频通过视觉里程计转换为离散运动意图，再与少量机器人示范共同训练 VLA 导航策略；在目标物变化和未见起点上，共训练模型明显优于只用机器人数据或只用人类视频。</p>
+<h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>机器人示范数据昂贵：需要真实平台、遥操作员、安全环境和重复采集。</p>
+<p>相比之下，人类第一视角视频数量更多，也包含丰富的目标导向行为。</p>
+<p>然而人类视频不能直接作为机器人动作监督，因为：</p>
+<ul>
+<li>摄像机运动与机器人控制空间不同；</li>
+<li>单目视频缺少绝对尺度；</li>
+<li>人类头部运动含有抖动和观察动作；</li>
+<li>机器人只执行平面移动等受限动作；</li>
+<li>两种数据的外观、动力学与时间尺度不同。</li>
+</ul>
+<p>论文的目标不是让机器人直接模仿人体关节，而是从头戴相机视频中提取平台无关的运动意图，再与机器人动作数据共享训练。</p>
+<p>这为利用大规模人类视频补充机器人数据提供了一条相对轻量的路线。</p>
+<h2 id="方法详解"><a href="#方法详解" class="headerlink" title="方法详解"></a>方法详解</h2><h3 id="1-从人类视频恢复相机运动"><a href="#1-从人类视频恢复相机运动" class="headerlink" title="1. 从人类视频恢复相机运动"></a>1. 从人类视频恢复相机运动</h3><p>管线使用 SuperPoint 提取局部特征，LightGlue 建立相邻帧匹配。</p>
+<p>随后通过 Essential Matrix 与 RANSAC 估计相机相对运动，并把六自由度运动投影到平面 $SE(2)$。</p>
+<p>由于单目视觉里程计不能恢复真实平移尺度，论文对平移进行归一化，把它解释为“运动方向或意图”而非米制速度。</p>
+<h3 id="2-运动信号稳定化"><a href="#2-运动信号稳定化" class="headerlink" title="2. 运动信号稳定化"></a>2. 运动信号稳定化</h3><p>原始头部轨迹包含大量抖动，作者使用多级处理：</p>
+<ul>
+<li>速度裁剪；</li>
+<li>窗口大小 $N&#x3D;5$ 的中值滤波；</li>
+<li>Kalman 滤波，$Q&#x3D;0.005$、$R&#x3D;0.5$；</li>
+<li>连续运动离散化为机器人动作类别；</li>
+<li>众数滤波移除持续少于 12 帧、约 200 ms 的短暂变化。</li>
+</ul>
+<p>这一步把不稳定的视觉运动估计转成更接近移动机器人控制指令的离散标签。</p>
+<h3 id="3-共同训练的-VLA-架构"><a href="#3-共同训练的-VLA-架构" class="headerlink" title="3. 共同训练的 VLA 架构"></a>3. 共同训练的 VLA 架构</h3><p>视觉侧使用冻结的 SigLIP2 与 DINOv3 特征。</p>
+<p>特征经过 Transformer adapter 融合：</p>
+<ul>
+<li>8 层；</li>
+<li>隐藏维度 512；</li>
+<li>前馈维度 2048。</li>
+</ul>
+<p>动作生成使用基于 Conditional Flow Matching 的 DiT：</p>
+<ul>
+<li>8 层；</li>
+<li>动作 horizon 为 32。</li>
+</ul>
+<p>模型共同接收人类视频派生的运动意图和机器人示范动作，在同一策略空间学习目标导向导航。</p>
+<h3 id="4-数据组成"><a href="#4-数据组成" class="headerlink" title="4. 数据组成"></a>4. 数据组成</h3><p>机器人数据包含 150 次真实导航试验，主要围绕红苹果目标，并从四个起点采集。</p>
+<p>人类数据包含约 240 段视频，来自包含红苹果、绿苹果和橙子的任务设置。</p>
+<p>论文还区分简单场景与干扰物场景，以测试目标外观变化和视觉干扰。</p>
+<p>这里最重要的数据不对称是：机器人示范只覆盖有限目标，而人类视频覆盖更多目标类别。</p>
+<p>因此实验能检验人类视频是否提供语义与行为泛化，而非只增加同分布样本数量。</p>
+<h3 id="5-三种训练条件"><a href="#5-三种训练条件" class="headerlink" title="5. 三种训练条件"></a>5. 三种训练条件</h3><p>作者比较：</p>
+<ol>
+<li>Robot-only：只使用机器人示范；</li>
+<li>Human-only：只使用人类第一视角视频派生标签；</li>
+<li>Ours：人类视频与机器人示范共同训练。</li>
+</ol>
+<p>这一设计直接检验两种数据是否互补。</p>
+<h2 id="实验关键数据"><a href="#实验关键数据" class="headerlink" title="实验关键数据"></a>实验关键数据</h2><h3 id="1-真实机器人平台"><a href="#1-真实机器人平台" class="headerlink" title="1. 真实机器人平台"></a>1. 真实机器人平台</h3><p>实验使用 CobotMagic 真实机器人，并测试对不同水果目标和干扰场景的导航。</p>
+<p>指标包括：</p>
+<ul>
+<li>NoD：无干扰场景成功率；</li>
+<li>Dist：有干扰物场景成功率。</li>
+</ul>
+<h3 id="2-不同目标上的表现"><a href="#2-不同目标上的表现" class="headerlink" title="2. 不同目标上的表现"></a>2. 不同目标上的表现</h3><table>
+<thead>
+<tr>
+<th>训练数据</th>
+<th align="right">红苹果 NoD &#x2F; Dist</th>
+<th align="right">绿苹果 NoD &#x2F; Dist</th>
+<th align="right">橙子 NoD &#x2F; Dist</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Robot-only</td>
+<td align="right">88.9 &#x2F; 22.2</td>
+<td align="right">88.9 &#x2F; 22.2</td>
+<td align="right">88.9 &#x2F; 22.2</td>
+</tr>
+<tr>
+<td>Human-only</td>
+<td align="right">11.1 &#x2F; 11.1</td>
+<td align="right">22.2 &#x2F; 11.1</td>
+<td align="right">5.56 &#x2F; 11.1</td>
+</tr>
+<tr>
+<td>Human + Robot</td>
+<td align="right"><strong>100 &#x2F; 88.9</strong></td>
+<td align="right"><strong>88.9 &#x2F; 88.9</strong></td>
+<td align="right"><strong>100 &#x2F; 94.4</strong></td>
+</tr>
+</tbody></table>
+<p>Robot-only 在无干扰场景中看似稳定，但遇到干扰物后都降到 22.2%。</p>
+<p>Human-only 几乎无法直接控制真实机器人，说明仅靠平台不匹配的人类运动意图不足以学习可执行策略。</p>
+<p>共同训练同时保留了机器人可执行性和人类视频带来的语义覆盖。</p>
+<h3 id="3-未见起点泛化"><a href="#3-未见起点泛化" class="headerlink" title="3. 未见起点泛化"></a>3. 未见起点泛化</h3><table>
+<thead>
+<tr>
+<th>训练数据</th>
+<th align="right">未见起点成功率 (%)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Robot-only</td>
+<td align="right">41.7</td>
+</tr>
+<tr>
+<td>Human-only</td>
+<td align="right">0.0</td>
+</tr>
+<tr>
+<td>Human + Robot</td>
+<td align="right"><strong>75.0</strong></td>
+</tr>
+</tbody></table>
+<p>共同训练相对 Robot-only 提升 33.3 个百分点。</p>
+<p>这支持人类视频确实提供了有助于路径或目标泛化的行为先验。</p>
+<h3 id="4-结果边界"><a href="#4-结果边界" class="headerlink" title="4. 结果边界"></a>4. 结果边界</h3><p>实验规模仍较小，动作空间主要是二维地面导航。</p>
+<p>论文没有证明同样方法能扩展到：</p>
+<ul>
+<li>机械臂六自由度控制；</li>
+<li>接触丰富的操作；</li>
+<li>与真实人类同步协作；</li>
+<li>长时程多阶段任务。</li>
+</ul>
+<h2 id="亮点与洞察"><a href="#亮点与洞察" class="headerlink" title="亮点与洞察"></a>亮点与洞察</h2><h3 id="1-不追求精确人机动作同构"><a href="#1-不追求精确人机动作同构" class="headerlink" title="1. 不追求精确人机动作同构"></a>1. 不追求精确人机动作同构</h3><p>作者没有强行把人体运动映射成机器人连续控制，而是提取更抽象的运动意图。</p>
+<p>这种“先找共享低维接口”的思路比直接动作重定向更稳健。</p>
+<h3 id="2-人类数据与机器人数据缺一不可"><a href="#2-人类数据与机器人数据缺一不可" class="headerlink" title="2. 人类数据与机器人数据缺一不可"></a>2. 人类数据与机器人数据缺一不可</h3><p>Human-only 的失败非常有信息量。</p>
+<p>人类视频能扩展语义和状态覆盖，却不能替代机器人本体上的可执行性数据。</p>
+<p>这说明人类视频能补充语义与状态覆盖，但不能消除机器人本体数据采集。</p>
+<h3 id="3-第一视角数据可以提供任务条件下的行为先验"><a href="#3-第一视角数据可以提供任务条件下的行为先验" class="headerlink" title="3. 第一视角数据可以提供任务条件下的行为先验"></a>3. 第一视角数据可以提供任务条件下的行为先验</h3><p>人类头戴视频同时看到目标、障碍与自身运动方向，更接近“人在当前情境下会怎么行动”。</p>
+<p>这类信息可以帮助预测人的下一步动作或意图。</p>
+<h3 id="4-跨载体学习的关键是表示对齐"><a href="#4-跨载体学习的关键是表示对齐" class="headerlink" title="4. 跨载体学习的关键是表示对齐"></a>4. 跨载体学习的关键是表示对齐</h3><p>论文在 $SE(2)$ 运动意图层对齐人和机器人。</p>
+<p>这表明跨载体学习的关键不是直接混合原始动作，而是找到两种载体都能表达、又与目标任务相关的中间表示。</p>
+<h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><h3 id="1-单目视觉里程计存在噪声和尺度歧义"><a href="#1-单目视觉里程计存在噪声和尺度歧义" class="headerlink" title="1. 单目视觉里程计存在噪声和尺度歧义"></a>1. 单目视觉里程计存在噪声和尺度歧义</h3><p>大量滤波与离散化说明原始头部运动信号并不稳定。</p>
+<p>弱纹理、动态物体、快速转头和遮挡都可能破坏标签质量。</p>
+<h3 id="2-训练数据配比与控制变量仍需更清楚"><a href="#2-训练数据配比与控制变量仍需更清楚" class="headerlink" title="2. 训练数据配比与控制变量仍需更清楚"></a>2. 训练数据配比与控制变量仍需更清楚</h3><p>性能提升可能同时来自更多数据、更多目标类别和跨域正则化。</p>
+<p>如果没有严格匹配数据量和语义覆盖，很难把增益归因于“人类第一视角”本身。</p>
+<h3 id="3-动作空间过于简单"><a href="#3-动作空间过于简单" class="headerlink" title="3. 动作空间过于简单"></a>3. 动作空间过于简单</h3><p>二维导航与六自由度操作、双手协作或递交接触有很大差距。</p>
+<p>运动意图映射在高维动作中会更困难。</p>
+<h3 id="4-不是人机协作实验"><a href="#4-不是人机协作实验" class="headerlink" title="4. 不是人机协作实验"></a>4. 不是人机协作实验</h3><p>人类视频用于离线训练，测试时没有真实协作伙伴。</p>
+<p>它不能证明策略能理解人的即时需求或适应人的在线行为。</p>
+<h3 id="5-环境和任务规模有限"><a href="#5-环境和任务规模有限" class="headerlink" title="5. 环境和任务规模有限"></a>5. 环境和任务规模有限</h3><p>目标主要是三类水果，机器人数据只有 150 次试验。</p>
+<p>结论是否能推广到复杂室内环境尚不清楚。</p>
+<h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与-EgoExo-WM-的关系"><a href="#与-EgoExo-WM-的关系" class="headerlink" title="与 EgoExo-WM 的关系"></a>与 EgoExo-WM 的关系</h3><p><a href="/posts/2026/papers/2026_arXiv_EgoExo_WM_Ego_World_Model/">EgoExo-WM</a> 通过把外部视角视频转换为近似第一视角，扩展未来预测训练数据。</p>
+<p>本论文则把第一视角视频转换为运动意图标签，扩展策略训练数据。</p>
+<p>两者都说明跨视角、跨载体数据必须经过结构化转换，而不是直接混合。</p>
+<h3 id="与机器人自模型的关系"><a href="#与机器人自模型的关系" class="headerlink" title="与机器人自模型的关系"></a>与机器人自模型的关系</h3><p><a href="/posts/2026/papers/2022_arXiv_Egocentric_Visual_Self_Modeling_Robot_Dynamics/">Egocentric Visual Self-Modeling</a> 用机器人自身第一视角预测动作后果。</p>
+<p>本论文利用人类第一视角提供目标导向行为先验。</p>
+<p>二者分别提供机器人自身动力学先验与人类目标导向行为先验，关注点互补。</p>
+<h3 id="可推广的实验设计原则"><a href="#可推广的实验设计原则" class="headerlink" title="可推广的实验设计原则"></a>可推广的实验设计原则</h3><p>评价跨载体共训练时，至少应比较：</p>
+<ol>
+<li>只用机器人示范；</li>
+<li>只用人类视频派生标签；</li>
+<li>不经结构化转换的直接混合；</li>
+<li>使用共享中间表示的共同训练。</li>
+</ol>
+<p>各条件还需要控制样本量、目标类别覆盖和训练步数，否则性能提升可能只是数据更多。</p>
+<p>除总体成功率外，还应单独报告跨对象、跨起点和干扰场景泛化，以判断人类视频到底补充了什么信息。</p>
+<h2 id="评分"><a href="#评分" class="headerlink" title="评分"></a>评分</h2><table>
+<thead>
+<tr>
+<th>维度</th>
+<th align="right">评分</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>问题重要性</td>
+<td align="right">8.5&#x2F;10</td>
+<td>降低机器人数据成本是具普遍性的难题</td>
+</tr>
+<tr>
+<td>方法新颖性</td>
+<td align="right">8.0&#x2F;10</td>
+<td>将头部 VO 转成共享运动意图并共训练，接口设计有启发</td>
+</tr>
+<tr>
+<td>实验可信度</td>
+<td align="right">7.0&#x2F;10</td>
+<td>真实机器人结果清楚，但任务和数据规模较小</td>
+</tr>
+<tr>
+<td>可复现性</td>
+<td align="right">7.5&#x2F;10</td>
+<td>视觉里程计、滤波和模型参数较具体</td>
+</tr>
+<tr>
+<td>研究启发性</td>
+<td align="right">8.5&#x2F;10</td>
+<td>说明跨载体数据需要结构化对齐和公平数据消融</td>
+</tr>
+</tbody></table>
+<p><strong>综合评分：7.9&#x2F;10。</strong></p>
+<p>这篇论文证明人类第一视角视频可以通过共享运动意图改善机器人导航训练，但其结论仍限于小规模二维导航任务。</p>
+<h2 id="来源与相关论文"><a href="#来源与相关论文" class="headerlink" title="来源与相关论文"></a>来源与相关论文</h2><ul>
+<li>原论文：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2606.01951">Co-training Egocentric Video and Robot Demonstrations for Robot Navigation</a></li>
+<li>外部视角数据到第一视角世界模型：<a href="/posts/2026/papers/2026_arXiv_EgoExo_WM_Ego_World_Model/">EgoExo-WM</a></li>
+<li>机器人第一视角动力学自模型：<a href="/posts/2026/papers/2022_arXiv_Egocentric_Visual_Self_Modeling_Robot_Dynamics/">Egocentric Visual Self-Modeling</a></li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%BB%8E%E4%BA%BA%E7%B1%BB%E8%A7%86%E9%A2%91%E6%81%A2%E5%A4%8D%E7%9B%B8%E6%9C%BA%E8%BF%90%E5%8A%A8"><span class="toc-text">1. 从人类视频恢复相机运动</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%BF%90%E5%8A%A8%E4%BF%A1%E5%8F%B7%E7%A8%B3%E5%AE%9A%E5%8C%96"><span class="toc-text">2. 运动信号稳定化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%85%B1%E5%90%8C%E8%AE%AD%E7%BB%83%E7%9A%84-VLA-%E6%9E%B6%E6%9E%84"><span class="toc-text">3. 共同训练的 VLA 架构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E6%95%B0%E6%8D%AE%E7%BB%84%E6%88%90"><span class="toc-text">4. 数据组成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E4%B8%89%E7%A7%8D%E8%AE%AD%E7%BB%83%E6%9D%A1%E4%BB%B6"><span class="toc-text">5. 三种训练条件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%9C%9F%E5%AE%9E%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%B9%B3%E5%8F%B0"><span class="toc-text">1. 真实机器人平台</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E4%B8%8D%E5%90%8C%E7%9B%AE%E6%A0%87%E4%B8%8A%E7%9A%84%E8%A1%A8%E7%8E%B0"><span class="toc-text">2. 不同目标上的表现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%9C%AA%E8%A7%81%E8%B5%B7%E7%82%B9%E6%B3%9B%E5%8C%96"><span class="toc-text">3. 未见起点泛化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E7%BB%93%E6%9E%9C%E8%BE%B9%E7%95%8C"><span class="toc-text">4. 结果边界</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E4%B8%8E%E6%B4%9E%E5%AF%9F"><span class="toc-text">亮点与洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%8D%E8%BF%BD%E6%B1%82%E7%B2%BE%E7%A1%AE%E4%BA%BA%E6%9C%BA%E5%8A%A8%E4%BD%9C%E5%90%8C%E6%9E%84"><span class="toc-text">1. 不追求精确人机动作同构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E4%BA%BA%E7%B1%BB%E6%95%B0%E6%8D%AE%E4%B8%8E%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%95%B0%E6%8D%AE%E7%BC%BA%E4%B8%80%E4%B8%8D%E5%8F%AF"><span class="toc-text">2. 人类数据与机器人数据缺一不可</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%AC%AC%E4%B8%80%E8%A7%86%E8%A7%92%E6%95%B0%E6%8D%AE%E5%8F%AF%E4%BB%A5%E6%8F%90%E4%BE%9B%E4%BB%BB%E5%8A%A1%E6%9D%A1%E4%BB%B6%E4%B8%8B%E7%9A%84%E8%A1%8C%E4%B8%BA%E5%85%88%E9%AA%8C"><span class="toc-text">3. 第一视角数据可以提供任务条件下的行为先验</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E8%B7%A8%E8%BD%BD%E4%BD%93%E5%AD%A6%E4%B9%A0%E7%9A%84%E5%85%B3%E9%94%AE%E6%98%AF%E8%A1%A8%E7%A4%BA%E5%AF%B9%E9%BD%90"><span class="toc-text">4. 跨载体学习的关键是表示对齐</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">局限性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%8D%95%E7%9B%AE%E8%A7%86%E8%A7%89%E9%87%8C%E7%A8%8B%E8%AE%A1%E5%AD%98%E5%9C%A8%E5%99%AA%E5%A3%B0%E5%92%8C%E5%B0%BA%E5%BA%A6%E6%AD%A7%E4%B9%89"><span class="toc-text">1. 单目视觉里程计存在噪声和尺度歧义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%AE%AD%E7%BB%83%E6%95%B0%E6%8D%AE%E9%85%8D%E6%AF%94%E4%B8%8E%E6%8E%A7%E5%88%B6%E5%8F%98%E9%87%8F%E4%BB%8D%E9%9C%80%E6%9B%B4%E6%B8%85%E6%A5%9A"><span class="toc-text">2. 训练数据配比与控制变量仍需更清楚</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%8A%A8%E4%BD%9C%E7%A9%BA%E9%97%B4%E8%BF%87%E4%BA%8E%E7%AE%80%E5%8D%95"><span class="toc-text">3. 动作空间过于简单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E4%B8%8D%E6%98%AF%E4%BA%BA%E6%9C%BA%E5%8D%8F%E4%BD%9C%E5%AE%9E%E9%AA%8C"><span class="toc-text">4. 不是人机协作实验</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E7%8E%AF%E5%A2%83%E5%92%8C%E4%BB%BB%E5%8A%A1%E8%A7%84%E6%A8%A1%E6%9C%89%E9%99%90"><span class="toc-text">5. 环境和任务规模有限</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">相关工作与启发</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E-EgoExo-WM-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与 EgoExo-WM 的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E%E6%9C%BA%E5%99%A8%E4%BA%BA%E8%87%AA%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与机器人自模型的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E6%8E%A8%E5%B9%BF%E7%9A%84%E5%AE%9E%E9%AA%8C%E8%AE%BE%E8%AE%A1%E5%8E%9F%E5%88%99"><span class="toc-text">可推广的实验设计原则</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%84%E5%88%86"><span class="toc-text">评分</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9D%A5%E6%BA%90%E4%B8%8E%E7%9B%B8%E5%85%B3%E8%AE%BA%E6%96%87"><span class="toc-text">来源与相关论文</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%AD%A6%E4%B9%A0/" class="tag">#机器人学习</a>
+                            
+                            <a href="/tags/%E7%AC%AC%E4%B8%80%E8%A7%86%E8%A7%92%E8%A7%86%E9%A2%91/" class="tag">#第一视角视频</a>
+                            
+                            <a href="/tags/%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%AF%BC%E8%88%AA/" class="tag">#机器人导航</a>
+                            
+                            <a href="/tags/VLA/" class="tag">#VLA</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

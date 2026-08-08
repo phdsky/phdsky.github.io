@@ -100,10 +100,24 @@
 <ol>
 <li>计算自车变换矩阵：$E_{t-1}^t = E_t^{-1}E_{t-1}$ </li>
 <li>静态物体对齐：$\tilde{Q}_p^{t-1} = E_{t-1}^t Q_p^{t-1}$ </li>
-<li>运动特征编码：$$\gamma = \xi_1(E_{t-1}^t, v, \Delta t)$$ 
-$$\beta = \xi_2(E_{t-1}^t, v, \Delta t)$$ </li>
-<li>仿射变换得到运动感知嵌入：$$\tilde{Q}_{pe}^t = \gamma \cdot LN(\psi(\tilde{Q}_p^t)) + \beta$$ 
-$$\tilde{Q}_c^t = \gamma \cdot LN(\tilde{Q}_c^t) + \beta$$ </li>
+<li>运动特征编码：
+
+$$
+\begin{aligned}
+\gamma &= \xi_1(E_{t-1}^t, v, \Delta t), \\
+\beta &= \xi_2(E_{t-1}^t, v, \Delta t).
+\end{aligned}
+$$
+</li>
+<li>仿射变换得到运动感知嵌入：
+
+$$
+\begin{aligned}
+\tilde{Q}_{pe}^t &= \gamma \cdot \operatorname{LN}(\psi(\tilde{Q}_p^t)) + \beta, \\
+\tilde{Q}_c^t &= \gamma \cdot \operatorname{LN}(\tilde{Q}_c^t) + \beta.
+\end{aligned}
+$$
+</li>
 </ol>
 <p>其中 $\psi$  为位置编码 MLP；当前帧物体查询的 $v$  与 $\Delta t$  均设置为 0。通过隐式编码，MLN 能够更稳健地处理运动信息。</p>
 <p><strong>三个关键数字</strong>：</p>

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Egocentric Visual Self-Modeling：机器人从第一视角学习自身动作动力学 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Egocentric Visual Self-Modeling：机器人从第一视角学习自身动作动力学</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年08月08日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Robot Dynamics Prediction and Damage Adaptation<br>Method: Egocentric Visual Self-Model, Action-conditioned Forward Dynamics<br>Venue: arXiv<br>Year: 2022（v3, 2024）<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2207.03386">https://arxiv.org/abs/2207.03386</a><br>Code: 未公开</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>论文让机器人用连续五帧第一视角图像和 12 维电机角度预测自身六自由度位姿变化，并用该模型在线评估候选动作；模型能适应不同身体构型，甚至在腿损坏后通过约 30 分钟真实运动数据恢复行走。</p>
+<h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>传统机器人控制依赖人工建立的运动学和动力学模型。</p>
+<p>这类模型在结构已知、传感器可靠时非常有效，但面对以下变化会失配：</p>
+<ul>
+<li>机器人构型改变；</li>
+<li>地面材质变化；</li>
+<li>执行器性能衰减；</li>
+<li>腿或关节损坏；</li>
+<li>难以精确建模的接触与滑移。</li>
+</ul>
+<p>论文研究一个更具适应性的方向：机器人能否像生物一样，通过自身第一视角观察学习“我的动作会让我怎么移动”？</p>
+<p>作者避免依赖外部动作捕捉和预定义本体模型，把视觉当作机器人自我运动的主要反馈。</p>
+<p>这类模型称为 egocentric visual self-model。</p>
+<h2 id="方法详解"><a href="#方法详解" class="headerlink" title="方法详解"></a>方法详解</h2><h3 id="1-输入与预测目标"><a href="#1-输入与预测目标" class="headerlink" title="1. 输入与预测目标"></a>1. 输入与预测目标</h3><p>模型输入包括：</p>
+<ul>
+<li>连续 5 帧 $128\times128$ 灰度第一视角图像；</li>
+<li>一个 12 维电机角度向量。</li>
+</ul>
+<p>输出为机器人位姿增量：</p>
+<p>$$<br>(\Delta x,\Delta y,\Delta z,<br>\Delta roll,\Delta pitch,\Delta yaw).<br>$$</p>
+<p>模型因此学习动作与下一步自身运动之间的映射。</p>
+<p>视觉历史可以帮助估计当前运动状态、地面纹理和滑移趋势，而电机角度描述准备执行的身体构型。</p>
+<h3 id="2-网络结构"><a href="#2-网络结构" class="headerlink" title="2. 网络结构"></a>2. 网络结构</h3><p>视觉编码器由 48 层卷积&#x2F;ResNet 结构和 5 层 LSTM 组成。</p>
+<p>动作编码器使用 3 层全连接网络。</p>
+<p>视觉与动作特征融合后，再经过 5 层全连接网络预测六维位姿变化。</p>
+<p>尽管模型被称为 self-model，它本质上是一个短时程视觉条件的前向动力学模型。</p>
+<h3 id="3-基于模型的动作选择"><a href="#3-基于模型的动作选择" class="headerlink" title="3. 基于模型的动作选择"></a>3. 基于模型的动作选择</h3><p>控制时，系统并行评估 100 个候选动作。</p>
+<p>模型预测每个动作会造成的位姿变化，再选择最接近期望移动方向的候选。</p>
+<p>在 RTX 3090 上，整个循环以约 5 Hz 运行。</p>
+<p>这种“预测候选后果再选择”的结构与世界模型规划高度一致，但动作 horizon 很短，候选也由预设步态机制产生。</p>
+<h3 id="4-训练数据与仿真到真实"><a href="#4-训练数据与仿真到真实" class="headerlink" title="4. 训练数据与仿真到真实"></a>4. 训练数据与仿真到真实</h3><p>PyBullet 中设置 4 种地面纹理域，每个域采集 100k 步，共 400k 步数据。</p>
+<p>作者使用视觉增强减小仿真到真实的外观差距。</p>
+<p>对新机器人构型，可以冻结视觉编码器，只重新训练后续动力学部分。</p>
+<p>新构型只需 200k 步，而初始模型使用 400k 步。</p>
+<p>这表明视觉运动表征具有一定跨身体构型迁移能力。</p>
+<h3 id="5-损坏后的在线再学习"><a href="#5-损坏后的在线再学习" class="headerlink" title="5. 损坏后的在线再学习"></a>5. 损坏后的在线再学习</h3><p>论文进一步破坏机器人的一条腿，使原模型失配。</p>
+<p>机器人用视觉里程计残差检测行为异常，并在真实环境中进行 motor babbling 采集新数据。</p>
+<p>约 30 分钟、7000 步数据后重新训练模型，机器人能够恢复有效移动。</p>
+<p>这是论文最引人注目的自适应实验。</p>
+<h2 id="实验关键数据"><a href="#实验关键数据" class="headerlink" title="实验关键数据"></a>实验关键数据</h2><h3 id="1-四方向预测误差"><a href="#1-四方向预测误差" class="headerlink" title="1. 四方向预测误差"></a>1. 四方向预测误差</h3><p>论文比较 action-only、IMU 和视觉自模型。</p>
+<table>
+<thead>
+<tr>
+<th>输入方法</th>
+<th align="right">前进</th>
+<th align="right">后退</th>
+<th align="right">向右</th>
+<th align="right">向左</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Action-only</td>
+<td align="right">$3.10\times10^{-3}$</td>
+<td align="right">$1.90\times10^{-3}$</td>
+<td align="right">$2.80\times10^{-3}$</td>
+<td align="right">$2.30\times10^{-3}$</td>
+</tr>
+<tr>
+<td>IMU</td>
+<td align="right">$2.40\times10^{-3}$</td>
+<td align="right">$1.80\times10^{-3}$</td>
+<td align="right">$2.10\times10^{-3}$</td>
+<td align="right">$2.20\times10^{-3}$</td>
+</tr>
+<tr>
+<td>Ours（rug）</td>
+<td align="right"><strong>$1.90\times10^{-3}$</strong></td>
+<td align="right"><strong>$1.40\times10^{-3}$</strong></td>
+<td align="right"><strong>$1.60\times10^{-3}$</strong></td>
+<td align="right"><strong>$1.50\times10^{-3}$</strong></td>
+</tr>
+</tbody></table>
+<p>其他纹理上的视觉模型误差也大致处于 $1.3$–$1.6\times10^{-3}$。</p>
+<p>视觉历史优于只看动作或 IMU，说明环境外观与视觉运动信息有助于预测接触动力学。</p>
+<h3 id="2-迁移到-Atlas-构型"><a href="#2-迁移到-Atlas-构型" class="headerlink" title="2. 迁移到 Atlas 构型"></a>2. 迁移到 Atlas 构型</h3><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>三组预测误差</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无图像输入</td>
+<td>.338 &#x2F; .461 &#x2F; .471</td>
+</tr>
+<tr>
+<td>视觉自模型</td>
+<td><strong>$5.99\times10^{-4}$ &#x2F; $7.05\times10^{-4}$ &#x2F; $5.77\times10^{-4}$</strong></td>
+</tr>
+</tbody></table>
+<p>视觉信息带来数量级上的改善。</p>
+<h3 id="3-Atlas-实际移动结果"><a href="#3-Atlas-实际移动结果" class="headerlink" title="3. Atlas 实际移动结果"></a>3. Atlas 实际移动结果</h3><table>
+<thead>
+<tr>
+<th>控制方法</th>
+<th align="right">前进</th>
+<th align="right">向右</th>
+<th align="right">向左</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>无图像模型</td>
+<td align="right">.406</td>
+<td align="right">-.696</td>
+<td align="right">1.53</td>
+</tr>
+<tr>
+<td>固定 gait</td>
+<td align="right">.450</td>
+<td align="right">.346</td>
+<td align="right">.410</td>
+</tr>
+<tr>
+<td>视觉自模型</td>
+<td align="right"><strong>1.27</strong></td>
+<td align="right"><strong>2.01</strong></td>
+<td align="right"><strong>1.67</strong></td>
+</tr>
+</tbody></table>
+<p>视觉自模型在三个方向的实际位移表现都更好，尤其避免了无图像模型在向右任务中反向移动。</p>
+<h3 id="4-损坏恢复结果"><a href="#4-损坏恢复结果" class="headerlink" title="4. 损坏恢复结果"></a>4. 损坏恢复结果</h3><p>一条腿损坏后，原模型的预测与实际视觉运动出现明显残差。</p>
+<p>机器人采集约 7000 个真实步、用时约 30 分钟进行再训练，随后恢复移动能力。</p>
+<p>论文以行为曲线和演示支持这一结论，但这种恢复仍依赖受控的 motor babbling 和重新训练流程。</p>
+<h2 id="亮点与洞察"><a href="#亮点与洞察" class="headerlink" title="亮点与洞察"></a>亮点与洞察</h2><h3 id="1-第一视角可以成为统一的自我运动反馈"><a href="#1-第一视角可以成为统一的自我运动反馈" class="headerlink" title="1. 第一视角可以成为统一的自我运动反馈"></a>1. 第一视角可以成为统一的自我运动反馈</h3><p>相比为每种身体结构重新定义精确状态，视觉提供了跨构型的共享观察接口。</p>
+<p>这对模块化、软体或损坏机器人特别有吸引力。</p>
+<h3 id="2-世界模型首先应预测可验证的后果"><a href="#2-世界模型首先应预测可验证的后果" class="headerlink" title="2. 世界模型首先应预测可验证的后果"></a>2. 世界模型首先应预测可验证的后果</h3><p>论文预测的是六维位姿增量，而不是完整未来图像。</p>
+<p>低维结果更容易用于动作选择和误差检测。</p>
+<p>这说明世界模型不一定要生成高保真视频；低维、可验证的动力学结果同样可以直接支持控制。</p>
+<h3 id="3-候选动作排序是可落地的规划接口"><a href="#3-候选动作排序是可落地的规划接口" class="headerlink" title="3. 候选动作排序是可落地的规划接口"></a>3. 候选动作排序是可落地的规划接口</h3><p>100 个候选动作并行通过前向模型评估，再选择期望结果最佳者。</p>
+<p>这种候选生成—前向预测—目标评分的接口也可推广到其他机器人规划任务。</p>
+<h3 id="4-预测残差可以触发适应或求助"><a href="#4-预测残差可以触发适应或求助" class="headerlink" title="4. 预测残差可以触发适应或求助"></a>4. 预测残差可以触发适应或求助</h3><p>损坏实验表明“模型预期”与“实际观察”的差异可以作为异常信号。</p>
+<p>对自适应控制系统而言，较大的结果残差可触发：</p>
+<ul>
+<li>重新观察；</li>
+<li>停止当前动作；</li>
+<li>更新动力学或环境模型。</li>
+</ul>
+<h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><h3 id="1-任务只覆盖基础移动"><a href="#1-任务只覆盖基础移动" class="headerlink" title="1. 任务只覆盖基础移动"></a>1. 任务只覆盖基础移动</h3><p>论文主要验证前后左右移动，无法说明模型能处理复杂操作、物体接触或多人交互。</p>
+<h3 id="2-“自模型”范围有限"><a href="#2-“自模型”范围有限" class="headerlink" title="2. “自模型”范围有限"></a>2. “自模型”范围有限</h3><p>模型预测短期位姿变化，不包含身体语义、任务目标、他人状态或长时程因果结构。</p>
+<p>名称容易让人误以为它建模了更完整的机器人自我概念。</p>
+<h3 id="3-对纹理和视觉里程计有依赖"><a href="#3-对纹理和视觉里程计有依赖" class="headerlink" title="3. 对纹理和视觉里程计有依赖"></a>3. 对纹理和视觉里程计有依赖</h3><p>弱纹理、光照变化、动态遮挡和镜面地面可能降低视觉运动估计质量。</p>
+<h3 id="4-控制频率较低"><a href="#4-控制频率较低" class="headerlink" title="4. 控制频率较低"></a>4. 控制频率较低</h3><p>5 Hz 对慢速步态可接受，但不适合高动态接触或快速操控。</p>
+<h3 id="5-候选动作来自预设生成器"><a href="#5-候选动作来自预设生成器" class="headerlink" title="5. 候选动作来自预设生成器"></a>5. 候选动作来自预设生成器</h3><p>模型只负责评估，仍依赖 gait generator 提供可执行候选。</p>
+<p>复杂任务中的候选覆盖和搜索成本尚未解决。</p>
+<h3 id="6-损坏适应仍需重新采集与训练"><a href="#6-损坏适应仍需重新采集与训练" class="headerlink" title="6. 损坏适应仍需重新采集与训练"></a>6. 损坏适应仍需重新采集与训练</h3><p>30 分钟恢复很有价值，但并不是即时在线适应。</p>
+<p>真实任务中 motor babbling 还可能带来安全风险。</p>
+<h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与-EgoExo-WM-的关系"><a href="#与-EgoExo-WM-的关系" class="headerlink" title="与 EgoExo-WM 的关系"></a>与 EgoExo-WM 的关系</h3><p><a href="/posts/2026/papers/2026_arXiv_EgoExo_WM_Ego_World_Model/">EgoExo-WM</a> 以人类动作预测人类第一视角未来。</p>
+<p>本论文以机器人动作预测机器人第一视角下的自身运动。</p>
+<p>两者都使用第一视角建立动作条件预测，但一个建模人体动作，另一个建模机器人自身动力学，不能互相替代。</p>
+<h3 id="与人类视频共训练的关系"><a href="#与人类视频共训练的关系" class="headerlink" title="与人类视频共训练的关系"></a>与人类视频共训练的关系</h3><p><a href="/posts/2026/papers/2026_arXiv_Co_Training_Egocentric_Video_Robot_Navigation/">Co-training Egocentric Video and Robot Demonstrations</a> 说明人类第一视角可以扩展策略覆盖，但必须与机器人示范共同训练。</p>
+<p>本论文则强调机器人自身数据对于可执行动力学建模不可替代。</p>
+<h3 id="开放研究问题"><a href="#开放研究问题" class="headerlink" title="开放研究问题"></a>开放研究问题</h3><p>这篇论文仍留下几个直接问题：</p>
+<ol>
+<li>六维位姿增量预测能否扩展到物体操作与丰富接触；</li>
+<li>在弱纹理和动态遮挡下，视觉自模型如何保持稳定；</li>
+<li>5 Hz 推理频率能否满足更快速的控制任务；</li>
+<li>能否在不进行危险 motor babbling 的情况下完成损坏后适应；</li>
+<li>候选动作来自固定 gait generator 时，模型对真正未见动作的外推能力如何。</li>
+</ol>
+<h2 id="评分"><a href="#评分" class="headerlink" title="评分"></a>评分</h2><table>
+<thead>
+<tr>
+<th>维度</th>
+<th align="right">评分</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>问题重要性</td>
+<td align="right">8.5&#x2F;10</td>
+<td>身体变化与损坏适应是长期自主机器人的关键问题</td>
+</tr>
+<tr>
+<td>方法新颖性</td>
+<td align="right">8.0&#x2F;10</td>
+<td>用第一视角作为跨构型自模型输入，思想鲜明</td>
+</tr>
+<tr>
+<td>实验可信度</td>
+<td align="right">8.0&#x2F;10</td>
+<td>包含仿真、真实、构型迁移和损坏恢复多组实验</td>
+</tr>
+<tr>
+<td>可复现性</td>
+<td align="right">7.0&#x2F;10</td>
+<td>网络和数据规模明确，但完整控制管线较复杂</td>
+</tr>
+<tr>
+<td>研究启发性</td>
+<td align="right">9.0&#x2F;10</td>
+<td>为视觉动力学、候选排序和预测残差提供清晰范式</td>
+</tr>
+</tbody></table>
+<p><strong>综合评分：8.1&#x2F;10。</strong></p>
+<p>这篇论文最值得继承的不是“视觉自模型”这个名称，而是以低维、可验证的动作后果支持候选选择与异常检测的研究方式。</p>
+<h2 id="来源与相关论文"><a href="#来源与相关论文" class="headerlink" title="来源与相关论文"></a>来源与相关论文</h2><ul>
+<li>原论文：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2207.03386">Egocentric Visual Self-Modeling for Robot Dynamics</a></li>
+<li>人体第一视角动作条件世界模型：<a href="/posts/2026/papers/2026_arXiv_EgoExo_WM_Ego_World_Model/">EgoExo-WM</a></li>
+<li>人类第一视角与机器人示范共训练：<a href="/posts/2026/papers/2026_arXiv_Co_Training_Egocentric_Video_Robot_Navigation/">Co-training Egocentric Video and Robot Demonstrations</a></li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E8%BE%93%E5%85%A5%E4%B8%8E%E9%A2%84%E6%B5%8B%E7%9B%AE%E6%A0%87"><span class="toc-text">1. 输入与预测目标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84"><span class="toc-text">2. 网络结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%9F%BA%E4%BA%8E%E6%A8%A1%E5%9E%8B%E7%9A%84%E5%8A%A8%E4%BD%9C%E9%80%89%E6%8B%A9"><span class="toc-text">3. 基于模型的动作选择</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E8%AE%AD%E7%BB%83%E6%95%B0%E6%8D%AE%E4%B8%8E%E4%BB%BF%E7%9C%9F%E5%88%B0%E7%9C%9F%E5%AE%9E"><span class="toc-text">4. 训练数据与仿真到真实</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E6%8D%9F%E5%9D%8F%E5%90%8E%E7%9A%84%E5%9C%A8%E7%BA%BF%E5%86%8D%E5%AD%A6%E4%B9%A0"><span class="toc-text">5. 损坏后的在线再学习</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%9B%9B%E6%96%B9%E5%90%91%E9%A2%84%E6%B5%8B%E8%AF%AF%E5%B7%AE"><span class="toc-text">1. 四方向预测误差</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%BF%81%E7%A7%BB%E5%88%B0-Atlas-%E6%9E%84%E5%9E%8B"><span class="toc-text">2. 迁移到 Atlas 构型</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Atlas-%E5%AE%9E%E9%99%85%E7%A7%BB%E5%8A%A8%E7%BB%93%E6%9E%9C"><span class="toc-text">3. Atlas 实际移动结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E6%8D%9F%E5%9D%8F%E6%81%A2%E5%A4%8D%E7%BB%93%E6%9E%9C"><span class="toc-text">4. 损坏恢复结果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E4%B8%8E%E6%B4%9E%E5%AF%9F"><span class="toc-text">亮点与洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%AC%AC%E4%B8%80%E8%A7%86%E8%A7%92%E5%8F%AF%E4%BB%A5%E6%88%90%E4%B8%BA%E7%BB%9F%E4%B8%80%E7%9A%84%E8%87%AA%E6%88%91%E8%BF%90%E5%8A%A8%E5%8F%8D%E9%A6%88"><span class="toc-text">1. 第一视角可以成为统一的自我运动反馈</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E4%B8%96%E7%95%8C%E6%A8%A1%E5%9E%8B%E9%A6%96%E5%85%88%E5%BA%94%E9%A2%84%E6%B5%8B%E5%8F%AF%E9%AA%8C%E8%AF%81%E7%9A%84%E5%90%8E%E6%9E%9C"><span class="toc-text">2. 世界模型首先应预测可验证的后果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%80%99%E9%80%89%E5%8A%A8%E4%BD%9C%E6%8E%92%E5%BA%8F%E6%98%AF%E5%8F%AF%E8%90%BD%E5%9C%B0%E7%9A%84%E8%A7%84%E5%88%92%E6%8E%A5%E5%8F%A3"><span class="toc-text">3. 候选动作排序是可落地的规划接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E9%A2%84%E6%B5%8B%E6%AE%8B%E5%B7%AE%E5%8F%AF%E4%BB%A5%E8%A7%A6%E5%8F%91%E9%80%82%E5%BA%94%E6%88%96%E6%B1%82%E5%8A%A9"><span class="toc-text">4. 预测残差可以触发适应或求助</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">局限性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%BB%BB%E5%8A%A1%E5%8F%AA%E8%A6%86%E7%9B%96%E5%9F%BA%E7%A1%80%E7%A7%BB%E5%8A%A8"><span class="toc-text">1. 任务只覆盖基础移动</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E2%80%9C%E8%87%AA%E6%A8%A1%E5%9E%8B%E2%80%9D%E8%8C%83%E5%9B%B4%E6%9C%89%E9%99%90"><span class="toc-text">2. “自模型”范围有限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AF%B9%E7%BA%B9%E7%90%86%E5%92%8C%E8%A7%86%E8%A7%89%E9%87%8C%E7%A8%8B%E8%AE%A1%E6%9C%89%E4%BE%9D%E8%B5%96"><span class="toc-text">3. 对纹理和视觉里程计有依赖</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E6%8E%A7%E5%88%B6%E9%A2%91%E7%8E%87%E8%BE%83%E4%BD%8E"><span class="toc-text">4. 控制频率较低</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E5%80%99%E9%80%89%E5%8A%A8%E4%BD%9C%E6%9D%A5%E8%87%AA%E9%A2%84%E8%AE%BE%E7%94%9F%E6%88%90%E5%99%A8"><span class="toc-text">5. 候选动作来自预设生成器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-%E6%8D%9F%E5%9D%8F%E9%80%82%E5%BA%94%E4%BB%8D%E9%9C%80%E9%87%8D%E6%96%B0%E9%87%87%E9%9B%86%E4%B8%8E%E8%AE%AD%E7%BB%83"><span class="toc-text">6. 损坏适应仍需重新采集与训练</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">相关工作与启发</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E-EgoExo-WM-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与 EgoExo-WM 的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E%E4%BA%BA%E7%B1%BB%E8%A7%86%E9%A2%91%E5%85%B1%E8%AE%AD%E7%BB%83%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与人类视频共训练的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BC%80%E6%94%BE%E7%A0%94%E7%A9%B6%E9%97%AE%E9%A2%98"><span class="toc-text">开放研究问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%84%E5%88%86"><span class="toc-text">评分</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9D%A5%E6%BA%90%E4%B8%8E%E7%9B%B8%E5%85%B3%E8%AE%BA%E6%96%87"><span class="toc-text">来源与相关论文</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E7%AC%AC%E4%B8%80%E8%A7%86%E8%A7%92%E8%A7%86%E8%A7%89/" class="tag">#第一视角视觉</a>
+                            
+                            <a href="/tags/%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%AD%A6%E4%B9%A0/" class="tag">#机器人学习</a>
+                            
+                            <a href="/tags/%E5%8A%A8%E5%8A%9B%E5%AD%A6/" class="tag">#动力学</a>
+                            
+                            <a href="/tags/%E8%87%AA%E6%A8%A1%E5%9E%8B/" class="tag">#自模型</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

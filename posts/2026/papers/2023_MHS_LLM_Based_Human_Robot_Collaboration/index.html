@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            LLM-Based Human-Robot Collaboration：从语言任务到机器人动作函数 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">LLM-Based Human-Robot Collaboration：从语言任务到机器人动作函数</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年08月08日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Language-guided Robot Manipulation<br>Method: GPT-2 Task Decomposition, YOLO Perception, Teleoperation, DMP<br>Venue: IEEE MHS 2023<br>Year: 2023<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.14972">https://arxiv.org/abs/2308.14972</a><br>Code: 未公开</p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>这篇两页短文提出一个“语言模型分解任务—机器人调用动作函数—人在失败时遥操作纠正—用 DMP 记录新技能”的协作框架，但几乎没有可复核的定量实验，因此更适合作为请求驱动式语言规划基线，而不是成熟的 HRC 方法证据。</p>
+<h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>真实的人机协作任务通常用自然语言描述，例如“整理桌面”或“把这些东西放回合适的位置”。</p>
+<p>这类指令包含两个困难：</p>
+<ol>
+<li>高层目标与机器人已有动作函数之间存在语义鸿沟；</li>
+<li>机器人遇到未知对象或不可执行步骤时，需要人类帮助补充技能。</li>
+</ol>
+<p>论文希望利用语言模型把自然语言任务分解为机器人可调用的函数序列，并让人类通过遥操作修正错误动作。</p>
+<p>作者将系统定位为人与机器人共同完成任务的框架，而不是完全自主的机器人规划器。</p>
+<p>从今天的视角看，它代表了一种典型范式：</p>
+<blockquote>
+<p>人提出任务，语言模型生成计划，机器人执行，失败后再请求人介入。</p>
+</blockquote>
+<p>这与主动协作系统根据环境变化自主判断是否介入存在明显区别。</p>
+<h2 id="方法详解"><a href="#方法详解" class="headerlink" title="方法详解"></a>方法详解</h2><h3 id="1-语言模型生成动作函数"><a href="#1-语言模型生成动作函数" class="headerlink" title="1. 语言模型生成动作函数"></a>1. 语言模型生成动作函数</h3><p>论文使用 GPT-2 在文本语料上训练或适配，用于预测与任务描述对应的机器人运动函数。</p>
+<p>机器人能力被封装为预定义函数，语言模型输出函数及其参数，再由代码模板转换为可执行程序。</p>
+<p>物体位置通过 YOLO 检测获得，并填入动作函数所需的目标参数。</p>
+<p>这种设计的优点是动作空间受到 API 约束，至少在形式上比直接生成任意控制命令更容易执行。</p>
+<p>但短文没有充分说明：</p>
+<ul>
+<li>训练语料规模和构成；</li>
+<li>GPT-2 的具体版本和训练方式；</li>
+<li>函数集合的大小；</li>
+<li>参数合法性检查；</li>
+<li>计划失败检测和恢复策略。</li>
+</ul>
+<h3 id="2-长任务与短任务的层级分解"><a href="#2-长任务与短任务的层级分解" class="headerlink" title="2. 长任务与短任务的层级分解"></a>2. 长任务与短任务的层级分解</h3><p>作者按照动作函数数量粗略区分任务：</p>
+<ul>
+<li>长时程任务：包含 10 个以上运动函数；</li>
+<li>短时程任务：包含少于 10 个运动函数。</li>
+</ul>
+<p>长时程任务先被拆分为若干短任务，再把每个短任务展开为具体函数。</p>
+<p>短时程任务则直接映射为动作函数序列。</p>
+<p>这种层级结构符合机器人任务规划的直觉，但“10 个函数”的阈值更像工程启发式，并没有消融或理论依据。</p>
+<h3 id="3-人类纠错与技能补充"><a href="#3-人类纠错与技能补充" class="headerlink" title="3. 人类纠错与技能补充"></a>3. 人类纠错与技能补充</h3><p>当语言模型生成不合理动作，或机器人缺少所需动作函数时，遥操作员介入纠正。</p>
+<p>系统使用 Dynamic Movement Primitives（DMP）记录人类示范的轨迹，并将其作为可复用运动技能。</p>
+<p>因此，人类在框架中承担两个角色：</p>
+<ol>
+<li>监督并纠正语言模型计划；</li>
+<li>为机器人技能库补充新动作。</li>
+</ol>
+<p>这使系统具有一定在线扩展能力，但也把大量可靠性压力转移给了遥操作员。</p>
+<h3 id="4-感知—规划—执行接口"><a href="#4-感知—规划—执行接口" class="headerlink" title="4. 感知—规划—执行接口"></a>4. 感知—规划—执行接口</h3><p>论文展示的基本链路可以概括为：</p>
+<ol>
+<li>接收自然语言任务；</li>
+<li>语言模型分解任务并输出函数；</li>
+<li>YOLO 提供对象位置；</li>
+<li>机器人执行预定义动作；</li>
+<li>人在不合理或不可执行步骤上介入；</li>
+<li>DMP 保存示范技能。</li>
+</ol>
+<p>它没有构建人类状态模型，也没有从人的视角观察当前协作进度。</p>
+<h2 id="实验关键数据"><a href="#实验关键数据" class="headerlink" title="实验关键数据"></a>实验关键数据</h2><h3 id="1-论文提供了什么"><a href="#1-论文提供了什么" class="headerlink" title="1. 论文提供了什么"></a>1. 论文提供了什么</h3><p>论文包含一幅概念性实验或系统流程图，用于说明语言分解、机器人执行和遥操作修正之间的关系。</p>
+<p>然而正文没有给出足以复核的量化实验表格。</p>
+<h3 id="2-论文没有提供什么"><a href="#2-论文没有提供什么" class="headerlink" title="2. 论文没有提供什么"></a>2. 论文没有提供什么</h3><table>
+<thead>
+<tr>
+<th>应当报告的证据</th>
+<th>文中情况</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>任务数量与任务定义</td>
+<td>未清晰报告</td>
+</tr>
+<tr>
+<td>语言计划成功率</td>
+<td>未报告</td>
+</tr>
+<tr>
+<td>动作函数调用准确率</td>
+<td>未报告</td>
+</tr>
+<tr>
+<td>长、短任务对比</td>
+<td>未报告定量数据</td>
+</tr>
+<tr>
+<td>YOLO 检测性能</td>
+<td>未报告</td>
+</tr>
+<tr>
+<td>遥操作介入次数与时长</td>
+<td>未报告</td>
+</tr>
+<tr>
+<td>DMP 新技能复用成功率</td>
+<td>未报告</td>
+</tr>
+<tr>
+<td>用户研究或协作流畅度</td>
+<td>未报告</td>
+</tr>
+<tr>
+<td>与规则、LLM 或经典规划基线对比</td>
+<td>未报告</td>
+</tr>
+</tbody></table>
+<p>因此不能从该文得出“LLM 提高了 HRC 成功率”或“系统优于其他规划方法”的结论。</p>
+<h3 id="3-证据等级判断"><a href="#3-证据等级判断" class="headerlink" title="3. 证据等级判断"></a>3. 证据等级判断</h3><p>这篇文章只有两页，更接近 workshop-style extended abstract 或概念演示。</p>
+<p>它能支持的最强结论是：作者提出并实现了一个把 GPT-2、动作函数、YOLO、遥操作和 DMP 串联起来的系统设想。</p>
+<p>它不能支持关于泛化、效率、可靠性和人机协作质量的强主张。</p>
+<h2 id="亮点与洞察"><a href="#亮点与洞察" class="headerlink" title="亮点与洞察"></a>亮点与洞察</h2><h3 id="1-动作函数接口降低了语言生成的执行风险"><a href="#1-动作函数接口降低了语言生成的执行风险" class="headerlink" title="1. 动作函数接口降低了语言生成的执行风险"></a>1. 动作函数接口降低了语言生成的执行风险</h3><p>让语言模型选择受约束的技能 API，比直接输出连续控制量更容易验证和回退。</p>
+<p>这个原则至今仍然适用：语言模型适合处理任务语义，但低层控制应由可验证模块承担。</p>
+<h3 id="2-把人类介入视为技能库扩展来源"><a href="#2-把人类介入视为技能库扩展来源" class="headerlink" title="2. 把人类介入视为技能库扩展来源"></a>2. 把人类介入视为技能库扩展来源</h3><p>系统没有把遥操作只当成失败兜底，而是试图通过 DMP 将纠正轨迹沉淀为新技能。</p>
+<p>这提示协作系统可以把“请求帮助”设计成可积累的数据闭环。</p>
+<h3 id="3-它清晰暴露了请求驱动范式的局限"><a href="#3-它清晰暴露了请求驱动范式的局限" class="headerlink" title="3. 它清晰暴露了请求驱动范式的局限"></a>3. 它清晰暴露了请求驱动范式的局限</h3><p>系统从人的显式任务开始，只有在计划错误或技能缺失后才请求人。</p>
+<p>它没有回答：</p>
+<ul>
+<li>人尚未提出请求时，机器人如何识别可帮助事件；</li>
+<li>当前任务是否真的需要机器人介入；</li>
+<li>多种可行动作中哪一个会改善联合结果；</li>
+<li>机器人应等待、观察还是询问。</li>
+</ul>
+<p>这些问题说明该框架仍属于请求驱动的人机协作，而不是持续感知与自主介入系统。</p>
+<h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><h3 id="1-实验证据非常薄弱"><a href="#1-实验证据非常薄弱" class="headerlink" title="1. 实验证据非常薄弱"></a>1. 实验证据非常薄弱</h3><p>缺少任务级成功率、基线、消融和用户研究，是最主要的问题。</p>
+<p>任何性能判断都只能停留在推测。</p>
+<h3 id="2-语言模型与当代方法存在代际差距"><a href="#2-语言模型与当代方法存在代际差距" class="headerlink" title="2. 语言模型与当代方法存在代际差距"></a>2. 语言模型与当代方法存在代际差距</h3><p>GPT-2 的任务分解和函数调用能力有限，论文也没有描述结构化输出约束或运行时验证。</p>
+<p>计划幻觉、参数错误和长程一致性风险没有被系统处理。</p>
+<h3 id="3-协作状态建模不足"><a href="#3-协作状态建模不足" class="headerlink" title="3. 协作状态建模不足"></a>3. 协作状态建模不足</h3><p>系统主要观察对象位置，不建模人的动作、注意、手部占用、任务阶段或意图变化。</p>
+<p>因此“协作”更多体现在人负责发指令和纠错，而非双方持续共享状态并共同适应。</p>
+<h3 id="4-介入成本没有被量化"><a href="#4-介入成本没有被量化" class="headerlink" title="4. 介入成本没有被量化"></a>4. 介入成本没有被量化</h3><p>遥操作员需要何时、以多大频率介入，直接决定系统是否真正减轻人的负担。</p>
+<p>论文没有报告这些成本。</p>
+<h3 id="5-DMP-只能覆盖有限类型的技能变化"><a href="#5-DMP-只能覆盖有限类型的技能变化" class="headerlink" title="5. DMP 只能覆盖有限类型的技能变化"></a>5. DMP 只能覆盖有限类型的技能变化</h3><p>DMP 适合记录轨迹模式，但未必能处理复杂接触、分支条件和对象状态变化。</p>
+<p>论文没有评估示范技能在新场景中的复用能力。</p>
+<h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与事件驱动主动协助的关系"><a href="#与事件驱动主动协助的关系" class="headerlink" title="与事件驱动主动协助的关系"></a>与事件驱动主动协助的关系</h3><p><a href="/posts/2026/papers/2026_arXiv_Event_Driven_Proactive_Assistive_Manipulation/">Event-Driven Proactive Assistance</a> 用视觉事件触发推理，并允许系统输出 pick、place 或 wait。</p>
+<p>相比之下，本论文是显式请求驱动，缺乏自主事件发现和结果验证。</p>
+<p>两篇论文构成清晰对照：本论文从显式语言请求生成动作函数，Event-Driven 方法则从可观察状态变化触发规划。</p>
+<h3 id="与自然协作行为的关系"><a href="#与自然协作行为的关系" class="headerlink" title="与自然协作行为的关系"></a>与自然协作行为的关系</h3><p><a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a> 表明人在真实协作中会不断改变视线、手势、身体前倾和递交策略。</p>
+<p>这些连续社会线索在本论文中没有进入规划回路。</p>
+<h3 id="可推广的系统设计原则"><a href="#可推广的系统设计原则" class="headerlink" title="可推广的系统设计原则"></a>可推广的系统设计原则</h3><p>语言模型可以保留在系统的任务语义层，但不应成为研究贡献的唯一载体。</p>
+<p>更稳妥的语言机器人架构是：</p>
+<ol>
+<li>LLM 生成有限候选动作或解释任务语义；</li>
+<li>感知模块提供可验证的对象与任务状态；</li>
+<li>结果模型或规划器为候选动作评分；</li>
+<li>不确定时选择等待、重新观察或请求澄清；</li>
+<li>低层控制模块负责安全执行。</li>
+</ol>
+<p>这样能把语言先验与可测量的协作状态分开。</p>
+<h2 id="评分"><a href="#评分" class="headerlink" title="评分"></a>评分</h2><table>
+<thead>
+<tr>
+<th>维度</th>
+<th align="right">评分</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>问题重要性</td>
+<td align="right">7.5&#x2F;10</td>
+<td>自然语言任务到机器人技能的映射非常重要</td>
+</tr>
+<tr>
+<td>方法新颖性</td>
+<td align="right">5.5&#x2F;10</td>
+<td>组件组合合理，但核心机制较初步</td>
+</tr>
+<tr>
+<td>实验可信度</td>
+<td align="right">2.0&#x2F;10</td>
+<td>缺少定量结果、基线与清晰实验设置</td>
+</tr>
+<tr>
+<td>可复现性</td>
+<td align="right">3.0&#x2F;10</td>
+<td>关键训练、函数集合和实现细节不足</td>
+</tr>
+<tr>
+<td>研究启发性</td>
+<td align="right">6.5&#x2F;10</td>
+<td>主要价值是请求驱动范式和系统分层参照</td>
+</tr>
+</tbody></table>
+<p><strong>综合评分：4.9&#x2F;10。</strong></p>
+<p>这篇论文值得保留在研究图谱中，但引用时必须克制：它能证明一种框架被提出，不能证明该框架有效或优于其他方法。</p>
+<h2 id="来源与相关论文"><a href="#来源与相关论文" class="headerlink" title="来源与相关论文"></a>来源与相关论文</h2><ul>
+<li>原论文：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2308.14972">LLM-Based Human-Robot Collaboration</a></li>
+<li>事件驱动的自主介入：<a href="/posts/2026/papers/2026_arXiv_Event_Driven_Proactive_Assistive_Manipulation/">Event-Driven Proactive Assistance</a></li>
+<li>自然协作中的社会线索：<a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a></li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B%E7%94%9F%E6%88%90%E5%8A%A8%E4%BD%9C%E5%87%BD%E6%95%B0"><span class="toc-text">1. 语言模型生成动作函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E9%95%BF%E4%BB%BB%E5%8A%A1%E4%B8%8E%E7%9F%AD%E4%BB%BB%E5%8A%A1%E7%9A%84%E5%B1%82%E7%BA%A7%E5%88%86%E8%A7%A3"><span class="toc-text">2. 长任务与短任务的层级分解</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E4%BA%BA%E7%B1%BB%E7%BA%A0%E9%94%99%E4%B8%8E%E6%8A%80%E8%83%BD%E8%A1%A5%E5%85%85"><span class="toc-text">3. 人类纠错与技能补充</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E6%84%9F%E7%9F%A5%E2%80%94%E8%A7%84%E5%88%92%E2%80%94%E6%89%A7%E8%A1%8C%E6%8E%A5%E5%8F%A3"><span class="toc-text">4. 感知—规划—执行接口</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E8%AE%BA%E6%96%87%E6%8F%90%E4%BE%9B%E4%BA%86%E4%BB%80%E4%B9%88"><span class="toc-text">1. 论文提供了什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%AE%BA%E6%96%87%E6%B2%A1%E6%9C%89%E6%8F%90%E4%BE%9B%E4%BB%80%E4%B9%88"><span class="toc-text">2. 论文没有提供什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E8%AF%81%E6%8D%AE%E7%AD%89%E7%BA%A7%E5%88%A4%E6%96%AD"><span class="toc-text">3. 证据等级判断</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E4%B8%8E%E6%B4%9E%E5%AF%9F"><span class="toc-text">亮点与洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%8A%A8%E4%BD%9C%E5%87%BD%E6%95%B0%E6%8E%A5%E5%8F%A3%E9%99%8D%E4%BD%8E%E4%BA%86%E8%AF%AD%E8%A8%80%E7%94%9F%E6%88%90%E7%9A%84%E6%89%A7%E8%A1%8C%E9%A3%8E%E9%99%A9"><span class="toc-text">1. 动作函数接口降低了语言生成的执行风险</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%8A%8A%E4%BA%BA%E7%B1%BB%E4%BB%8B%E5%85%A5%E8%A7%86%E4%B8%BA%E6%8A%80%E8%83%BD%E5%BA%93%E6%89%A9%E5%B1%95%E6%9D%A5%E6%BA%90"><span class="toc-text">2. 把人类介入视为技能库扩展来源</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AE%83%E6%B8%85%E6%99%B0%E6%9A%B4%E9%9C%B2%E4%BA%86%E8%AF%B7%E6%B1%82%E9%A9%B1%E5%8A%A8%E8%8C%83%E5%BC%8F%E7%9A%84%E5%B1%80%E9%99%90"><span class="toc-text">3. 它清晰暴露了请求驱动范式的局限</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">局限性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%AE%9E%E9%AA%8C%E8%AF%81%E6%8D%AE%E9%9D%9E%E5%B8%B8%E8%96%84%E5%BC%B1"><span class="toc-text">1. 实验证据非常薄弱</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B%E4%B8%8E%E5%BD%93%E4%BB%A3%E6%96%B9%E6%B3%95%E5%AD%98%E5%9C%A8%E4%BB%A3%E9%99%85%E5%B7%AE%E8%B7%9D"><span class="toc-text">2. 语言模型与当代方法存在代际差距</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%8D%8F%E4%BD%9C%E7%8A%B6%E6%80%81%E5%BB%BA%E6%A8%A1%E4%B8%8D%E8%B6%B3"><span class="toc-text">3. 协作状态建模不足</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E4%BB%8B%E5%85%A5%E6%88%90%E6%9C%AC%E6%B2%A1%E6%9C%89%E8%A2%AB%E9%87%8F%E5%8C%96"><span class="toc-text">4. 介入成本没有被量化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-DMP-%E5%8F%AA%E8%83%BD%E8%A6%86%E7%9B%96%E6%9C%89%E9%99%90%E7%B1%BB%E5%9E%8B%E7%9A%84%E6%8A%80%E8%83%BD%E5%8F%98%E5%8C%96"><span class="toc-text">5. DMP 只能覆盖有限类型的技能变化</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">相关工作与启发</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E4%B8%BB%E5%8A%A8%E5%8D%8F%E5%8A%A9%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与事件驱动主动协助的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E%E8%87%AA%E7%84%B6%E5%8D%8F%E4%BD%9C%E8%A1%8C%E4%B8%BA%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与自然协作行为的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E6%8E%A8%E5%B9%BF%E7%9A%84%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1%E5%8E%9F%E5%88%99"><span class="toc-text">可推广的系统设计原则</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%84%E5%88%86"><span class="toc-text">评分</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9D%A5%E6%BA%90%E4%B8%8E%E7%9B%B8%E5%85%B3%E8%AE%BA%E6%96%87"><span class="toc-text">来源与相关论文</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%BA%BA%E6%9C%BA%E5%8D%8F%E4%BD%9C/" class="tag">#人机协作</a>
+                            
+                            <a href="/tags/%E5%A4%A7%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B/" class="tag">#大语言模型</a>
+                            
+                            <a href="/tags/%E4%BB%BB%E5%8A%A1%E8%A7%84%E5%88%92/" class="tag">#任务规划</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

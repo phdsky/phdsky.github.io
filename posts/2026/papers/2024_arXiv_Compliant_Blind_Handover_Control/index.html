@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            Compliant Blind Handover：面向背身用户的柔顺安全递交控制 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+                <li><a href="/papers/">论文</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">Compliant Blind Handover：面向背身用户的柔顺安全递交控制</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年08月08日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Task: Blind Robot-to-Human Handover<br>Method: Admittance Control, Safety Velocity Scaling, LSTM Release Detection<br>Venue: arXiv<br>Year: 2024<br>Paper: <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2409.07155">https://arxiv.org/abs/2409.07155</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/davideferrari95/blind_handover_controller">blind_handover_controller</a></p>
+<span id="more"></span>
+
+<!-- toc -->
+
+<h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>论文用速度安全缩放、导纳控制和基于最近一秒力&#x2F;力矩序列的 LSTM 释放判断，让机器人能把工具递给背对机器人的用户；在 20 人、120 次递交的对比实验中，失败次数从基线的 16 次降到 2 次。</p>
+<h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>很多递交研究默认接收者能看见机器人并主动配合。</p>
+<p>但在装配、维修和厨房等场景中，人可能正在看向工作面，双手忙碌，或背对机器人。</p>
+<p>此时机器人仍需要安全地把工具送到人的手边，并从触觉交互判断人是否已稳定接住物体。</p>
+<p>这类“blind handover”存在三个关键问题：</p>
+<ol>
+<li>用户没有视觉预告，机器人运动必须可预测且安全；</li>
+<li>人手接触会产生复杂、短暂的力&#x2F;力矩变化；</li>
+<li>固定力阈值容易把碰撞、扰动和真实接取混淆。</li>
+</ol>
+<p>论文试图用柔顺控制与时序力觉分类器，把递交过程从“到点后等待固定拉力”升级为连续的物理交互判断。</p>
+<h2 id="方法详解"><a href="#方法详解" class="headerlink" title="方法详解"></a>方法详解</h2><h3 id="1-交互流程"><a href="#1-交互流程" class="headerlink" title="1. 交互流程"></a>1. 交互流程</h3><p>用户通过语音请求某个工具。</p>
+<p>机器人规划到目标递交区域的轨迹，并在接近用户时执行符合安全规范的速度调节。</p>
+<p>到达交互区域后，控制器切换为柔顺模式，让末端能够响应用户施加的力。</p>
+<p>系统持续读取腕部六轴力&#x2F;力矩传感器，并用 LSTM 判断当前信号是否表示“用户已经接取，可以释放”。</p>
+<h3 id="2-安全速度缩放"><a href="#2-安全速度缩放" class="headerlink" title="2. 安全速度缩放"></a>2. 安全速度缩放</h3><p>方法结合 ISO&#x2F;TS 15066 中常见的两类协作安全思想：</p>
+<ul>
+<li>Speed and Separation Monitoring（SSM）；</li>
+<li>Power and Force Limiting（PFL）。</li>
+</ul>
+<p>机器人根据与人的距离和允许的碰撞能量缩放速度。</p>
+<p>这一部分负责降低接近过程中的风险，但论文的核心创新更集中在接触后的柔顺行为和释放判断。</p>
+<h3 id="3-导纳控制"><a href="#3-导纳控制" class="headerlink" title="3. 导纳控制"></a>3. 导纳控制</h3><p>导纳控制把外部力映射为末端位姿或速度调整，使机器人在用户接触后不会像刚性位置控制器那样强行维持原轨迹。</p>
+<p>它允许用户以自然的拉、推或扭转动作调整物体。</p>
+<p>对背身用户而言，这一点尤其重要，因为用户无法通过视觉精确预测末端位置。</p>
+<h3 id="4-基于-LSTM-的释放检测"><a href="#4-基于-LSTM-的释放检测" class="headerlink" title="4. 基于 LSTM 的释放检测"></a>4. 基于 LSTM 的释放检测</h3><p>分类器输入最近 500 个力&#x2F;力矩读数，对应约 1 秒历史。</p>
+<p>网络包含两个 LSTM 隐层：</p>
+<ul>
+<li>第一层 512 个隐藏单元；</li>
+<li>第二层 256 个隐藏单元。</li>
+</ul>
+<p>输出是二分类：</p>
+<ul>
+<li>release；</li>
+<li>no release。</li>
+</ul>
+<p>训练数据来自 300 次递交，覆盖不同物体、递交姿态和外部扰动。</p>
+<p>与单一力阈值相比，LSTM 可以利用时间结构区分：</p>
+<ul>
+<li>短暂碰撞；</li>
+<li>用户试探性触碰；</li>
+<li>持续抓取并拉走；</li>
+<li>递交过程中的方向变化。</li>
+</ul>
+<h3 id="5-对比基线"><a href="#5-对比基线" class="headerlink" title="5. 对比基线"></a>5. 对比基线</h3><p>基线采用标准 PD 位置控制，并用固定力阈值触发释放。</p>
+<p>这个对比能够直接检验“柔顺控制 + 时序力觉判断”是否优于常见刚性方案。</p>
+<p>不过它没有把导纳控制和 LSTM 分开消融，因此无法精确判断两者各自贡献多少。</p>
+<h2 id="实验关键数据"><a href="#实验关键数据" class="headerlink" title="实验关键数据"></a>实验关键数据</h2><h3 id="1-用户实验设置"><a href="#1-用户实验设置" class="headerlink" title="1. 用户实验设置"></a>1. 用户实验设置</h3><ul>
+<li>参与者：20 人；</li>
+<li>年龄：20–30 岁；</li>
+<li>机器人：UR10e；</li>
+<li>工具：3 种；</li>
+<li>条件：提出方法与标准 PD + 力阈值基线；</li>
+<li>每种架构：60 次递交；</li>
+<li>总递交次数：120 次。</li>
+</ul>
+<p>参与者在递交时背对机器人，符合论文所定义的 blind handover 场景。</p>
+<h3 id="2-客观失败率"><a href="#2-客观失败率" class="headerlink" title="2. 客观失败率"></a>2. 客观失败率</h3><table>
+<thead>
+<tr>
+<th>方法</th>
+<th align="right">递交次数</th>
+<th align="right">失败次数</th>
+<th align="right">成功次数</th>
+<th align="right">成功率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>柔顺控制 + LSTM</td>
+<td align="right">60</td>
+<td align="right"><strong>2</strong></td>
+<td align="right">58</td>
+<td align="right"><strong>96.7%</strong></td>
+</tr>
+<tr>
+<td>PD + 固定力阈值</td>
+<td align="right">60</td>
+<td align="right">16</td>
+<td align="right">44</td>
+<td align="right">73.3%</td>
+</tr>
+</tbody></table>
+<p>提出方法将失败数减少了 14 次，绝对成功率提高约 23.4 个百分点。</p>
+<h3 id="3-主观评价"><a href="#3-主观评价" class="headerlink" title="3. 主观评价"></a>3. 主观评价</h3><p>问卷覆盖 7 个维度。</p>
+<p>提出方法的平均评分为 4.07，基线为 2.22。</p>
+<p>方差分析结果为：</p>
+<p>$$<br>F&#x3D;134.521,\quad p&#x3D;7.06\times 10^{-8}.<br>$$</p>
+<p>这表明两个条件的主观体验差异显著。</p>
+<h3 id="4-结果解释"><a href="#4-结果解释" class="headerlink" title="4. 结果解释"></a>4. 结果解释</h3><p>客观失败率和主观评分方向一致，说明柔顺交互不仅减少了释放错误，也让用户感到更自然或更安全。</p>
+<p>但实验设计仍不能证明 LSTM 本身就是主要增益来源，因为完整方法同时更换了控制策略和释放检测器。</p>
+<p>还需注意参与者年龄范围较窄，无法直接推广到老年人、儿童或上肢运动受限群体。</p>
+<h2 id="亮点与洞察"><a href="#亮点与洞察" class="headerlink" title="亮点与洞察"></a>亮点与洞察</h2><h3 id="1-用时序模式替代单点阈值"><a href="#1-用时序模式替代单点阈值" class="headerlink" title="1. 用时序模式替代单点阈值"></a>1. 用时序模式替代单点阈值</h3><p>人机接触不是一个瞬时事件，而是一段有阶段结构的过程。</p>
+<p>最近一秒的力&#x2F;力矩历史能表达接触、抓稳和拉走之间的变化，这比单一阈值更符合真实交互。</p>
+<h3 id="2-高层决策与安全控制需要分层"><a href="#2-高层决策与安全控制需要分层" class="headerlink" title="2. 高层决策与安全控制需要分层"></a>2. 高层决策与安全控制需要分层</h3><p>论文解决的是“决定递交之后如何安全完成接触与释放”。</p>
+<p>它并不负责判断此刻是否应该递交，也不决定递交什么。</p>
+<p>因此，论文的性能只能证明低层递交执行更安全、可靠，不能据此推断系统已经解决了递交时机或工具选择问题。</p>
+<h3 id="3-非视觉反馈是协作状态的重要组成"><a href="#3-非视觉反馈是协作状态的重要组成" class="headerlink" title="3. 非视觉反馈是协作状态的重要组成"></a>3. 非视觉反馈是协作状态的重要组成</h3><p>递交状态不应被简化为视觉特征。</p>
+<p>在接触阶段，力&#x2F;力矩历史比外观信息更直接。</p>
+<p>因此一个实用的递交系统还应考虑：</p>
+<ul>
+<li>人体姿态与机器人末端观察；</li>
+<li>对象和接触区域；</li>
+<li>近期动作历史；</li>
+<li>力觉或其他执行反馈。</li>
+</ul>
+<h3 id="4-背身场景是有价值的压力测试"><a href="#4-背身场景是有价值的压力测试" class="headerlink" title="4. 背身场景是有价值的压力测试"></a>4. 背身场景是有价值的压力测试</h3><p>当人无法持续看机器人时，系统不能依赖理想化的视线配合。</p>
+<p>这类场景能检验机器人是否真正利用多模态反馈，而不是只在高度脚本化的面对面递交中工作。</p>
+<h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><h3 id="1-没有视觉状态与高层任务理解"><a href="#1-没有视觉状态与高层任务理解" class="headerlink" title="1. 没有视觉状态与高层任务理解"></a>1. 没有视觉状态与高层任务理解</h3><p>系统依赖语音请求启动，无法自主识别用户是否需要工具。</p>
+<p>它也不判断人的双手是否被占用、目标工具是否合适或递交是否会打断任务。</p>
+<h3 id="2-完整方法缺少模块级消融"><a href="#2-完整方法缺少模块级消融" class="headerlink" title="2. 完整方法缺少模块级消融"></a>2. 完整方法缺少模块级消融</h3><p>导纳控制和 LSTM 同时加入，难以知道性能提升分别来自哪里。</p>
+<p>更严谨的实验应至少比较：</p>
+<ul>
+<li>PD + 阈值；</li>
+<li>导纳 + 阈值；</li>
+<li>PD + LSTM；</li>
+<li>导纳 + LSTM。</li>
+</ul>
+<h3 id="3-数据与参与者范围有限"><a href="#3-数据与参与者范围有限" class="headerlink" title="3. 数据与参与者范围有限"></a>3. 数据与参与者范围有限</h3><p>训练集 300 次递交，用户实验集中在 20–30 岁参与者和 3 种工具。</p>
+<p>对软物体、易碎物、重物、手套、不同握力和异常扰动的泛化仍不明确。</p>
+<h3 id="4-没有长期适应"><a href="#4-没有长期适应" class="headerlink" title="4. 没有长期适应"></a>4. 没有长期适应</h3><p>不同用户的接取习惯和力量模式可能不同。</p>
+<p>论文没有探索个体校准、在线适应或跨用户不确定性估计。</p>
+<h3 id="5-只评价递交末端，不评价完整协作收益"><a href="#5-只评价递交末端，不评价完整协作收益" class="headerlink" title="5. 只评价递交末端，不评价完整协作收益"></a>5. 只评价递交末端，不评价完整协作收益</h3><p>递交成功不等于任务更流畅。</p>
+<p>系统是否减少任务时间、认知负担和不必要打断，仍需要更上层的协作实验。</p>
+<h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与接触引导几何规划的关系"><a href="#与接触引导几何规划的关系" class="headerlink" title="与接触引导几何规划的关系"></a>与接触引导几何规划的关系</h3><p><a href="/posts/2026/papers/2024_IROS_ContactHandover_Contact_Guided_Object_Handover/">ContactHandover</a> 决定机器人应该在哪里抓、以什么位姿递交。</p>
+<p>本论文决定接触发生后如何柔顺响应并判断释放。</p>
+<p>两者可以串成完整管线：</p>
+<ol>
+<li>预测人体接触区域；</li>
+<li>选择不占用该区域的机器人抓取；</li>
+<li>优化人体可达的递交位姿；</li>
+<li>用导纳控制响应真实接触；</li>
+<li>用时序力觉判断是否释放。</li>
+</ol>
+<h3 id="与自适应社会线索的关系"><a href="#与自适应社会线索的关系" class="headerlink" title="与自适应社会线索的关系"></a>与自适应社会线索的关系</h3><p><a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a> 说明人会通过手势、身体前倾和手部占用状态改变递交方式。</p>
+<p>本论文补充了视觉或社会线索之后的物理接触层证据。</p>
+<h3 id="可推广的系统设计原则"><a href="#可推广的系统设计原则" class="headerlink" title="可推广的系统设计原则"></a>可推广的系统设计原则</h3><p>完整的物体递交应把不同责任分层验证：</p>
+<ul>
+<li>几何规划器决定抓取和递交位姿；</li>
+<li>轨迹与安全模块负责接近过程；</li>
+<li>柔顺控制器负责接触后的物理响应；</li>
+<li>释放检测器判断载荷是否已经转移；</li>
+<li>结果验证模块确认物体是否真正被用户接稳。</li>
+</ul>
+<p>这种分层有助于定位失败来自规划、接触控制还是释放判断，也能避免用单一“递交成功率”掩盖具体错误。</p>
+<h2 id="评分"><a href="#评分" class="headerlink" title="评分"></a>评分</h2><table>
+<thead>
+<tr>
+<th>维度</th>
+<th align="right">评分</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>问题重要性</td>
+<td align="right">8.5&#x2F;10</td>
+<td>背身用户与柔顺递交具有真实应用价值</td>
+</tr>
+<tr>
+<td>方法新颖性</td>
+<td align="right">7.5&#x2F;10</td>
+<td>时序力觉释放与安全柔顺控制组合合理</td>
+</tr>
+<tr>
+<td>实验可信度</td>
+<td align="right">8.0&#x2F;10</td>
+<td>有用户实验、明确基线和显著性，但缺模块消融</td>
+</tr>
+<tr>
+<td>可复现性</td>
+<td align="right">7.5&#x2F;10</td>
+<td>数据规模、模型和平台较清楚，代码可进一步核验</td>
+</tr>
+<tr>
+<td>研究启发性</td>
+<td align="right">8.0&#x2F;10</td>
+<td>清楚展示了接触控制、释放检测与安全规范的接口</td>
+</tr>
+</tbody></table>
+<p><strong>综合评分：7.9&#x2F;10。</strong></p>
+<p>这篇论文的贡献集中在递交执行末段：它不能说明机器人何时应该递交，但有力证明柔顺控制和时序力觉比刚性控制与固定阈值更适合背身递交。</p>
+<h2 id="来源与相关论文"><a href="#来源与相关论文" class="headerlink" title="来源与相关论文"></a>来源与相关论文</h2><ul>
+<li>原论文：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2409.07155">Compliant Blind Handover Control</a></li>
+<li>论文所列代码：<a target="_blank" rel="noopener" href="https://github.com/davideferrari95/blind_handover_controller">blind_handover_controller</a></li>
+<li>递交前的接触几何规划：<a href="/posts/2026/papers/2024_IROS_ContactHandover_Contact_Guided_Object_Handover/">ContactHandover</a></li>
+<li>自然任务中的社会线索：<a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a></li>
+</ul>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B"><span class="toc-text">1. 交互流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%AE%89%E5%85%A8%E9%80%9F%E5%BA%A6%E7%BC%A9%E6%94%BE"><span class="toc-text">2. 安全速度缩放</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AF%BC%E7%BA%B3%E6%8E%A7%E5%88%B6"><span class="toc-text">3. 导纳控制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%9F%BA%E4%BA%8E-LSTM-%E7%9A%84%E9%87%8A%E6%94%BE%E6%A3%80%E6%B5%8B"><span class="toc-text">4. 基于 LSTM 的释放检测</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E5%AF%B9%E6%AF%94%E5%9F%BA%E7%BA%BF"><span class="toc-text">5. 对比基线</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%94%A8%E6%88%B7%E5%AE%9E%E9%AA%8C%E8%AE%BE%E7%BD%AE"><span class="toc-text">1. 用户实验设置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%AE%A2%E8%A7%82%E5%A4%B1%E8%B4%A5%E7%8E%87"><span class="toc-text">2. 客观失败率</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E4%B8%BB%E8%A7%82%E8%AF%84%E4%BB%B7"><span class="toc-text">3. 主观评价</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E7%BB%93%E6%9E%9C%E8%A7%A3%E9%87%8A"><span class="toc-text">4. 结果解释</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E4%B8%8E%E6%B4%9E%E5%AF%9F"><span class="toc-text">亮点与洞察</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%94%A8%E6%97%B6%E5%BA%8F%E6%A8%A1%E5%BC%8F%E6%9B%BF%E4%BB%A3%E5%8D%95%E7%82%B9%E9%98%88%E5%80%BC"><span class="toc-text">1. 用时序模式替代单点阈值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E9%AB%98%E5%B1%82%E5%86%B3%E7%AD%96%E4%B8%8E%E5%AE%89%E5%85%A8%E6%8E%A7%E5%88%B6%E9%9C%80%E8%A6%81%E5%88%86%E5%B1%82"><span class="toc-text">2. 高层决策与安全控制需要分层</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E9%9D%9E%E8%A7%86%E8%A7%89%E5%8F%8D%E9%A6%88%E6%98%AF%E5%8D%8F%E4%BD%9C%E7%8A%B6%E6%80%81%E7%9A%84%E9%87%8D%E8%A6%81%E7%BB%84%E6%88%90"><span class="toc-text">3. 非视觉反馈是协作状态的重要组成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E8%83%8C%E8%BA%AB%E5%9C%BA%E6%99%AF%E6%98%AF%E6%9C%89%E4%BB%B7%E5%80%BC%E7%9A%84%E5%8E%8B%E5%8A%9B%E6%B5%8B%E8%AF%95"><span class="toc-text">4. 背身场景是有价值的压力测试</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%80%E9%99%90%E6%80%A7"><span class="toc-text">局限性</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%B2%A1%E6%9C%89%E8%A7%86%E8%A7%89%E7%8A%B6%E6%80%81%E4%B8%8E%E9%AB%98%E5%B1%82%E4%BB%BB%E5%8A%A1%E7%90%86%E8%A7%A3"><span class="toc-text">1. 没有视觉状态与高层任务理解</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%AE%8C%E6%95%B4%E6%96%B9%E6%B3%95%E7%BC%BA%E5%B0%91%E6%A8%A1%E5%9D%97%E7%BA%A7%E6%B6%88%E8%9E%8D"><span class="toc-text">2. 完整方法缺少模块级消融</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%95%B0%E6%8D%AE%E4%B8%8E%E5%8F%82%E4%B8%8E%E8%80%85%E8%8C%83%E5%9B%B4%E6%9C%89%E9%99%90"><span class="toc-text">3. 数据与参与者范围有限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E6%B2%A1%E6%9C%89%E9%95%BF%E6%9C%9F%E9%80%82%E5%BA%94"><span class="toc-text">4. 没有长期适应</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E5%8F%AA%E8%AF%84%E4%BB%B7%E9%80%92%E4%BA%A4%E6%9C%AB%E7%AB%AF%EF%BC%8C%E4%B8%8D%E8%AF%84%E4%BB%B7%E5%AE%8C%E6%95%B4%E5%8D%8F%E4%BD%9C%E6%94%B6%E7%9B%8A"><span class="toc-text">5. 只评价递交末端，不评价完整协作收益</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">相关工作与启发</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E%E6%8E%A5%E8%A7%A6%E5%BC%95%E5%AF%BC%E5%87%A0%E4%BD%95%E8%A7%84%E5%88%92%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与接触引导几何规划的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E%E8%87%AA%E9%80%82%E5%BA%94%E7%A4%BE%E4%BC%9A%E7%BA%BF%E7%B4%A2%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">与自适应社会线索的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E6%8E%A8%E5%B9%BF%E7%9A%84%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1%E5%8E%9F%E5%88%99"><span class="toc-text">可推广的系统设计原则</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%84%E5%88%86"><span class="toc-text">评分</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9D%A5%E6%BA%90%E4%B8%8E%E7%9B%B8%E5%85%B3%E8%AE%BA%E6%96%87"><span class="toc-text">来源与相关论文</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/" class="tag">#论文笔记</a>
+                            
+                            <a href="/tags/%E4%BA%BA%E6%9C%BA%E5%8D%8F%E4%BD%9C/" class="tag">#人机协作</a>
+                            
+                            <a href="/tags/Handover/" class="tag">#Handover</a>
+                            
+                            <a href="/tags/%E6%9F%94%E9%A1%BA%E6%8E%A7%E5%88%B6/" class="tag">#柔顺控制</a>
+                            
+                            <a href="/tags/%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%AE%89%E5%85%A8/" class="tag">#机器人安全</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                    <!-- MathJax 支持 -->
+                    <script>
+                        MathJax = {
+                            tex: {
+                                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                                processEscapes: true
+                            },
+                            svg: {
+                                fontCache: 'global'
+                            }
+                        };
+                    </script>
+                    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>
