@@ -76,10 +76,18 @@
         <h2 class="section-title"></h2>
         <div class="visitor-map-container">
             
-            <!-- FeedPulse 3D 访客地球 -->
-            <div class="map-wrapper">
-                <script async src="https://visitor-tracker-129.emergent.host/api/embed/visitor-globe.js?site_id=d6391af0-e04c-4b10-950f-8308bdabffe6&amp;map=globe&amp;sz=sm&amp;theme=obsidian&amp;speed=normal"></script>
+            <!-- 经典夜景访客地球：保留 FeedPulse 统计，使用更接近旧版的卫星纹理渲染 -->
+            <link rel="stylesheet" href="/css/visitor-globe.css">
+            <div class="map-wrapper visitor-globe-classic" data-visitor-globe data-site-id="d6391af0-e04c-4b10-950f-8308bdabffe6">
+                <div class="visitor-globe-stage" role="img" aria-label="实时访客地球"></div>
+                <div class="visitor-globe-meta"><span data-visitor-count>-- visitors</span> · last 24h</div>
+                <a class="visitor-globe-credit" href="https://feed-pulse.com/site/phdsky.com/traffic" target="_blank" rel="noopener">Visitor data by FeedPulse</a>
+                <div class="visitor-globe-tracker" aria-hidden="true">
+                    <script async src="https://visitor-tracker-129.emergent.host/api/embed/visitor-globe.js?site_id=d6391af0-e04c-4b10-950f-8308bdabffe6&amp;map=globe&amp;sz=sm&amp;theme=transparent&amp;speed=off"></script>
+                </div>
             </div>
+            <script defer src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.1/dist/globe.gl.min.js"></script>
+            <script defer src="/js/visitor-globe.js"></script>
             
         </div>
     </div>
