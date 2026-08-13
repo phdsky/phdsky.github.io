@@ -3,6 +3,8 @@
 
     var DATA_ORIGIN = 'https://visitor-tracker-129.emergent.host';
     var EARTH_TEXTURE = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-day.jpg';
+    var ALL_TIME_HOURS = 999999;
+    var MAX_VISITOR_POINTS = 5000;
 
     function initVisitorGlobe(root) {
         if (typeof window.Globe !== 'function') {
@@ -28,7 +30,7 @@
             .pointColor(function () { return '#ff4f73'; })
             .pointAltitude(0.018)
             .pointRadius(0.38)
-            .pointsMerge(false);
+            .pointsMerge(true);
 
         globe.pointOfView({ lat: 22, lng: 18, altitude: 1.72 }, 0);
 
@@ -39,7 +41,7 @@
         controls.enablePan = false;
 
         function update() {
-            fetch(DATA_ORIGIN + '/api/visitor-map/' + encodeURIComponent(siteId) + '?hours=24&limit=400', {
+            fetch(DATA_ORIGIN + '/api/visitor-map/' + encodeURIComponent(siteId) + '?hours=' + ALL_TIME_HOURS + '&limit=' + MAX_VISITOR_POINTS, {
                 mode: 'cors',
                 credentials: 'omit'
             })
