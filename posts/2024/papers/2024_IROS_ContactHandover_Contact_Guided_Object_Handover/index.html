@@ -194,7 +194,7 @@
 <p>特别是人开始伸手后，最佳位姿应当随人的运动在线调整。</p>
 <h3 id="4-多视角重建成本较高"><a href="#4-多视角重建成本较高" class="headerlink" title="4. 多视角重建成本较高"></a>4. 多视角重建成本较高</h3><p>16 个 RGB-D 视角和完整 TSDF 重建更接近离线设置。</p>
 <p>在遮挡严重、物体快速移动的协作场景中，三维模型质量可能成为瓶颈。</p>
-<h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与自适应递交行为的关系"><a href="#与自适应递交行为的关系" class="headerlink" title="与自适应递交行为的关系"></a>与自适应递交行为的关系</h3><p><a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a> 关注人如何通过姿态、视线和手部状态与机器人共同适应。</p>
+<h2 id="相关工作与启发"><a href="#相关工作与启发" class="headerlink" title="相关工作与启发"></a>相关工作与启发</h2><h3 id="与自适应递交行为的关系"><a href="#与自适应递交行为的关系" class="headerlink" title="与自适应递交行为的关系"></a>与自适应递交行为的关系</h3><p><a href="/posts/2023/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a> 关注人如何通过姿态、视线和手部状态与机器人共同适应。</p>
 <p>ContactHandover 则关注物体几何和人体接触位置。</p>
 <p>两者结合后，一个完整系统应同时建模：</p>
 <ul>
@@ -203,7 +203,7 @@
 <li>机器人应以什么位姿递交；</li>
 <li>人的反馈是否表明应继续、等待或调整。</li>
 </ul>
-<h3 id="与低层安全控制的关系"><a href="#与低层安全控制的关系" class="headerlink" title="与低层安全控制的关系"></a>与低层安全控制的关系</h3><p><a href="/posts/2026/papers/2024_arXiv_Compliant_Blind_Handover_Control/">Compliant Blind Handover</a> 解决的是接触后的柔顺性与释放判断。</p>
+<h3 id="与低层安全控制的关系"><a href="#与低层安全控制的关系" class="headerlink" title="与低层安全控制的关系"></a>与低层安全控制的关系</h3><p><a href="/posts/2024/papers/2024_arXiv_Compliant_Blind_Handover_Control/">Compliant Blind Handover</a> 解决的是接触后的柔顺性与释放判断。</p>
 <p>ContactHandover 更像递交前的几何规划，两者属于互补层级，不能互相替代。</p>
 <h3 id="可推广的研究问题"><a href="#可推广的研究问题" class="headerlink" title="可推广的研究问题"></a>可推广的研究问题</h3><p>ContactHandover 表明，交互表征若显式包含人体接触区域，就能同时约束机器人抓取与递交位姿。</p>
 <p>后续可进一步检验接触区域预测在不同任务语义、容器状态、个体人体参数和动态接收动作下是否仍然可靠。</p>
@@ -246,8 +246,8 @@
 <p>这篇论文有力支持“递交规划需要显式建模人体接触区域”，但仿真实验不能单独证明真实用户会获得更自然的体验。</p>
 <h2 id="来源与相关论文"><a href="#来源与相关论文" class="headerlink" title="来源与相关论文"></a>来源与相关论文</h2><ul>
 <li>原论文：<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2404.01402">ContactHandover: Contact-Guided Object Handover</a></li>
-<li>自然任务中的递交线索：<a href="/posts/2026/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a></li>
-<li>接触末段的柔顺释放：<a href="/posts/2026/papers/2024_arXiv_Compliant_Blind_Handover_Control/">Compliant Blind Handover</a></li>
+<li>自然任务中的递交线索：<a href="/posts/2023/papers/2023_HRI_Crafting_Robot_Assistant_Adaptive_Handovers/">Crafting with a Robot Assistant</a></li>
+<li>接触末段的柔顺释放：<a href="/posts/2024/papers/2024_arXiv_Compliant_Blind_Handover_Control/">Compliant Blind Handover</a></li>
 </ul>
 
             </div>
