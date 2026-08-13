@@ -2,7 +2,7 @@
     'use strict';
 
     var DATA_ORIGIN = 'https://visitor-tracker-129.emergent.host';
-    var EARTH_TEXTURE = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-night.jpg';
+    var EARTH_TEXTURE = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg';
 
     function initVisitorGlobe(root) {
         if (typeof window.Globe !== 'function') {
@@ -11,7 +11,6 @@
         }
 
         var stage = root.querySelector('.visitor-globe-stage');
-        var counter = root.querySelector('[data-visitor-count]');
         var siteId = root.getAttribute('data-site-id');
         var size = stage.clientWidth || 280;
 
@@ -50,13 +49,9 @@
                 })
                 .then(function (data) {
                     var points = Array.isArray(data.points) ? data.points : [];
-                    var count = Number(data.count) || 0;
                     globe.pointsData(points);
-                    counter.textContent = count + (count === 1 ? ' visitor' : ' visitors');
                 })
-                .catch(function () {
-                    counter.textContent = 'Live visitors';
-                });
+                .catch(function () {});
         }
 
         update();

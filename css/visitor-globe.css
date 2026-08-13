@@ -1,7 +1,7 @@
 .visitor-globe-classic {
     position: relative;
     width: 280px;
-    height: 318px;
+    height: 280px;
     overflow: visible;
     text-align: center;
 }
@@ -19,31 +19,6 @@
 
 .visitor-globe-stage canvas {
     display: block;
-}
-
-.visitor-globe-meta {
-    margin-top: -1px;
-    color: #30364a;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.11em;
-    line-height: 1.4;
-    text-transform: uppercase;
-}
-
-.visitor-globe-credit {
-    display: inline-block;
-    margin-top: 4px;
-    color: #7c8191;
-    font-size: 8px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-decoration: none;
-    text-transform: uppercase;
-}
-
-.visitor-globe-credit:hover {
-    color: var(--primary-color);
 }
 
 .visitor-globe-tracker {
