@@ -3,7 +3,7 @@
 
     var DATA_ORIGIN = 'https://visitor-tracker-129.emergent.host';
     var EARTH_TEXTURE = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-day.jpg';
-    var ALL_TIME_HOURS = 999999;
+    var TRACKING_STARTED_AT = Date.UTC(2026, 7, 13);
     var MAX_VISITOR_POINTS = 5000;
 
     function initVisitorGlobe(root) {
@@ -41,7 +41,8 @@
         controls.enablePan = false;
 
         function update() {
-            fetch(DATA_ORIGIN + '/api/visitor-map/' + encodeURIComponent(siteId) + '?hours=' + ALL_TIME_HOURS + '&limit=' + MAX_VISITOR_POINTS, {
+            var trackedHours = Math.max(1, Math.ceil((Date.now() - TRACKING_STARTED_AT) / 3600000));
+            fetch(DATA_ORIGIN + '/api/visitor-map/' + encodeURIComponent(siteId) + '?hours=' + trackedHours + '&limit=' + MAX_VISITOR_POINTS, {
                 mode: 'cors',
                 credentials: 'omit'
             })
