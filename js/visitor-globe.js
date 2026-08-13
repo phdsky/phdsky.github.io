@@ -2,7 +2,7 @@
     'use strict';
 
     var DATA_ORIGIN = 'https://visitor-tracker-129.emergent.host';
-    var EARTH_TEXTURE = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg';
+    var EARTH_TEXTURE = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-day.jpg';
 
     function initVisitorGlobe(root) {
         if (typeof window.Globe !== 'function') {
