@@ -31,8 +31,6 @@
             
                 <li><a href="/blog/">博客</a></li>
             
-                <li><a href="/papers/">论文</a></li>
-            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -113,7 +111,7 @@
 <li>9.0 FPS<br>：SparseDrive-S 的推理速度，比 UniAD（1.8）快 5.0×</li>
 <li>192 GFLOPs<br>：SparseDrive-S 的计算量，仅为 UniAD（1709）的 11%</li>
 </ul>
-<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p><img src="https://ar5iv.labs.arxiv.org/html/2405.19620/assets/x4.png" alt="SparseDrive 架构图"></p>
+<h2 id="方法设计"><a href="#方法设计" class="headerlink" title="方法设计"></a>方法设计</h2><h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3><p><img src="/images/papers/2405.19620-architecture.png" alt="SparseDrive 架构图"></p>
 <figure class="highlight text"><table><tr><td class="code"><pre><span class="line">多视图 6 cam</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">┌───────────────┐</span><br><span class="line">│ ResNet + FPN  │  多尺度特征 I = &#123;I_s&#125;</span><br><span class="line">└─────┬─────────┘</span><br><span class="line">      │</span><br><span class="line">      ├────────────────────────────────┐</span><br><span class="line">      ▼                                ▼</span><br><span class="line">┌────────────────────┐     ┌────────────────────┐</span><br><span class="line">│ 检测分支（对称）      │     │ 建图分支（对称）     │</span><br><span class="line">│ 900 锚框 (11维)     │     │ 100 锚折线 (20点)   │</span><br><span class="line">│ 1 non-temporal dec │     │ 1 non-temporal dec │</span><br><span class="line">│ + 5 temporal dec   │     │ + 5 temporal dec   │</span><br><span class="line">│ → F_d, B_d 实例     │     │ → F_m, L_m 实例    │</span><br><span class="line">│ + ID 分配 →跟踪      │     │                    │</span><br><span class="line">└──┬─────────────────┘     └──┬─────────────────┘</span><br><span class="line">   │                          │</span><br><span class="line">   ▼                          ▼</span><br><span class="line">┌──────────────────────────────────────────────┐</span><br><span class="line">│ 并行运动规划器                                  │</span><br><span class="line">│ ① Ego 初始化：AvgPool(front_cam_S)            │</span><br><span class="line">│ ② Agent-temporal cross-attn (自身历史)        │</span><br><span class="line">│ ③ Agent-agent self-attn (所有智能体含ego)      │</span><br><span class="line">│ ④ Agent-map cross-attn (地图元素)             │</span><br><span class="line">│ ⑤ 同时解码 motion (K=6,T=12) + plan (K=6,T=6) │</span><br><span class="line">└──┬───────────────────────────────────────────┘</span><br><span class="line">   │</span><br><span class="line">   ▼</span><br><span class="line">┌──────────────────────────┐</span><br><span class="line">│ 分层规划选择               │</span><br><span class="line">│ ① 按命令(左/右/直)筛选     │</span><br><span class="line">│ ② 碰撞感知重评分           │</span><br><span class="line">│ ③ 选最高分轨迹 τ*          │</span><br><span class="line">└──────────────────────────┘</span><br></pre></td></tr></table></figure>
 
 <h3 id="关键组件"><a href="#关键组件" class="headerlink" title="关键组件"></a>关键组件</h3><table>

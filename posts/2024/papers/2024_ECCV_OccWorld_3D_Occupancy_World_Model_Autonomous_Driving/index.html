@@ -31,8 +31,6 @@
             
                 <li><a href="/blog/">博客</a></li>
             
-                <li><a href="/papers/">论文</a></li>
-            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -109,7 +107,7 @@
 <h3 id="洞察-3：规划可以从未来-occupancy-中受益"><a href="#洞察-3：规划可以从未来-occupancy-中受益" class="headerlink" title="洞察 3：规划可以从未来 occupancy 中受益"></a>洞察 3：规划可以从未来 occupancy 中受益</h3><p>模型同时生成未来 occupancy 和 ego trajectory，使世界预测与自车轨迹选择共享同一状态空间。这样，规划不再只依赖当前检测结果，而可以参考预测出的未来空间状态。</p>
 <p>这也是 OccWorld 与普通 occupancy prediction 的区别：它不只是预测当前 occupancy，而是把未来 occupancy 当作 world model 的核心输出。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
-  <img src="https://ar5iv.labs.arxiv.org/html/2311.16038/assets/x1.png" alt="OccWorld 架构图" style="max-width:100%;">
+  <img src="/images/papers/2311.16038-architecture.png" alt="OccWorld 架构图" style="max-width:100%;">
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">

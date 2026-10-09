@@ -31,8 +31,6 @@
             
                 <li><a href="/blog/">博客</a></li>
             
-                <li><a href="/papers/">论文</a></li>
-            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -103,7 +101,7 @@
 <h3 id="洞察-3：Task-Prompt-帮助统一预训练适配多任务"><a href="#洞察-3：Task-Prompt-帮助统一预训练适配多任务" class="headerlink" title="洞察 3：Task Prompt 帮助统一预训练适配多任务"></a>洞察 3：Task Prompt 帮助统一预训练适配多任务</h3><p>不同下游任务需要不同粒度的特征。3D detection 更关心对象位置，online mapping 更关心道路结构，motion forecasting 更关心动态交互，planning 更关心未来风险。</p>
 <p>Task Prompt 的作用，是告诉同一个预训练表示“当前要为哪个任务服务”。这使 DriveWorld 不只是一个固定 backbone，而更像一个可被任务条件调度的 4D 表征模块。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
-  <img src="https://ar5iv.labs.arxiv.org/html/2405.04390/assets/x1.png" alt="DriveWorld 架构图" style="max-width:100%;">
+  <img src="/images/papers/2405.04390-architecture.png" alt="DriveWorld 架构图" style="max-width:100%;">
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">

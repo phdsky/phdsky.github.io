@@ -31,8 +31,6 @@
             
                 <li><a href="/blog/">博客</a></li>
             
-                <li><a href="/papers/">论文</a></li>
-            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -81,7 +79,7 @@
 <h3 id="洞察-3：同一预训练表示可以迁移到多任务"><a href="#洞察-3：同一预训练表示可以迁移到多任务" class="headerlink" title="洞察 3：同一预训练表示可以迁移到多任务"></a>洞察 3：同一预训练表示可以迁移到多任务</h3><p>UniWorld 把 world model 预训练迁移到 motion prediction、多相机 3D detection 和 semantic scene completion，强调统一表示的价值。三类任务看似不同，但都依赖同一个底层能力：理解周围世界的空间结构和时间演化。</p>
 <p>这条洞察把 UniWorld 和普通 self-supervised pre-training 区分开来：它不是泛泛地学视觉特征，而是学驾驶世界的 4D 几何先验。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
-  <img src="https://ar5iv.labs.arxiv.org/html/2308.07234/assets/x1.png" alt="UniWorld 架构图" style="max-width:100%;">
+  <img src="/images/papers/2308.07234-architecture.png" alt="UniWorld 架构图" style="max-width:100%;">
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">

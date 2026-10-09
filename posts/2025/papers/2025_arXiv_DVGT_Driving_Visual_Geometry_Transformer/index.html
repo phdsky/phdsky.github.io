@@ -31,8 +31,6 @@
             
                 <li><a href="/blog/">博客</a></li>
             
-                <li><a href="/papers/">论文</a></li>
-            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -113,12 +111,12 @@
 <p>这一步让 dense geometry 从离线重建结果变成可持续更新的驾驶状态。只有完成这个转变，geometry 才能进入 action 链路；否则它只是一个漂亮但难以部署的 3D 重建模块。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><p>DVGT 和 DVGT-2 的官方架构图分别对应系列的两个阶段：前者强调 batch 式 dense geometry perception，后者强调 streaming VGA driving。</p>
 <div style="text-align:center; margin: 24px 0;">
-  <img src="https://ar5iv.labs.arxiv.org/html/2512.16919/assets/x1.png" alt="DVGT 架构图" style="max-width:100%;">
+  <img src="/images/papers/2512.16919-architecture.png" alt="DVGT 架构图" style="max-width:100%;">
   <div style="font-size:0.9em;color:#666;margin-top:0.5rem;">DVGT：从 unposed multi-view driving images 到 dense point map 与 ego poses。</div>
 </div>
 
 <div style="text-align:center; margin: 24px 0;">
-  <img src="https://ar5iv.labs.arxiv.org/html/2604.00813/assets/x1.png" alt="DVGT-2 架构图" style="max-width:100%;">
+  <img src="/images/papers/2604.00813-architecture.png" alt="DVGT-2 架构图" style="max-width:100%;">
   <div style="font-size:0.9em;color:#666;margin-top:0.5rem;">DVGT-2：将 streaming dense geometry reconstruction 接入 trajectory planning。</div>
 </div>
 

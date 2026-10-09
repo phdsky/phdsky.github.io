@@ -31,8 +31,6 @@
             
                 <li><a href="/blog/">博客</a></li>
             
-                <li><a href="/papers/">论文</a></li>
-            
             <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
         </ul>
     </div>
@@ -95,7 +93,7 @@
 <h3 id="洞察-3：视频生成和动作生成可以放在同一世界模型中"><a href="#洞察-3：视频生成和动作生成可以放在同一世界模型中" class="headerlink" title="洞察 3：视频生成和动作生成可以放在同一世界模型中"></a>洞察 3：视频生成和动作生成可以放在同一世界模型中</h3><p>DriveDreamer 同时支持 future driving videos 和 future driving actions，使它不只是视觉生成模型，也接近策略模拟工具。视频生成回答“未来世界看起来怎样”，动作生成回答“未来自车可能怎么动”，二者共同指向动作条件 world model。</p>
 <p>这也让 DriveDreamer 和纯粹的视频 diffusion 模型区分开来：它生成的是与驾驶动作和交通结构耦合的未来，而不是无条件视频。</p>
 <h2 id="4-方法设计"><a href="#4-方法设计" class="headerlink" title="4. 方法设计"></a>4. 方法设计</h2><h3 id="4-1-整体架构"><a href="#4-1-整体架构" class="headerlink" title="4.1 整体架构"></a>4.1 整体架构</h3><div style="text-align:center; margin: 24px 0;">
-  <img src="https://ar5iv.labs.arxiv.org/html/2309.09777/assets/x1.png" alt="DriveDreamer 架构图" style="max-width:100%;">
+  <img src="/images/papers/2309.09777-architecture.png" alt="DriveDreamer 架构图" style="max-width:100%;">
 </div>
 
 <div style="display:flex; justify-content:center; margin: 24px 0;">
