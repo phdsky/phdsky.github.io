@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var DATA_ORIGIN = 'https://visitor-tracker-129.emergent.host';
+    var DATA_ORIGIN = 'https://feed-pulse.com';
     var EARTH_TEXTURE = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-day.jpg';
     var TRACKING_STARTED_AT = Date.UTC(2026, 7, 13);
     var MAX_VISITOR_POINTS = 5000;
@@ -51,13 +51,21 @@
                     return response.json();
                 })
                 .then(function (data) {
-                    var points = Array.isArray(data.points) ? data.points : [];
+                    var points = (Array.isArray(data.points) ? data.points : []).filter(function (point) {
+                        return Number.isFinite(point.lat) && Number.isFinite(point.lng);
+                    });
                     globe.pointsData(points);
+                    root.dataset.visitorDataStatus = 'ready';
+                    root.dataset.visitorPointCount = String(points.length);
                 })
-                .catch(function () {});
+                .catch(function (error) {
+                    root.dataset.visitorDataStatus = 'error';
+                    console.warn('Visitor globe data unavailable:', error);
+                });
         }
 
         update();
+        document.addEventListener('visitor-recorded', update);
         window.setInterval(update, 30000);
     }
 
