@@ -16,6 +16,68 @@
         var siteId = root.getAttribute('data-site-id');
         var size = stage.clientWidth || 280;
         var orientedToVisitor = false;
+        var countryStats = [];
+        var totalVisits = 0;
+        var details = document.createElement('section');
+        details.className = 'visitor-globe-details';
+        details.hidden = true;
+        details.setAttribute('aria-label', '访客详情');
+        var closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'visitor-globe-details-close';
+        closeButton.textContent = '×';
+        closeButton.setAttribute('aria-label', '关闭访客详情');
+        var detailBody = document.createElement('div');
+        details.appendChild(closeButton);
+        details.appendChild(detailBody);
+        root.appendChild(details);
+
+        function countryName(code, fallback) {
+            try { return new Intl.DisplayNames(['zh-CN'], {type: 'region'}).of(code) || fallback || code; }
+            catch (error) { return fallback || code || '未知国家'; }
+        }
+
+        function addDetail(text, className) {
+            var line = document.createElement('p');
+            line.className = className || '';
+            line.textContent = text;
+            detailBody.appendChild(line);
+        }
+
+        function showDetails(point) {
+            detailBody.replaceChildren();
+            if (point) {
+                addDetail(point.countryCode ? countryName(point.countryCode, point.countryName) : '访客位置', 'visitor-globe-details-title');
+                if (Number.isFinite(point.count)) addDetail('统计访问次数：' + point.count);
+                addDetail(point.approximate ? '位置精度：国家级近似位置' : '位置：' + point.lat.toFixed(2) + '°, ' + point.lng.toFixed(2) + '°');
+                if (point.approximate) addDetail('此点代表该国家的来访记录，不代表具体城市或个人。', 'visitor-globe-details-note');
+            } else {
+                addDetail('访客足迹', 'visitor-globe-details-title');
+                addDetail('统计访问次数：' + totalVisits);
+                countryStats.forEach(function (country) {
+                    addDetail(countryName(country.country_code, country.country_name) + '：' + country.count + ' 次');
+                });
+                if (!countryStats.length) addDetail('暂未收到可展示的国家记录。');
+                addDetail('访问次数包含重复访问，不是独立访客人数。', 'visitor-globe-details-note');
+            }
+            details.hidden = false;
+            controls.autoRotate = false;
+        }
+
+        function hideDetails() {
+            details.hidden = true;
+            controls.autoRotate = true;
+        }
+        closeButton.addEventListener('click', hideDetails);
+        root.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') hideDetails();
+        });
+        stage.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                showDetails();
+            }
+        });
         // Google DSPL country centers are approximate locations, not city coordinates.
         var countryCenters = fetch('/js/visitor-countries.csv').then(function (response) {
             if (!response.ok) throw new Error('Country coordinates unavailable');
@@ -44,7 +106,10 @@
             .pointAltitude(0.018)
             .pointRadius(function (point) { return point.approximate ? 0.75 : 0.5; })
             .pointLabel(function (point) { return point.approximate ? '国家级近似位置 · ' + point.countryCode + ' · ' + point.count + ' 次访问' : '访客位置'; })
-            .pointsMerge(false);
+            .pointsMerge(false)
+            .onPointClick(function (point) { showDetails(point); })
+            .onGlobeClick(function () { showDetails(); })
+            .onBackgroundClick(hideDetails);
 
         globe.pointOfView({ lat: 22, lng: 18, altitude: 1.72 }, 0);
 
@@ -72,6 +137,8 @@
             });
             Promise.all([mapRequest, flagsRequest, countryCenters])
                 .then(function (data) {
+                    countryStats = data[1].countries || [];
+                    totalVisits = Number(data[1].all_time || data[1].total) || 0;
                     var points = (Array.isArray(data[0].points) ? data[0].points : []).filter(function (point) {
                         return Number.isFinite(point.lat) && Number.isFinite(point.lng);
                     });
@@ -80,7 +147,7 @@
                             return country.count > 0 && data[2][country.country_code];
                         }).map(function (country) {
                             var center = data[2][country.country_code];
-                            return {lat: center.lat, lng: center.lng, countryCode: country.country_code, count: country.count, approximate: true};
+                            return {lat: center.lat, lng: center.lng, countryCode: country.country_code, countryName: country.country_name, count: country.count, approximate: true};
                         });
                     }
                     globe.pointsData(points);
