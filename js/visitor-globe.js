@@ -15,6 +15,19 @@
         var stage = root.querySelector('.visitor-globe-stage');
         var siteId = root.getAttribute('data-site-id');
         var size = stage.clientWidth || 280;
+        var orientedToVisitor = false;
+        // Google DSPL country centers are approximate locations, not city coordinates.
+        var countryCenters = fetch('/js/visitor-countries.csv').then(function (response) {
+            if (!response.ok) throw new Error('Country coordinates unavailable');
+            return response.text();
+        }).then(function (csv) {
+            var centers = {};
+            csv.split(/\r?\n/).slice(1).forEach(function (line) {
+                var fields = line.split(',');
+                if (fields[1] && fields[2]) centers[fields[0]] = {lat: Number(fields[1]), lng: Number(fields[2])};
+            });
+            return centers;
+        });
 
         var globe = window.Globe()(stage)
             .width(size)
@@ -29,8 +42,9 @@
             .pointLng('lng')
             .pointColor(function () { return '#ff4f73'; })
             .pointAltitude(0.018)
-            .pointRadius(0.38)
-            .pointsMerge(true);
+            .pointRadius(function (point) { return point.approximate ? 0.75 : 0.5; })
+            .pointLabel(function (point) { return point.approximate ? '国家级近似位置 · ' + point.countryCode + ' · ' + point.count + ' 次访问' : '访客位置'; })
+            .pointsMerge(false);
 
         globe.pointOfView({ lat: 22, lng: 18, altitude: 1.72 }, 0);
 
@@ -42,19 +56,38 @@
 
         function update() {
             var trackedHours = Math.max(1, Math.ceil((Date.now() - TRACKING_STARTED_AT) / 3600000));
-            fetch(DATA_ORIGIN + '/api/visitor-map/' + encodeURIComponent(siteId) + '?hours=' + trackedHours + '&limit=' + MAX_VISITOR_POINTS, {
+            var mapRequest = fetch(DATA_ORIGIN + '/api/visitor-map/' + encodeURIComponent(siteId) + '?hours=' + trackedHours + '&limit=' + MAX_VISITOR_POINTS, {
                 mode: 'cors',
                 credentials: 'omit'
             })
                 .then(function (response) {
                     if (!response.ok) throw new Error('Visitor data request failed');
                     return response.json();
-                })
+                }).catch(function () { return {points: []}; });
+            var flagsRequest = fetch(DATA_ORIGIN + '/api/widget/flags/' + encodeURIComponent(siteId) + '?include_bots=0', {
+                credentials: 'omit'
+            }).then(function (response) {
+                if (!response.ok) throw new Error('Visitor countries unavailable');
+                return response.json();
+            });
+            Promise.all([mapRequest, flagsRequest, countryCenters])
                 .then(function (data) {
-                    var points = (Array.isArray(data.points) ? data.points : []).filter(function (point) {
+                    var points = (Array.isArray(data[0].points) ? data[0].points : []).filter(function (point) {
                         return Number.isFinite(point.lat) && Number.isFinite(point.lng);
                     });
+                    if (!points.length) {
+                        points = (data[1].countries || []).filter(function (country) {
+                            return country.count > 0 && data[2][country.country_code];
+                        }).map(function (country) {
+                            var center = data[2][country.country_code];
+                            return {lat: center.lat, lng: center.lng, countryCode: country.country_code, count: country.count, approximate: true};
+                        });
+                    }
                     globe.pointsData(points);
+                    if (points.length && !orientedToVisitor) {
+                        globe.pointOfView({lat: points[0].lat, lng: points[0].lng, altitude: 1.72}, 700);
+                        orientedToVisitor = true;
+                    }
                     root.dataset.visitorDataStatus = 'ready';
                     root.dataset.visitorPointCount = String(points.length);
                 })
