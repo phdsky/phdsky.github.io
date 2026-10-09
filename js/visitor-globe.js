@@ -108,8 +108,7 @@
             .pointLabel(function (point) { return point.approximate ? '国家级近似位置 · ' + point.countryCode + ' · ' + point.count + ' 次访问' : '访客位置'; })
             .pointsMerge(false)
             .onPointClick(function (point) { showDetails(point); })
-            .onGlobeClick(function () { showDetails(); })
-            .onBackgroundClick(hideDetails);
+            .onGlobeClick(function () { showDetails(); });
 
         globe.pointOfView({ lat: 22, lng: 18, altitude: 1.72 }, 0);
 
