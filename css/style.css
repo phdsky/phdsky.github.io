@@ -517,34 +517,45 @@ a:hover {
     font-size: 14px;
 }
 
-/* MathJax公式移动端适配 */
-.post-body mjx-container {
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-width: 100%;
-    -webkit-overflow-scrolling: touch;
+/* MathJax SVG formulas are generated during the Hexo build. */
+mjx-container[jax="SVG"] {
+    direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+    overflow: visible;
+    min-width: 1px;
+    min-height: 1px;
 }
 
 .post-body mjx-container svg {
     max-width: none !important;
 }
 
-/* 行内公式 */
-.post-body mjx-container[display="false"] {
-    display: inline-block !important;
-    max-width: 100%;
-    overflow-x: auto;
-    vertical-align: middle;
+/* Inline formulas follow the surrounding text without clipping subscripts. */
+.math-inline {
+    display: inline;
+}
+
+.math-inline mjx-container {
+    display: inline;
 }
 
 /* 块级公式 */
-.post-body mjx-container[display="true"] {
-    display: block !important;
+.math-display {
+    display: block;
     overflow-x: auto;
     overflow-y: hidden;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.math-display mjx-container[display="true"] {
+    display: block;
     width: 100%;
     margin: 15px 0;
     padding: 10px 0;
+    text-align: center;
 }
 
 @media (max-width: 768px) {
