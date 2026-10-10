@@ -24,41 +24,54 @@
 .visitor-globe-details {
     position: absolute;
     z-index: 5;
-    top: 18px;
-    left: 30px;
-    width: 240px;
-    max-height: 245px;
+    top: 12px;
+    left: 8px;
+    width: 264px;
+    max-height: 360px;
     overflow-y: auto;
     box-sizing: border-box;
-    padding: 18px;
-    border: 1px solid rgba(103, 95, 163, 0.18);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.97);
-    box-shadow: 0 8px 28px rgba(26, 36, 66, 0.18);
-    color: #30364a;
+    padding: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 22px;
+    background: rgba(248, 252, 255, 0.96);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 16px 48px rgba(22, 60, 90, 0.16), 0 2px 8px rgba(22, 60, 90, 0.06);
+    color: #19344a;
     text-align: left;
     font-size: 13px;
     line-height: 1.6;
+    scrollbar-width: thin;
+    scrollbar-color: #c4d8e5 transparent;
 }
 
 .visitor-globe-details[hidden] { display: none; }
 .visitor-globe-details p { margin: 0 0 8px; }
-.visitor-globe-details .visitor-globe-details-title { font-size: 16px; font-weight: 600; padding-right: 20px; }
-.visitor-globe-details .visitor-globe-details-note { color: #747988; font-size: 11px; margin-bottom: 0; }
+.visitor-globe-details .visitor-globe-details-title { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; padding-right: 24px; color: #58768a; }
+.visitor-globe-details .visitor-globe-details-total { margin: 4px 0 0; font-size: 40px; font-weight: 700; line-height: 1.15; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.visitor-globe-details .visitor-globe-details-label { font-size: 11px; color: #748b9c; margin-bottom: 16px; }
+.visitor-globe-details .visitor-globe-details-note { color: #8194a3; font-size: 10px; margin: 16px 0 0; line-height: 1.7; }
+.visitor-globe-country { position: relative; display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #e6eef3; }
+.visitor-globe-flag { font-size: 21px; line-height: 1; text-align: center; color: #7895a8; }
+.visitor-globe-country-name { font-weight: 500; }
+.visitor-globe-country-count { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: #4283a8; }
+.visitor-globe-country-bar { position: absolute; bottom: -1px; left: 0; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #65c7d5, #5b9bd4); opacity: 0.65; }
 .visitor-globe-details-close {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 14px;
+    right: 14px;
     width: 28px;
     height: 28px;
     border: 0;
-    border-radius: 6px;
-    background: transparent;
-    color: #747988;
-    font-size: 22px;
+    border-radius: 50%;
+    background: #eaf1f6;
+    color: #66849a;
+    font-size: 20px;
+    line-height: 1;
     cursor: pointer;
 }
-.visitor-globe-details-close:hover { background: #f0eef8; }
+.visitor-globe-details-close:hover { background: #dceaf3; color: #285d7b; }
+.visitor-globe-details-close:focus-visible { outline: 2px solid #4283a8; outline-offset: 2px; }
 .visitor-globe-stage:focus-visible { outline: 2px solid #7770c6; outline-offset: 4px; border-radius: 50%; }
 
 .visitor-globe-tracker {

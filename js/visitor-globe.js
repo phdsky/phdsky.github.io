@@ -18,6 +18,9 @@
         var orientedToVisitor = false;
         var countryStats = [];
         var totalVisits = 0;
+        var pointerInside = false;
+        var focusInside = false;
+        var touchPaused = false;
         var details = document.createElement('section');
         details.className = 'visitor-globe-details';
         details.hidden = true;
@@ -33,8 +36,18 @@
         root.appendChild(details);
 
         function countryName(code, fallback) {
-            try { return new Intl.DisplayNames(['zh-CN'], {type: 'region'}).of(code) || fallback || code; }
-            catch (error) { return fallback || code || '未知国家'; }
+            code = String(code || '').toUpperCase();
+            if (!/^[A-Z]{2}$/.test(code) || code === 'XX' || code === 'ZZ') return '未知';
+            try {
+                var name = new Intl.DisplayNames(['zh-CN'], {type: 'region'}).of(code);
+                return name && name !== code ? name : '未知';
+            } catch (error) { return fallback && fallback !== code ? fallback : '未知'; }
+        }
+
+        function countryFlag(code) {
+            code = String(code || '').toUpperCase();
+            if (countryName(code) === '未知') return '◎';
+            return String.fromCodePoint(127397 + code.charCodeAt(0), 127397 + code.charCodeAt(1));
         }
 
         function addDetail(text, className) {
@@ -44,30 +57,76 @@
             detailBody.appendChild(line);
         }
 
+        function addCountry(code, fallback, count, total) {
+            var row = document.createElement('div');
+            row.className = 'visitor-globe-country';
+            var flag = document.createElement('span');
+            flag.className = 'visitor-globe-flag';
+            flag.textContent = countryFlag(code);
+            flag.setAttribute('aria-hidden', 'true');
+            var name = document.createElement('span');
+            name.className = 'visitor-globe-country-name';
+            name.textContent = countryName(code, fallback);
+            var value = document.createElement('span');
+            value.className = 'visitor-globe-country-count';
+            value.textContent = count + ' 次';
+            row.appendChild(flag);
+            row.appendChild(name);
+            row.appendChild(value);
+            var bar = document.createElement('span');
+            bar.className = 'visitor-globe-country-bar';
+            bar.style.width = Math.min(100, Math.max(0, Number(count) / Math.max(1, total) * 100)) + '%';
+            bar.setAttribute('aria-hidden', 'true');
+            row.appendChild(bar);
+            detailBody.appendChild(row);
+        }
+
+        function syncRotation() {
+            if (controls) controls.autoRotate = details.hidden && !pointerInside && !focusInside && !touchPaused;
+        }
+
         function showDetails(point) {
             detailBody.replaceChildren();
+            addDetail(point ? '来访位置' : '访客足迹', 'visitor-globe-details-title');
             if (point) {
-                addDetail(point.countryCode ? countryName(point.countryCode, point.countryName) : '访客位置', 'visitor-globe-details-title');
-                if (Number.isFinite(point.count)) addDetail('统计访问次数：' + point.count);
-                addDetail(point.approximate ? '位置精度：国家级近似位置' : '位置：' + point.lat.toFixed(2) + '°, ' + point.lng.toFixed(2) + '°');
+                if (point.countryCode) addCountry(point.countryCode, point.countryName, point.count || 0, point.count || 1);
+                else addDetail('访客位置');
+                addDetail(point.approximate ? '国家级近似位置' : '位置：' + point.lat.toFixed(2) + '°, ' + point.lng.toFixed(2) + '°', 'visitor-globe-details-label');
                 if (point.approximate) addDetail('此点代表该国家的来访记录，不代表具体城市或个人。', 'visitor-globe-details-note');
             } else {
-                addDetail('访客足迹', 'visitor-globe-details-title');
-                addDetail('统计访问次数：' + totalVisits);
+                addDetail(String(totalVisits), 'visitor-globe-details-total');
+                addDetail('累计访问次数', 'visitor-globe-details-label');
                 countryStats.forEach(function (country) {
-                    addDetail(countryName(country.country_code, country.country_name) + '：' + country.count + ' 次');
+                    addCountry(country.country_code, country.country_name, country.count, totalVisits);
                 });
                 if (!countryStats.length) addDetail('暂未收到可展示的国家记录。');
                 addDetail('访问次数包含重复访问，不是独立访客人数。', 'visitor-globe-details-note');
             }
             details.hidden = false;
-            controls.autoRotate = false;
+            syncRotation();
         }
 
         function hideDetails() {
             details.hidden = true;
-            controls.autoRotate = true;
+            syncRotation();
         }
+        root.addEventListener('pointerenter', function (event) {
+            if (event.pointerType !== 'touch') pointerInside = true;
+            syncRotation();
+        });
+        root.addEventListener('pointerleave', function () {
+            pointerInside = false;
+            syncRotation();
+        });
+        stage.addEventListener('pointerdown', function (event) {
+            if (event.pointerType === 'touch') touchPaused = true;
+            syncRotation();
+        });
+        root.addEventListener('focusin', function () { focusInside = true; syncRotation(); });
+        root.addEventListener('focusout', function (event) {
+            focusInside = root.contains(event.relatedTarget);
+            syncRotation();
+        });
         closeButton.addEventListener('click', hideDetails);
         root.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') hideDetails();
@@ -104,8 +163,8 @@
             .pointLng('lng')
             .pointColor(function () { return '#ff4f73'; })
             .pointAltitude(0.018)
-            .pointRadius(function (point) { return point.approximate ? 0.75 : 0.5; })
-            .pointLabel(function (point) { return point.approximate ? '国家级近似位置 · ' + point.countryCode + ' · ' + point.count + ' 次访问' : '访客位置'; })
+            .pointRadius(function (point) { return point.approximate ? 0.9 : 0.6; })
+            .pointLabel(function (point) { return point.approximate ? countryFlag(point.countryCode) + ' ' + countryName(point.countryCode, point.countryName) + ' · ' + point.count + ' 次访问（国家级近似位置）' : '访客位置'; })
             .pointsMerge(false)
             .onPointClick(function (point) { showDetails(point); })
             .onGlobeClick(function () { showDetails(); });
@@ -117,6 +176,8 @@
         controls.autoRotateSpeed = 0.48;
         controls.enableZoom = false;
         controls.enablePan = false;
+        controls.enableDamping = false;
+        syncRotation();
 
         function update() {
             var trackedHours = Math.max(1, Math.ceil((Date.now() - TRACKING_STARTED_AT) / 3600000));
