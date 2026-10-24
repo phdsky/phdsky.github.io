@@ -53,8 +53,10 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Original title: Quasi-Dense Similarity Learning for Multiple Object Tracking<br>Task: Online Multi-Object Tracking<br>Method: quasi-dense contrastive learning, bi-softmax, appearance association<br>Venue: CVPR 2021<br>Authors: Jiangmiao Pang, Linlu Qiu, Xia Li, Haofeng Chen, Qi Li, Trevor Darrell, Fisher Yu<br>Paper: <a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content/CVPR2021/html/Pang_Quasi-Dense_Similarity_Learning_for_Multiple_Object_Tracking_CVPR_2021_paper.html">原文</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/SysCV/qdtrack">作者仓库</a><br>Version: CVPR 2021 正式版；首次预印本为 arXiv:2006.06664（2020-06-11），不混用后续扩展版；核验于 2026-10-24。实验数值均为作者报告，未作本地训练复现。</p>
+                <p>Original title: Quasi-Dense Similarity Learning for Multiple Object Tracking<br>Task: Online Multi-Object Tracking<br>Method: quasi-dense contrastive learning, bi-softmax, appearance association<br>Venue: CVPR 2021<br>Year: 2021<br>Authors: Jiangmiao Pang, Linlu Qiu, Xia Li, Haofeng Chen, Qi Li, Trevor Darrell, Fisher Yu<br>Paper: <a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content/CVPR2021/html/Pang_Quasi-Dense_Similarity_Learning_for_Multiple_Object_Tracking_CVPR_2021_paper.html">原文</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/SysCV/qdtrack">作者仓库</a><br>Version: CVPR 2021 正式版；首次预印本为 arXiv:2006.06664（2020-06-11），不混用后续扩展版；核验于 2026-10-24。实验数值均为作者报告，未作本地训练复现。</p>
 <span id="more"></span>
+
+<!-- toc -->
 
 <h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>QDTrack 的主要贡献是改变关联特征的监督密度：从少数真值框匹配，转为图像对中大量 proposal 的多正样本对比学习，使外观嵌入足以支撑较简单的推理关联。<a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content/CVPR2021/papers/Pang_Quasi-Dense_Similarity_Learning_for_Multiple_Object_Tracking_CVPR_2021_paper.pdf">原文 §3</a></p>
 <h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>“检测框裁剪后做 ReID”容易把关联学习约束在少量干净框上，但实际输入包含定位偏差、遮挡和背景混入。QDTrack 认为，与同一物体重叠的多个 proposals 是有价值的训练样本：它们能让网络在检测不完美时仍保持身份相似性。</p>
@@ -131,9 +133,7 @@ a_{ij}&#x3D;\frac12\left(
 <li><strong>工程启发：</strong> 如果系统已采用两阶段检测器，优先检查训练 proposal 的正负身份映射与推理候选维护。只替换 cosine 为 bi-softmax，并不等于复现了准稠密学习。</li>
 </ul>
 <h2 id="相关工作"><a href="#相关工作" class="headerlink" title="相关工作"></a>相关工作</h2><p><a href="/posts/2020/papers/2021_IJCV_FairMOT_Fairness_Detection_Re_Identification/">FairMOT</a> 从特征采样和检测&#x2F;ReID 多任务冲突出发；QDTrack 从监督覆盖度出发。<a href="/posts/2024/papers/2025_CVPR_MOTIP_Multiple_Object_Tracking_as_ID_Prediction/">MOTIP</a> 进一步把“学相似度后匹配”改写成“根据历史标签预测当前 ID”。</p>
-<h2 id="系列关联"><a href="#系列关联" class="headerlink" title="系列关联"></a>系列关联</h2><ul>
-<li><a href="/posts/2026/MOT_Progress_Association_ID_Prediction_Test_Time_Adaptation/">MOT 进展综述：从候选框关联到身份预测与测试时适应</a></li>
-</ul>
+<p>延伸阅读：<a href="/posts/2026/MOT_Progress_Association_ID_Prediction_Test_Time_Adaptation/">多目标跟踪的身份之问：从位置匹配到时序记忆</a></p>
 
             </div>
 
@@ -143,7 +143,7 @@ a_{ij}&#x3D;\frac12\left(
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%9A%E6%AD%A3%E6%A0%B7%E6%9C%AC%E5%AD%A6%E4%B9%A0"><span class="toc-text">多正样本学习</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8E%A8%E7%90%86%E4%B8%8D%E5%8F%AA%E6%98%AF%E4%B8%80%E6%AC%A1%E4%BD%99%E5%BC%A6%E6%9C%80%E8%BF%91%E9%82%BB"><span class="toc-text">推理不只是一次余弦最近邻</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E3%80%81%E5%B1%80%E9%99%90%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">亮点、局限与启发</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C"><span class="toc-text">相关工作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%B3%BB%E5%88%97%E5%85%B3%E8%81%94"><span class="toc-text">系列关联</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%9A%E6%AD%A3%E6%A0%B7%E6%9C%AC%E5%AD%A6%E4%B9%A0"><span class="toc-text">多正样本学习</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8E%A8%E7%90%86%E4%B8%8D%E5%8F%AA%E6%98%AF%E4%B8%80%E6%AC%A1%E4%BD%99%E5%BC%A6%E6%9C%80%E8%BF%91%E9%82%BB"><span class="toc-text">推理不只是一次余弦最近邻</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E3%80%81%E5%B1%80%E9%99%90%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">亮点、局限与启发</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C"><span class="toc-text">相关工作</span></a></li></ol>
                         </div>
                     </aside>
                 

@@ -53,8 +53,10 @@
 
         <div class="post-layout">
             <div class="post-body">
-                <p>Original title: ByteTrack: Multi-Object Tracking by Associating Every Detection Box<br>Task: Online Multi-Object Tracking<br>Method: two-stage association, low-score recovery, YOLOX<br>Venue: ECCV 2022<br>Authors: Yifu Zhang, Peize Sun, Yi Jiang, Dongdong Yu, Fucheng Weng, Zehuan Yuan, Ping Luo, Wenyu Liu, Xinggang Wang<br>Paper: <a target="_blank" rel="noopener" href="https://www.ecva.net/papers/eccv_2022/papers_ECCV/papers/136820001.pdf">原文</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/ifzhang/ByteTrack">作者仓库</a><br>Version: ECCV 2022 正式版；首次预印本 arXiv:2110.06864（2021-10-13）；核验于 2026-10-24。实验数值均为作者报告，未作本地训练复现。</p>
+                <p>Original title: ByteTrack: Multi-Object Tracking by Associating Every Detection Box<br>Task: Online Multi-Object Tracking<br>Method: two-stage association, low-score recovery, YOLOX<br>Venue: ECCV 2022<br>Year: 2022<br>Authors: Yifu Zhang, Peize Sun, Yi Jiang, Dongdong Yu, Fucheng Weng, Zehuan Yuan, Ping Luo, Wenyu Liu, Xinggang Wang<br>Paper: <a target="_blank" rel="noopener" href="https://www.ecva.net/papers/eccv_2022/papers_ECCV/papers/136820001.pdf">原文</a><br>Code: <a target="_blank" rel="noopener" href="https://github.com/ifzhang/ByteTrack">作者仓库</a><br>Version: ECCV 2022 正式版；首次预印本 arXiv:2110.06864（2021-10-13）；核验于 2026-10-24。实验数值均为作者报告，未作本地训练复现。</p>
 <span id="more"></span>
+
+<!-- toc -->
 
 <h2 id="一句话总结"><a href="#一句话总结" class="headerlink" title="一句话总结"></a>一句话总结</h2><p>ByteTrack 将低置信度检测作为“可能属于已有轨迹的证据”再次匹配，恢复遮挡目标；低分框不会因此自动获得新身份。论文的通用关联策略叫 BYTE，YOLOX 与 BYTE 组成的完整系统叫 ByteTrack。<a target="_blank" rel="noopener" href="https://www.ecva.net/papers/eccv_2022/papers_ECCV/papers/136820001.pdf">原文 §3</a></p>
 <h2 id="研究背景与动机"><a href="#研究背景与动机" class="headerlink" title="研究背景与动机"></a>研究背景与动机</h2><p>检测分数回答“这一帧看起来像不像目标”，而跟踪还可以问“它是否与过去已经存在的目标一致”。遮挡、模糊和尺度变化会让真实目标跌破检测阈值。若先删除全部低分框，后续关联再强也无法利用这些观测，只能让轨迹失活或等待重现。</p>
@@ -100,9 +102,7 @@
 <li><strong>可迁移思想：</strong> 用时间证据决定候选是否可信，通常比单帧分数的一次硬裁剪更合理；该原则也适用于稀疏实例记忆更新。</li>
 </ul>
 <h2 id="相关工作"><a href="#相关工作" class="headerlink" title="相关工作"></a>相关工作</h2><p><a href="/posts/2025/papers/2025_CVPR_TrackTrack_Focusing_on_Tracks/">TrackTrack</a> 进一步找回 NMS 删除的高分候选，并改变级联分配方式；<a href="/posts/2024/papers/2024_CVPR_DiffMOT_Non_Linear_Motion_Prediction/">DiffMOT</a> 保留相近的两阶段关联结构，将改进重点放在非线性运动预测。两者分别触及 BYTE 的候选覆盖与位置预测边界。</p>
-<h2 id="系列关联"><a href="#系列关联" class="headerlink" title="系列关联"></a>系列关联</h2><ul>
-<li><a href="/posts/2026/MOT_Progress_Association_ID_Prediction_Test_Time_Adaptation/">MOT 进展综述：从候选框关联到身份预测与测试时适应</a></li>
-</ul>
+<p>延伸阅读：<a href="/posts/2026/MOT_Progress_Association_ID_Prediction_Test_Time_Adaptation/">多目标跟踪的身份之问：从位置匹配到时序记忆</a></p>
 
             </div>
 
@@ -112,7 +112,7 @@
                     <aside class="post-toc-sidebar">
                         <div class="toc-inner">
                             <div class="toc-title">目录</div>
-                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#BYTE-%E4%B8%A4%E9%98%B6%E6%AE%B5%E5%85%B3%E8%81%94"><span class="toc-text">BYTE 两阶段关联</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A3%80%E6%B5%8B%E5%99%A8%E4%B8%8E%E5%85%B3%E8%81%94%E8%B4%A1%E7%8C%AE%E8%A6%81%E6%8B%86%E5%BC%80"><span class="toc-text">检测器与关联贡献要拆开</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E3%80%81%E5%B1%80%E9%99%90%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">亮点、局限与启发</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C"><span class="toc-text">相关工作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%B3%BB%E5%88%97%E5%85%B3%E8%81%94"><span class="toc-text">系列关联</span></a></li></ol>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E7%BB%93"><span class="toc-text">一句话总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">研究背景与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E8%AF%A6%E8%A7%A3"><span class="toc-text">方法详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#BYTE-%E4%B8%A4%E9%98%B6%E6%AE%B5%E5%85%B3%E8%81%94"><span class="toc-text">BYTE 两阶段关联</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A3%80%E6%B5%8B%E5%99%A8%E4%B8%8E%E5%85%B3%E8%81%94%E8%B4%A1%E7%8C%AE%E8%A6%81%E6%8B%86%E5%BC%80"><span class="toc-text">检测器与关联贡献要拆开</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE"><span class="toc-text">实验关键数据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%AE%E7%82%B9%E3%80%81%E5%B1%80%E9%99%90%E4%B8%8E%E5%90%AF%E5%8F%91"><span class="toc-text">亮点、局限与启发</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C"><span class="toc-text">相关工作</span></a></li></ol>
                         </div>
                     </aside>
                 

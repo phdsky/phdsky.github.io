@@ -1,40 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="850" viewBox="0 0 1200 850" role="img" aria-labelledby="title desc">
-<title id="title">MOT 算法的信息处理地图</title><desc id="desc">八篇论文按表征、候选、运动、身份四个环节组织。不是排行榜或严格继承关系。</desc>
-<rect width="1200" height="850" rx="24" fill="#f6f8fc"/>
-<g font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" fill="#15263c">
-<text x="48" y="64" font-size="32" font-weight="700">MOT：从观测到持续身份</text>
-<text x="48" y="101" font-size="18" fill="#52627a">按方法改变的信息接口阅读 · 2020–2026 · 不同路线并行演进</text>
-<rect x="40" y="134" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
-<rect x="40" y="134" width="8" height="144" rx="4" fill="#2563eb"/>
-<text x="68" y="177" font-size="23" font-weight="700" fill="#2563eb">01  表征与监督</text>
-<line x1="345" y1="158" x2="345" y2="254" stroke="#dfe5ee"/>
-<text x="375" y="183" font-size="24" font-weight="700">FairMOT · IJCV 2021</text>
-<text x="375" y="225" font-size="18" fill="#52627a">中心采样 / 检测与 ReID 平衡</text>
-<text x="775" y="183" font-size="24" font-weight="700">QDTrack · CVPR 2021</text>
-<text x="775" y="225" font-size="18" fill="#52627a">准稠密多正样本 / 双向相似度</text>
-<rect x="40" y="294" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
-<rect x="40" y="294" width="8" height="144" rx="4" fill="#087e8b"/>
-<text x="68" y="337" font-size="23" font-weight="700" fill="#087e8b">02  候选与轨迹管理</text>
-<line x1="345" y1="318" x2="345" y2="414" stroke="#dfe5ee"/>
-<text x="375" y="343" font-size="24" font-weight="700">ByteTrack · ECCV 2022</text>
-<text x="375" y="385" font-size="18" fill="#52627a">低分框恢复 / 延续与新生分开</text>
-<text x="775" y="343" font-size="24" font-weight="700">TrackTrack · CVPR 2025</text>
-<text x="775" y="385" font-size="18" fill="#52627a">NMS 候选恢复 / 轨迹感知初始化</text>
-<rect x="40" y="454" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
-<rect x="40" y="454" width="8" height="144" rx="4" fill="#9252b3"/>
-<text x="68" y="497" font-size="23" font-weight="700" fill="#9252b3">03  时序状态与运动</text>
-<line x1="345" y1="478" x2="345" y2="574" stroke="#dfe5ee"/>
-<text x="375" y="503" font-size="24" font-weight="700">TransTrack · arXiv 2020</text>
-<text x="375" y="545" font-size="18" fill="#52627a">双查询 / 当前帧两路框融合</text>
-<text x="775" y="503" font-size="24" font-weight="700">DiffMOT · CVPR 2024</text>
-<text x="775" y="545" font-size="18" fill="#52627a">历史条件 / 单步扩散运动预测</text>
-<rect x="40" y="614" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
-<rect x="40" y="614" width="8" height="144" rx="4" fill="#b65d25"/>
-<text x="68" y="657" font-size="23" font-weight="700" fill="#b65d25">04  身份决策与适应</text>
-<line x1="345" y1="638" x2="345" y2="734" stroke="#dfe5ee"/>
-<text x="375" y="663" font-size="24" font-weight="700">MOTIP · CVPR 2025</text>
-<text x="375" y="705" font-size="18" fill="#52627a">历史 ID token / 上下文分类</text>
-<text x="775" y="663" font-size="24" font-weight="700">TCEI · CVPR 2026</text>
-<text x="775" y="705" font-size="18" fill="#52627a">短期记忆 / 测试经验校准</text>
-<text x="48" y="812" font-size="18" fill="#52627a">比较前对齐：检测器 · 训练数据 · split · 后处理 · 速度口径 · 测试状态</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="640" viewBox="0 0 1080 640" role="img" aria-labelledby="title desc">
+<title id="title">位置在变，身份需要连续</title>
+<desc id="desc">两个行人从相向行走到交叉遮挡，再重新出现。蓝色轨迹编号7和橙色轨迹编号12保持一致；遮挡时使用虚线表示待确认的历史状态。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10" fill="none" stroke="#64748b" stroke-width="2"/></marker></defs>
+<rect width="1080" height="640" rx="24" fill="#f3f6fb"/>
+<g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif">
+<text x="40" y="58" font-size="32" font-weight="700" fill="#182b46">位置在变，身份需要连续</text>
+<text x="40" y="96" font-size="22" fill="#50627c">同一个编号，连接不同时刻的观察</text>
+<rect x="30" y="130" width="300" height="330" rx="18" fill="white" stroke="#dbe3ef"/><text x="50" y="168" font-size="25" font-weight="600" fill="#182b46">① 相向行走</text><path d="M45 375H315" stroke="#dbe3ef" stroke-width="3"/><text x="180" y="426" font-size="21" text-anchor="middle" fill="#50627c">建立轨迹</text>
+<rect x="390" y="130" width="300" height="330" rx="18" fill="white" stroke="#dbe3ef"/><text x="410" y="168" font-size="25" font-weight="600" fill="#182b46">② 交叉与遮挡</text><path d="M405 375H675" stroke="#dbe3ef" stroke-width="3"/><text x="540" y="426" font-size="21" text-anchor="middle" fill="#50627c">保留历史，等待确认</text>
+<rect x="750" y="130" width="300" height="330" rx="18" fill="white" stroke="#dbe3ef"/><text x="770" y="168" font-size="25" font-weight="600" fill="#182b46">③ 重新出现</text><path d="M765 375H1035" stroke="#dbe3ef" stroke-width="3"/><text x="900" y="426" font-size="21" text-anchor="middle" fill="#50627c">恢复对应，而非重新编号</text>
+<g><rect x="65" y="220" width="70" height="150" rx="8" fill="none" stroke="#2875c9" stroke-width="3"/><text x="100" y="205" text-anchor="middle" fill="#2875c9" font-size="23" font-weight="700">ID 7</text><g opacity="1" fill="#2875c9" stroke="#2875c9" stroke-linecap="round"><circle cx="100" cy="248" r="14"/><path d="M100 271V313M78 298L100 275L122 298M100 313L80 350M100 313L120 350" fill="none" stroke-width="10"/></g></g>
+<g><rect x="225" y="220" width="70" height="150" rx="8" fill="none" stroke="#c57623" stroke-width="3"/><text x="260" y="205" text-anchor="middle" fill="#c57623" font-size="23" font-weight="700">ID 12</text><g opacity="1" fill="#c57623" stroke="#c57623" stroke-linecap="round"><circle cx="260" cy="248" r="14"/><path d="M260 271V313M238 298L260 275L282 298M260 313L240 350M260 313L280 350" fill="none" stroke-width="10"/></g></g>
+<g><rect x="520" y="220" width="70" height="150" rx="8" fill="none" stroke="#2875c9" stroke-width="3" stroke-dasharray="7 6"/><text x="555" y="205" text-anchor="middle" fill="#2875c9" font-size="23" font-weight="700">ID 7 ?</text><g opacity=".35" fill="#2875c9" stroke="#2875c9" stroke-linecap="round"><circle cx="555" cy="248" r="14"/><path d="M555 271V313M533 298L555 275L577 298M555 313L535 350M555 313L575 350" fill="none" stroke-width="10"/></g></g>
+<g><rect x="428" y="220" width="70" height="150" rx="8" fill="none" stroke="#c57623" stroke-width="3"/><text x="463" y="205" text-anchor="middle" fill="#c57623" font-size="23" font-weight="700">ID 12</text><g opacity="1" fill="#c57623" stroke="#c57623" stroke-linecap="round"><circle cx="463" cy="248" r="14"/><path d="M463 271V313M441 298L463 275L485 298M463 313L443 350M463 313L483 350" fill="none" stroke-width="10"/></g></g>
+<g><rect x="955" y="220" width="70" height="150" rx="8" fill="none" stroke="#2875c9" stroke-width="3"/><text x="990" y="205" text-anchor="middle" fill="#2875c9" font-size="23" font-weight="700">ID 7</text><g opacity="1" fill="#2875c9" stroke="#2875c9" stroke-linecap="round"><circle cx="990" cy="248" r="14"/><path d="M990 271V313M968 298L990 275L1012 298M990 313L970 350M990 313L1010 350" fill="none" stroke-width="10"/></g></g>
+<g><rect x="785" y="220" width="70" height="150" rx="8" fill="none" stroke="#c57623" stroke-width="3"/><text x="820" y="205" text-anchor="middle" fill="#c57623" font-size="23" font-weight="700">ID 12</text><g opacity="1" fill="#c57623" stroke="#c57623" stroke-linecap="round"><circle cx="820" cy="248" r="14"/><path d="M820 271V313M798 298L820 275L842 298M820 313L800 350M820 313L840 350" fill="none" stroke-width="10"/></g></g>
+<rect x="519" y="271" width="143" height="87" rx="10" fill="#c5cedb" stroke="#8f9bac" stroke-width="2"/><rect x="530" y="284" width="49" height="30" rx="4" fill="#edf2f8"/><rect x="588" y="284" width="59" height="30" rx="4" fill="#edf2f8"/><circle cx="547" cy="360" r="12" fill="#738197"/><circle cx="637" cy="360" r="12" fill="#738197"/>
+<path d="M343 290H373M703 290H733" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="30" y="492" width="1020" height="112" rx="16" fill="#e7edf7"/>
+<text x="55" y="535" font-size="25" font-weight="600" fill="#182b46">检测：这一帧在哪里？</text>
+<text x="55" y="575" font-size="25" font-weight="600" fill="#182b46">跟踪：与之前的哪个对象是同一个？</text>
 </g></svg>
