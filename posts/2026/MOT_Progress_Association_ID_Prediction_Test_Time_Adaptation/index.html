@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        
+            MOT 算法进展：从候选框关联到身份预测与测试时适应 - 
+                    phdsky
+    </title>
+    <meta name="description" content="">
+    
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+    <nav class="navbar">
+    <div class="container">
+        <div class="nav-brand">
+            <a href="/">
+                phdsky
+            </a>
+        </div>
+        <ul class="nav-menu">
+            
+                <li><a href="/">首页</a></li>
+            
+                <li><a href="/project/">项目</a></li>
+            
+                <li><a href="/blog/">博客</a></li>
+            
+            <li><a href="javascript:void(0)" class="search-trigger">搜索</a></li>
+        </ul>
+    </div>
+</nav>
+
+
+        <main class="main-content">
+            <div class="container">
+                <article class="post-detail">
+    <div class="container">
+        <header class="post-header">
+            <h1 class="post-title">MOT 算法进展：从候选框关联到身份预测与测试时适应</h1>
+            <div class="post-meta">
+                <span class="post-date">
+                    2026年10月24日
+                </span>
+                
+            </div>
+        </header>
+
+        <div class="post-layout">
+            <div class="post-body">
+                <p>Topic: Online 2D Multi-Object Tracking<br>Scope: 2020–2026；重点讨论检测框级在线 MOT，资料核验截至 2026-10-24。<br>Evidence: 八篇指定论文全文精读，并补充 MOTR、BoT-SORT、OC-SORT、MeMOTR、HyperSSM 与 MOTIP2 的一手来源。所有结果为作者报告，未作统一重训练或本地基准复现。</p>
+<span id="more"></span>
+
+<h2 id="核心问题：怎样让一个身份穿过不完整的观测"><a href="#核心问题：怎样让一个身份穿过不完整的观测" class="headerlink" title="核心问题：怎样让一个身份穿过不完整的观测"></a>核心问题：怎样让一个身份穿过不完整的观测</h2><p>多目标跟踪需要同时输出目标位置与持续身份。难点不只是“框是否准确”，还包括一个人被遮住后能否继续沿用原 ID、两个外观相似的人交叉时能否避免身份交换，以及新出现的框究竟代表新目标还是旧轨迹的重复检测。</p>
+<p>从这组论文看，近年的进展并不是一条“传统方法被 Transformer，再被扩散模型替代”的单线。更有解释力的主线是：<strong>系统保留什么证据、用什么状态记住历史、让谁来决定身份，以及测试时如何纠错。</strong> 检测与身份表征、候选利用、运动预测、可学习关联、测试时适应仍在并行发展。</p>
+<p><img src="/images/mot-progress-map.svg" alt="MOT 方法地图：按信息处理环节组织八篇论文"></p>
+<p>图为本文按方法接口重新整理的示意，不表示引用谱系，也不表示后一个方法完全替代前一个。日期采用会议&#x2F;期刊年份或 TransTrack 的首次预印本年份；各精读另列首次公开日期。</p>
+<h2 id="1-先把任务、指标和比较协议说清楚"><a href="#1-先把任务、指标和比较协议说清楚" class="headerlink" title="1. 先把任务、指标和比较协议说清楚"></a>1. 先把任务、指标和比较协议说清楚</h2><h3 id="1-1-一条实用的信息链"><a href="#1-1-一条实用的信息链" class="headerlink" title="1.1 一条实用的信息链"></a>1.1 一条实用的信息链</h3><p>可将常见在线 MOT 抽象为：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">当前图像 → 候选检测 / 实例特征 → 与历史状态关联 → 身份输出</span><br><span class="line">                                  ↑            ↓</span><br><span class="line">                          运动、外观、轨迹记忆 ← 状态更新</span><br></pre></td></tr></table></figure>
+
+<p>框架之间的差别在于哪些环节是显式模块，哪些被网络联合学习。端到端训练描述优化关系；online 描述推理能否只读已经到达的数据；real-time 描述在某硬件和输入下是否满足目标时延。三者相互独立。一个关联器不使用 Hungarian，也仍可能需要阈值、身份冲突处理和轨迹出生&#x2F;终止逻辑。</p>
+<p>本文关注单摄像头 2D 检测框跟踪。多摄像头重识别、3D 跟踪、视频分割和 tracking any point 与其有关，但不能把它们的输出定义与指标混为一谈。与 vault 中 <a href="/posts/2021/papers/2021_CVPR_CenterPoint_Center_based_3D_Object_Detection_and_Tracking/">CenterPoint</a> 的连接主要在实例状态与关联思想，不能直接比较其 3D 指标。</p>
+<h3 id="1-2-为什么只看-MOTA-会误判进步"><a href="#1-2-为什么只看-MOTA-会误判进步" class="headerlink" title="1.2 为什么只看 MOTA 会误判进步"></a>1.2 为什么只看 MOTA 会误判进步</h3><p>MOTA 同时惩罚漏检、误检和 ID switch：</p>
+<p><span class="math-display" role="math" aria-label="
+\mathrm{MOTA}&#x3D;1-\frac{\sum_t(\mathrm{FN}_t+\mathrm{FP}_t+\mathrm{IDSW}_t)}{\sum_t\mathrm{GT}_t}.
+" data-tex="
+\mathrm{MOTA}&#x3D;1-\frac{\sum_t(\mathrm{FN}_t+\mathrm{FP}_t+\mathrm{IDSW}_t)}{\sum_t\mathrm{GT}_t}.
+"><mjx-container class="MathJax" jax="SVG" display="true"><svg style="vertical-align: -2.27ex;" xmlns="http://www.w3.org/2000/svg" width="40.767ex" height="5.67ex" role="img" focusable="false" viewBox="0 -1503.1 18019 2506.3"><g stroke="currentColor" fill="currentColor" stroke-width="0" transform="scale(1,-1)"><g data-mml-node="math"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="4D" d="M132 622Q125 629 121 631T105 634T62 637H29V683H135Q221 683 232 682T249 675Q250 674 354 398L458 124L562 398Q666 674 668 675Q671 681 683 682T781 683H887V637H854Q814 636 803 634T785 622V61Q791 51 802 49T854 46H887V0H876Q855 3 736 3Q605 3 596 0H585V46H618Q660 47 669 49T688 61V347Q688 424 688 461T688 546T688 613L687 632Q454 14 450 7Q446 1 430 1T410 7Q409 9 292 316L176 624V606Q175 588 175 543T175 463T175 356L176 86Q187 50 261 46H278V0H269Q254 3 154 3Q52 3 37 0H29V46H46Q78 48 98 56T122 69T132 86V622Z"></path><path data-c="4F" d="M56 340Q56 423 86 494T164 610T270 680T388 705Q521 705 621 601T722 341Q722 260 693 191T617 75T510 4T388 -22T267 3T160 74T85 189T56 340ZM467 647Q426 665 388 665Q360 665 331 654T269 620T213 549T179 439Q174 411 174 354Q174 144 277 61Q327 20 385 20H389H391Q474 20 537 99Q603 188 603 354Q603 411 598 439Q577 592 467 647Z" transform="translate(917,0)"></path><path data-c="54" d="M36 443Q37 448 46 558T55 671V677H666V671Q667 666 676 556T685 443V437H645V443Q645 445 642 478T631 544T610 593Q593 614 555 625Q534 630 478 630H451H443Q417 630 414 618Q413 616 413 339V63Q420 53 439 50T528 46H558V0H545L361 3Q186 1 177 0H164V46H194Q264 46 283 49T309 63V339V550Q309 620 304 625T271 630H244H224Q154 630 119 601Q101 585 93 554T81 486T76 443V437H36V443Z" transform="translate(1695,0)"></path><path data-c="41" d="M255 0Q240 3 140 3Q48 3 39 0H32V46H47Q119 49 139 88Q140 91 192 245T295 553T348 708Q351 716 366 716H376Q396 715 400 709Q402 707 508 390L617 67Q624 54 636 51T687 46H717V0H708Q699 3 581 3Q458 3 437 0H427V46H440Q510 46 510 64Q510 66 486 138L462 209H229L209 150Q189 91 189 85Q189 72 209 59T259 46H264V0H255ZM447 255L345 557L244 256Q244 255 345 255H447Z" transform="translate(2417,0)"></path></g></g><g data-mml-node="mo" transform="translate(3444.8,0)"><path data-c="3D" d="M56 347Q56 360 70 367H707Q722 359 722 347Q722 336 708 328L390 327H72Q56 332 56 347ZM56 153Q56 168 72 173H708Q722 163 722 153Q722 140 707 133H70Q56 140 56 153Z"></path></g><g data-mml-node="mn" transform="translate(4500.6,0)"><path data-c="31" d="M213 578L200 573Q186 568 160 563T102 556H83V602H102Q149 604 189 617T245 641T273 663Q275 666 285 666Q294 666 302 660V361L303 61Q310 54 315 52T339 48T401 46H427V0H416Q395 3 257 3Q121 3 100 0H88V46H114Q136 46 152 46T177 47T193 50T201 52T207 57T213 61V578Z"></path></g><g data-mml-node="mo" transform="translate(5222.8,0)"><path data-c="2212" d="M84 237T84 250T98 270H679Q694 262 694 250T679 230H98Q84 237 84 250Z"></path></g><g data-mml-node="mfrac" transform="translate(6223,0)"><g data-mml-node="mrow" transform="translate(220,753.1)"><g data-mml-node="munder"><g data-mml-node="mo"><path data-c="2211" d="M61 748Q64 750 489 750H913L954 640Q965 609 976 579T993 533T999 516H979L959 517Q936 579 886 621T777 682Q724 700 655 705T436 710H319Q183 710 183 709Q186 706 348 484T511 259Q517 250 513 244L490 216Q466 188 420 134T330 27L149 -187Q149 -188 362 -188Q388 -188 436 -188T506 -189Q679 -189 778 -162T936 -43Q946 -27 959 6H999L913 -249L489 -250Q65 -250 62 -248Q56 -246 56 -239Q56 -234 118 -161Q186 -81 245 -11L428 206Q428 207 242 462L57 717L56 728Q56 744 61 748Z"></path></g><g data-mml-node="mi" transform="translate(1089,-285.4) scale(0.707)"><path data-c="1D461" d="M26 385Q19 392 19 395Q19 399 22 411T27 425Q29 430 36 430T87 431H140L159 511Q162 522 166 540T173 566T179 586T187 603T197 615T211 624T229 626Q247 625 254 615T261 596Q261 589 252 549T232 470L222 433Q222 431 272 431H323Q330 424 330 420Q330 398 317 385H210L174 240Q135 80 135 68Q135 26 162 26Q197 26 230 60T283 144Q285 150 288 151T303 153H307Q322 153 322 145Q322 142 319 133Q314 117 301 95T267 48T216 6T155 -11Q125 -11 98 4T59 56Q57 64 57 83V101L92 241Q127 382 128 383Q128 385 77 385H26Z"></path></g></g><g data-mml-node="mo" transform="translate(1394.3,0)"><path data-c="28" d="M94 250Q94 319 104 381T127 488T164 576T202 643T244 695T277 729T302 750H315H319Q333 750 333 741Q333 738 316 720T275 667T226 581T184 443T167 250T184 58T225 -81T274 -167T316 -220T333 -241Q333 -250 318 -250H315H302L274 -226Q180 -141 137 -14T94 250Z"></path></g><g data-mml-node="msub" transform="translate(1783.3,0)"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="46" d="M128 619Q121 626 117 628T101 631T58 634H25V680H582V676Q584 670 596 560T610 444V440H570V444Q563 493 561 501Q555 538 543 563T516 601T477 622T431 631T374 633H334H286Q252 633 244 631T233 621Q232 619 232 490V363H284Q287 363 303 363T327 364T349 367T372 373T389 385Q407 403 410 459V480H450V200H410V221Q407 276 389 296Q381 303 371 307T348 313T327 316T303 317T284 317H232V189L233 61Q240 54 245 52T270 48T333 46H360V0H348Q324 3 182 3Q51 3 36 0H25V46H58Q100 47 109 49T128 61V619Z"></path><path data-c="4E" d="M42 46Q74 48 94 56T118 69T128 86V634H124Q114 637 52 637H25V683H232L235 680Q237 679 322 554T493 303L578 178V598Q572 608 568 613T544 627T492 637H475V683H483Q498 680 600 680Q706 680 715 683H724V637H707Q634 633 622 598L621 302V6L614 0H600Q585 0 582 3T481 150T282 443T171 605V345L172 86Q183 50 257 46H274V0H265Q250 3 150 3Q48 3 33 0H25V46H42Z" transform="translate(653,0)"></path></g></g><g data-mml-node="mi" transform="translate(1436,-150) scale(0.707)"><path data-c="1D461" d="M26 385Q19 392 19 395Q19 399 22 411T27 425Q29 430 36 430T87 431H140L159 511Q162 522 166 540T173 566T179 586T187 603T197 615T211 624T229 626Q247 625 254 615T261 596Q261 589 252 549T232 470L222 433Q222 431 272 431H323Q330 424 330 420Q330 398 317 385H210L174 240Q135 80 135 68Q135 26 162 26Q197 26 230 60T283 144Q285 150 288 151T303 153H307Q322 153 322 145Q322 142 319 133Q314 117 301 95T267 48T216 6T155 -11Q125 -11 98 4T59 56Q57 64 57 83V101L92 241Q127 382 128 383Q128 385 77 385H26Z"></path></g></g><g data-mml-node="mo" transform="translate(3746.8,0)"><path data-c="2B" d="M56 237T56 250T70 270H369V420L370 570Q380 583 389 583Q402 583 409 568V270H707Q722 262 722 250T707 230H409V-68Q401 -82 391 -82H389H387Q375 -82 369 -68V230H70Q56 237 56 250Z"></path></g><g data-mml-node="msub" transform="translate(4747,0)"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="46" d="M128 619Q121 626 117 628T101 631T58 634H25V680H582V676Q584 670 596 560T610 444V440H570V444Q563 493 561 501Q555 538 543 563T516 601T477 622T431 631T374 633H334H286Q252 633 244 631T233 621Q232 619 232 490V363H284Q287 363 303 363T327 364T349 367T372 373T389 385Q407 403 410 459V480H450V200H410V221Q407 276 389 296Q381 303 371 307T348 313T327 316T303 317T284 317H232V189L233 61Q240 54 245 52T270 48T333 46H360V0H348Q324 3 182 3Q51 3 36 0H25V46H58Q100 47 109 49T128 61V619Z"></path><path data-c="50" d="M130 622Q123 629 119 631T103 634T60 637H27V683H214Q237 683 276 683T331 684Q419 684 471 671T567 616Q624 563 624 489Q624 421 573 372T451 307Q429 302 328 301H234V181Q234 62 237 58Q245 47 304 46H337V0H326Q305 3 182 3Q47 3 38 0H27V46H60Q102 47 111 49T130 61V622ZM507 488Q507 514 506 528T500 564T483 597T450 620T397 635Q385 637 307 637H286Q237 637 234 628Q231 624 231 483V342H302H339Q390 342 423 349T481 382Q507 411 507 488Z" transform="translate(653,0)"></path></g></g><g data-mml-node="mi" transform="translate(1367,-150) scale(0.707)"><path data-c="1D461" d="M26 385Q19 392 19 395Q19 399 22 411T27 425Q29 430 36 430T87 431H140L159 511Q162 522 166 540T173 566T179 586T187 603T197 615T211 624T229 626Q247 625 254 615T261 596Q261 589 252 549T232 470L222 433Q222 431 272 431H323Q330 424 330 420Q330 398 317 385H210L174 240Q135 80 135 68Q135 26 162 26Q197 26 230 60T283 144Q285 150 288 151T303 153H307Q322 153 322 145Q322 142 319 133Q314 117 301 95T267 48T216 6T155 -11Q125 -11 98 4T59 56Q57 64 57 83V101L92 241Q127 382 128 383Q128 385 77 385H26Z"></path></g></g><g data-mml-node="mo" transform="translate(6641.5,0)"><path data-c="2B" d="M56 237T56 250T70 270H369V420L370 570Q380 583 389 583Q402 583 409 568V270H707Q722 262 722 250T707 230H409V-68Q401 -82 391 -82H389H387Q375 -82 369 -68V230H70Q56 237 56 250Z"></path></g><g data-mml-node="msub" transform="translate(7641.7,0)"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="49" d="M328 0Q307 3 180 3T32 0H21V46H43Q92 46 106 49T126 60Q128 63 128 342Q128 620 126 623Q122 628 118 630T96 635T43 637H21V683H32Q53 680 180 680T328 683H339V637H317Q268 637 254 634T234 623Q232 620 232 342Q232 63 234 60Q238 55 242 53T264 48T317 46H339V0H328Z"></path><path data-c="44" d="M130 622Q123 629 119 631T103 634T60 637H27V683H228Q399 682 419 682T461 676Q504 667 546 641T626 573T685 470T708 336Q708 210 634 116T442 3Q429 1 228 0H27V46H60Q102 47 111 49T130 61V622ZM593 338Q593 439 571 501T493 602Q439 637 355 637H322H294Q238 637 234 628Q231 624 231 344Q231 62 232 59Q233 49 248 48T339 46H350Q456 46 515 95Q561 133 577 191T593 338Z" transform="translate(361,0)"></path><path data-c="53" d="M55 507Q55 590 112 647T243 704H257Q342 704 405 641L426 672Q431 679 436 687T446 700L449 704Q450 704 453 704T459 705H463Q466 705 472 699V462L466 456H448Q437 456 435 459T430 479Q413 605 329 646Q292 662 254 662Q201 662 168 626T135 542Q135 508 152 480T200 435Q210 431 286 412T370 389Q427 367 463 314T500 191Q500 110 448 45T301 -21Q245 -21 201 -4T140 27L122 41Q118 36 107 21T87 -7T78 -21Q76 -22 68 -22H64Q61 -22 55 -16V101Q55 220 56 222Q58 227 76 227H89Q95 221 95 214Q95 182 105 151T139 90T205 42T305 24Q352 24 386 62T420 155Q420 198 398 233T340 281Q284 295 266 300Q261 301 239 306T206 314T174 325T141 343T112 367T85 402Q55 451 55 507Z" transform="translate(1125,0)"></path><path data-c="57" d="M792 683Q810 680 914 680Q991 680 1003 683H1009V637H996Q931 633 915 598Q912 591 863 438T766 135T716 -17Q711 -22 694 -22Q676 -22 673 -15Q671 -13 593 231L514 477L435 234Q416 174 391 92T358 -6T341 -22H331Q314 -21 310 -15Q309 -14 208 302T104 622Q98 632 87 633Q73 637 35 637H18V683H27Q69 681 154 681Q164 681 181 681T216 681T249 682T276 683H287H298V637H285Q213 637 213 620Q213 616 289 381L364 144L427 339Q490 535 492 546Q487 560 482 578T475 602T468 618T461 628T449 633T433 636T408 637H380V683H388Q397 680 508 680Q629 680 650 683H660V637H647Q576 637 576 619L727 146Q869 580 869 600Q869 605 863 612T839 627T794 637H783V683H792Z" transform="translate(1681,0)"></path></g></g><g data-mml-node="mi" transform="translate(2742,-150) scale(0.707)"><path data-c="1D461" d="M26 385Q19 392 19 395Q19 399 22 411T27 425Q29 430 36 430T87 431H140L159 511Q162 522 166 540T173 566T179 586T187 603T197 615T211 624T229 626Q247 625 254 615T261 596Q261 589 252 549T232 470L222 433Q222 431 272 431H323Q330 424 330 420Q330 398 317 385H210L174 240Q135 80 135 68Q135 26 162 26Q197 26 230 60T283 144Q285 150 288 151T303 153H307Q322 153 322 145Q322 142 319 133Q314 117 301 95T267 48T216 6T155 -11Q125 -11 98 4T59 56Q57 64 57 83V101L92 241Q127 382 128 383Q128 385 77 385H26Z"></path></g></g><g data-mml-node="mo" transform="translate(10689,0)"><path data-c="29" d="M60 749L64 750Q69 750 74 750H86L114 726Q208 641 251 514T294 250Q294 182 284 119T261 12T224 -76T186 -143T145 -194T113 -227T90 -246Q87 -249 86 -250H74Q66 -250 63 -250T58 -247T55 -238Q56 -237 66 -225Q221 -64 221 250T66 725Q56 737 55 738Q55 746 60 749Z"></path></g></g><g data-mml-node="mrow" transform="translate(4055.9,-710)"><g data-mml-node="munder"><g data-mml-node="mo"><path data-c="2211" d="M61 748Q64 750 489 750H913L954 640Q965 609 976 579T993 533T999 516H979L959 517Q936 579 886 621T777 682Q724 700 655 705T436 710H319Q183 710 183 709Q186 706 348 484T511 259Q517 250 513 244L490 216Q466 188 420 134T330 27L149 -187Q149 -188 362 -188Q388 -188 436 -188T506 -189Q679 -189 778 -162T936 -43Q946 -27 959 6H999L913 -249L489 -250Q65 -250 62 -248Q56 -246 56 -239Q56 -234 118 -161Q186 -81 245 -11L428 206Q428 207 242 462L57 717L56 728Q56 744 61 748Z"></path></g><g data-mml-node="mi" transform="translate(1089,-285.4) scale(0.707)"><path data-c="1D461" d="M26 385Q19 392 19 395Q19 399 22 411T27 425Q29 430 36 430T87 431H140L159 511Q162 522 166 540T173 566T179 586T187 603T197 615T211 624T229 626Q247 625 254 615T261 596Q261 589 252 549T232 470L222 433Q222 431 272 431H323Q330 424 330 420Q330 398 317 385H210L174 240Q135 80 135 68Q135 26 162 26Q197 26 230 60T283 144Q285 150 288 151T303 153H307Q322 153 322 145Q322 142 319 133Q314 117 301 95T267 48T216 6T155 -11Q125 -11 98 4T59 56Q57 64 57 83V101L92 241Q127 382 128 383Q128 385 77 385H26Z"></path></g></g><g data-mml-node="msub" transform="translate(1560.9,0)"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="47" d="M56 342Q56 428 89 500T174 615T283 681T391 705Q394 705 400 705T408 704Q499 704 569 636L582 624L612 663Q639 700 643 704Q644 704 647 704T653 705H657Q660 705 666 699V419L660 413H626Q620 419 619 430Q610 512 571 572T476 651Q457 658 426 658Q401 658 376 654T316 633T254 592T205 519T177 411Q173 369 173 335Q173 259 192 201T238 111T302 58T370 31T431 24Q478 24 513 45T559 100Q562 110 562 160V212Q561 213 557 216T551 220T542 223T526 225T502 226T463 227H437V273H449L609 270Q715 270 727 273H735V227H721Q674 227 668 215Q666 211 666 108V6Q660 0 657 0Q653 0 639 10Q617 25 600 42L587 54Q571 27 524 3T406 -22Q317 -22 238 22T108 151T56 342Z"></path><path data-c="54" d="M36 443Q37 448 46 558T55 671V677H666V671Q667 666 676 556T685 443V437H645V443Q645 445 642 478T631 544T610 593Q593 614 555 625Q534 630 478 630H451H443Q417 630 414 618Q413 616 413 339V63Q420 53 439 50T528 46H558V0H545L361 3Q186 1 177 0H164V46H194Q264 46 283 49T309 63V339V550Q309 620 304 625T271 630H244H224Q154 630 119 601Q101 585 93 554T81 486T76 443V437H36V443Z" transform="translate(785,0)"></path></g></g><g data-mml-node="mi" transform="translate(1540,-150) scale(0.707)"><path data-c="1D461" d="M26 385Q19 392 19 395Q19 399 22 411T27 425Q29 430 36 430T87 431H140L159 511Q162 522 166 540T173 566T179 586T187 603T197 615T211 624T229 626Q247 625 254 615T261 596Q261 589 252 549T232 470L222 433Q222 431 272 431H323Q330 424 330 420Q330 398 317 385H210L174 240Q135 80 135 68Q135 26 162 26Q197 26 230 60T283 144Q285 150 288 151T303 153H307Q322 153 322 145Q322 142 319 133Q314 117 301 95T267 48T216 6T155 -11Q125 -11 98 4T59 56Q57 64 57 83V101L92 241Q127 382 128 383Q128 385 77 385H26Z"></path></g></g></g><rect width="11278" height="60" x="120" y="220"></rect></g><g data-mml-node="mo" transform="translate(17741,0)"><path data-c="2E" d="M78 60Q78 84 95 102T138 120Q162 120 180 104T199 61Q199 36 182 18T139 0T96 17T78 60Z"></path></g></g></g></svg></mjx-container></span></p>
+<p>当 FN&#x2F;FP 远多于 IDSW，改善检测往往主导 MOTA。IDF1 更侧重轨迹身份匹配；HOTA 在多个定位阈值下结合检测与关联，在固定阈值 <span class="math-inline" role="math" aria-label="\alpha" data-tex="\alpha"><mjx-container class="MathJax" jax="SVG"><svg style="vertical-align: -0.025ex;" xmlns="http://www.w3.org/2000/svg" width="1.448ex" height="1.025ex" role="img" focusable="false" viewBox="0 -442 640 453"><g stroke="currentColor" fill="currentColor" stroke-width="0" transform="scale(1,-1)"><g data-mml-node="math"><g data-mml-node="mi"><path data-c="1D6FC" d="M34 156Q34 270 120 356T309 442Q379 442 421 402T478 304Q484 275 485 237V208Q534 282 560 374Q564 388 566 390T582 393Q603 393 603 385Q603 376 594 346T558 261T497 161L486 147L487 123Q489 67 495 47T514 26Q528 28 540 37T557 60Q559 67 562 68T577 70Q597 70 597 62Q597 56 591 43Q579 19 556 5T512 -10H505Q438 -10 414 62L411 69L400 61Q390 53 370 41T325 18T267 -2T203 -11Q124 -11 79 39T34 156ZM208 26Q257 26 306 47T379 90L403 112Q401 255 396 290Q382 405 304 405Q235 405 183 332Q156 292 139 224T121 120Q121 71 146 49T208 26Z"></path></g></g></g></svg></mjx-container></span> 上有 <span class="math-inline" role="math" aria-label="\mathrm{HOTA}_\alpha&#x3D;\sqrt{\mathrm{DetA}_\alpha\mathrm{AssA}_\alpha}" data-tex="\mathrm{HOTA}_\alpha&#x3D;\sqrt{\mathrm{DetA}_\alpha\mathrm{AssA}_\alpha}"><mjx-container class="MathJax" jax="SVG"><svg style="vertical-align: -0.573ex;" xmlns="http://www.w3.org/2000/svg" width="26.233ex" height="2.851ex" role="img" focusable="false" viewBox="0 -1006.6 11595.2 1260"><g stroke="currentColor" fill="currentColor" stroke-width="0" transform="scale(1,-1)"><g data-mml-node="math"><g data-mml-node="msub"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="48" d="M128 622Q121 629 117 631T101 634T58 637H25V683H36Q57 680 180 680Q315 680 324 683H335V637H302Q262 636 251 634T233 622L232 500V378H517V622Q510 629 506 631T490 634T447 637H414V683H425Q446 680 569 680Q704 680 713 683H724V637H691Q651 636 640 634T622 622V61Q628 51 639 49T691 46H724V0H713Q692 3 569 3Q434 3 425 0H414V46H447Q489 47 498 49T517 61V332H232V197L233 61Q239 51 250 49T302 46H335V0H324Q303 3 180 3Q45 3 36 0H25V46H58Q100 47 109 49T128 61V622Z"></path><path data-c="4F" d="M56 340Q56 423 86 494T164 610T270 680T388 705Q521 705 621 601T722 341Q722 260 693 191T617 75T510 4T388 -22T267 3T160 74T85 189T56 340ZM467 647Q426 665 388 665Q360 665 331 654T269 620T213 549T179 439Q174 411 174 354Q174 144 277 61Q327 20 385 20H389H391Q474 20 537 99Q603 188 603 354Q603 411 598 439Q577 592 467 647Z" transform="translate(750,0)"></path><path data-c="54" d="M36 443Q37 448 46 558T55 671V677H666V671Q667 666 676 556T685 443V437H645V443Q645 445 642 478T631 544T610 593Q593 614 555 625Q534 630 478 630H451H443Q417 630 414 618Q413 616 413 339V63Q420 53 439 50T528 46H558V0H545L361 3Q186 1 177 0H164V46H194Q264 46 283 49T309 63V339V550Q309 620 304 625T271 630H244H224Q154 630 119 601Q101 585 93 554T81 486T76 443V437H36V443Z" transform="translate(1528,0)"></path><path data-c="41" d="M255 0Q240 3 140 3Q48 3 39 0H32V46H47Q119 49 139 88Q140 91 192 245T295 553T348 708Q351 716 366 716H376Q396 715 400 709Q402 707 508 390L617 67Q624 54 636 51T687 46H717V0H708Q699 3 581 3Q458 3 437 0H427V46H440Q510 46 510 64Q510 66 486 138L462 209H229L209 150Q189 91 189 85Q189 72 209 59T259 46H264V0H255ZM447 255L345 557L244 256Q244 255 345 255H447Z" transform="translate(2250,0)"></path></g></g><g data-mml-node="mi" transform="translate(3033,-150) scale(0.707)"><path data-c="1D6FC" d="M34 156Q34 270 120 356T309 442Q379 442 421 402T478 304Q484 275 485 237V208Q534 282 560 374Q564 388 566 390T582 393Q603 393 603 385Q603 376 594 346T558 261T497 161L486 147L487 123Q489 67 495 47T514 26Q528 28 540 37T557 60Q559 67 562 68T577 70Q597 70 597 62Q597 56 591 43Q579 19 556 5T512 -10H505Q438 -10 414 62L411 69L400 61Q390 53 370 41T325 18T267 -2T203 -11Q124 -11 79 39T34 156ZM208 26Q257 26 306 47T379 90L403 112Q401 255 396 290Q382 405 304 405Q235 405 183 332Q156 292 139 224T121 120Q121 71 146 49T208 26Z"></path></g></g><g data-mml-node="mo" transform="translate(3813.3,0)"><path data-c="3D" d="M56 347Q56 360 70 367H707Q722 359 722 347Q722 336 708 328L390 327H72Q56 332 56 347ZM56 153Q56 168 72 173H708Q722 163 722 153Q722 140 707 133H70Q56 140 56 153Z"></path></g><g data-mml-node="msqrt" transform="translate(4869.1,0)"><g transform="translate(1020,0)"><g data-mml-node="msub"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="44" d="M130 622Q123 629 119 631T103 634T60 637H27V683H228Q399 682 419 682T461 676Q504 667 546 641T626 573T685 470T708 336Q708 210 634 116T442 3Q429 1 228 0H27V46H60Q102 47 111 49T130 61V622ZM593 338Q593 439 571 501T493 602Q439 637 355 637H322H294Q238 637 234 628Q231 624 231 344Q231 62 232 59Q233 49 248 48T339 46H350Q456 46 515 95Q561 133 577 191T593 338Z"></path><path data-c="65" d="M28 218Q28 273 48 318T98 391T163 433T229 448Q282 448 320 430T378 380T406 316T415 245Q415 238 408 231H126V216Q126 68 226 36Q246 30 270 30Q312 30 342 62Q359 79 369 104L379 128Q382 131 395 131H398Q415 131 415 121Q415 117 412 108Q393 53 349 21T250 -11Q155 -11 92 58T28 218ZM333 275Q322 403 238 411H236Q228 411 220 410T195 402T166 381T143 340T127 274V267H333V275Z" transform="translate(764,0)"></path><path data-c="74" d="M27 422Q80 426 109 478T141 600V615H181V431H316V385H181V241Q182 116 182 100T189 68Q203 29 238 29Q282 29 292 100Q293 108 293 146V181H333V146V134Q333 57 291 17Q264 -10 221 -10Q187 -10 162 2T124 33T105 68T98 100Q97 107 97 248V385H18V422H27Z" transform="translate(1208,0)"></path><path data-c="41" d="M255 0Q240 3 140 3Q48 3 39 0H32V46H47Q119 49 139 88Q140 91 192 245T295 553T348 708Q351 716 366 716H376Q396 715 400 709Q402 707 508 390L617 67Q624 54 636 51T687 46H717V0H708Q699 3 581 3Q458 3 437 0H427V46H440Q510 46 510 64Q510 66 486 138L462 209H229L209 150Q189 91 189 85Q189 72 209 59T259 46H264V0H255ZM447 255L345 557L244 256Q244 255 345 255H447Z" transform="translate(1597,0)"></path></g></g><g data-mml-node="mi" transform="translate(2380,-150) scale(0.707)"><path data-c="1D6FC" d="M34 156Q34 270 120 356T309 442Q379 442 421 402T478 304Q484 275 485 237V208Q534 282 560 374Q564 388 566 390T582 393Q603 393 603 385Q603 376 594 346T558 261T497 161L486 147L487 123Q489 67 495 47T514 26Q528 28 540 37T557 60Q559 67 562 68T577 70Q597 70 597 62Q597 56 591 43Q579 19 556 5T512 -10H505Q438 -10 414 62L411 69L400 61Q390 53 370 41T325 18T267 -2T203 -11Q124 -11 79 39T34 156ZM208 26Q257 26 306 47T379 90L403 112Q401 255 396 290Q382 405 304 405Q235 405 183 332Q156 292 139 224T121 120Q121 71 146 49T208 26Z"></path></g></g><g data-mml-node="msub" transform="translate(2882.5,0)"><g data-mml-node="TeXAtom" data-mjx-texclass="ORD"><g data-mml-node="mi"><path data-c="41" d="M255 0Q240 3 140 3Q48 3 39 0H32V46H47Q119 49 139 88Q140 91 192 245T295 553T348 708Q351 716 366 716H376Q396 715 400 709Q402 707 508 390L617 67Q624 54 636 51T687 46H717V0H708Q699 3 581 3Q458 3 437 0H427V46H440Q510 46 510 64Q510 66 486 138L462 209H229L209 150Q189 91 189 85Q189 72 209 59T259 46H264V0H255ZM447 255L345 557L244 256Q244 255 345 255H447Z"></path><path data-c="73" d="M295 316Q295 356 268 385T190 414Q154 414 128 401Q98 382 98 349Q97 344 98 336T114 312T157 287Q175 282 201 278T245 269T277 256Q294 248 310 236T342 195T359 133Q359 71 321 31T198 -10H190Q138 -10 94 26L86 19L77 10Q71 4 65 -1L54 -11H46H42Q39 -11 33 -5V74V132Q33 153 35 157T45 162H54Q66 162 70 158T75 146T82 119T101 77Q136 26 198 26Q295 26 295 104Q295 133 277 151Q257 175 194 187T111 210Q75 227 54 256T33 318Q33 357 50 384T93 424T143 442T187 447H198Q238 447 268 432L283 424L292 431Q302 440 314 448H322H326Q329 448 335 442V310L329 304H301Q295 310 295 316Z" transform="translate(750,0)"></path><path data-c="73" d="M295 316Q295 356 268 385T190 414Q154 414 128 401Q98 382 98 349Q97 344 98 336T114 312T157 287Q175 282 201 278T245 269T277 256Q294 248 310 236T342 195T359 133Q359 71 321 31T198 -10H190Q138 -10 94 26L86 19L77 10Q71 4 65 -1L54 -11H46H42Q39 -11 33 -5V74V132Q33 153 35 157T45 162H54Q66 162 70 158T75 146T82 119T101 77Q136 26 198 26Q295 26 295 104Q295 133 277 151Q257 175 194 187T111 210Q75 227 54 256T33 318Q33 357 50 384T93 424T143 442T187 447H198Q238 447 268 432L283 424L292 431Q302 440 314 448H322H326Q329 448 335 442V310L329 304H301Q295 310 295 316Z" transform="translate(1144,0)"></path><path data-c="41" d="M255 0Q240 3 140 3Q48 3 39 0H32V46H47Q119 49 139 88Q140 91 192 245T295 553T348 708Q351 716 366 716H376Q396 715 400 709Q402 707 508 390L617 67Q624 54 636 51T687 46H717V0H708Q699 3 581 3Q458 3 437 0H427V46H440Q510 46 510 64Q510 66 486 138L462 209H229L209 150Q189 91 189 85Q189 72 209 59T259 46H264V0H255ZM447 255L345 557L244 256Q244 255 345 255H447Z" transform="translate(1538,0)"></path></g></g><g data-mml-node="mi" transform="translate(2321,-150) scale(0.707)"><path data-c="1D6FC" d="M34 156Q34 270 120 356T309 442Q379 442 421 402T478 304Q484 275 485 237V208Q534 282 560 374Q564 388 566 390T582 393Q603 393 603 385Q603 376 594 346T558 261T497 161L486 147L487 123Q489 67 495 47T514 26Q528 28 540 37T557 60Q559 67 562 68T577 70Q597 70 597 62Q597 56 591 43Q579 19 556 5T512 -10H505Q438 -10 414 62L411 69L400 61Q390 53 370 41T325 18T267 -2T203 -11Q124 -11 79 39T34 156ZM208 26Q257 26 306 47T379 90L403 112Q401 255 396 290Q382 405 304 405Q235 405 183 332Q156 292 139 224T121 120Q121 71 146 49T208 26Z"></path></g></g></g><g data-mml-node="mo" transform="translate(0,96.6)"><path data-c="221A" d="M263 249Q264 249 315 130T417 -108T470 -228L725 302Q981 837 982 839Q989 850 1001 850Q1008 850 1013 844T1020 832V826L741 243Q645 43 540 -176Q479 -303 469 -324T453 -348Q449 -350 436 -350L424 -349L315 -96Q206 156 205 156L171 130Q138 104 137 104L111 130L263 249Z"></path></g><rect width="5706.1" height="60" x="1020" y="886.6"></rect></g></g></g></svg></mjx-container></span>。最终 HOTA 还需跨阈值汇总，不能直接拿汇总的 DetA 与 AssA 相乘开方替代官方计算。<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2009.07736">HOTA 原文</a></p>
+<p>DanceTrack 强调相似外观与复杂运动，SportsMOT 包含高速运动和摄像机变化，因此更能暴露“检测很好但 ID 一直换”的问题。MOT17&#x2F;20 仍有价值，尤其是行人与拥挤场景，但单一数据集不足以覆盖所有失败模式。</p>
+<h3 id="1-3-比较前必须对齐的六个条件"><a href="#1-3-比较前必须对齐的六个条件" class="headerlink" title="1.3 比较前必须对齐的六个条件"></a>1.3 比较前必须对齐的六个条件</h3><table>
+<thead>
+<tr>
+<th>条件</th>
+<th>不对齐会产生什么误解</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>数据集与 split</td>
+<td>将 val 消融与 test 最终结果当同一平台</td>
+</tr>
+<tr>
+<td>检测器、权重与输入分辨率</td>
+<td>将更强检测召回算成关联算法收益</td>
+</tr>
+<tr>
+<td>训练数据与预训练</td>
+<td>将 train+val、额外检测集、COCO 初始化混为一类</td>
+</tr>
+<tr>
+<td>在线性与后处理</td>
+<td>将使用插值&#x2F;轨迹连接的输出当作零延迟逐帧输出</td>
+</tr>
+<tr>
+<td>速度口径与硬件</td>
+<td>将预计算特征后的关联 FPS 当完整系统 FPS</td>
+</tr>
+<tr>
+<td>测试时状态</td>
+<td>忽略缓存是否跨视频保留、测试顺序和 ID 回收</td>
+</tr>
+</tbody></table>
+<p>private detection 只表示方法自行产生检测结果，不能保证不同方法使用同一检测器；“无额外数据”也常不排除常规预训练。</p>
+<h2 id="2-2020–2021：检测与身份表征开始共同设计"><a href="#2-2020–2021：检测与身份表征开始共同设计" class="headerlink" title="2. 2020–2021：检测与身份表征开始共同设计"></a>2. 2020–2021：检测与身份表征开始共同设计</h2><h3 id="FairMOT：共享网络需要处理任务冲突"><a href="#FairMOT：共享网络需要处理任务冲突" class="headerlink" title="FairMOT：共享网络需要处理任务冲突"></a>FairMOT：共享网络需要处理任务冲突</h3><p><a href="/posts/2020/papers/2021_IJCV_FairMOT_Fairness_Detection_Re_Identification/">FairMOT 精读</a> 从中心采样、多尺度特征、低维 embedding 和损失平衡入手，使检测与 ReID 在同一网络里共同工作。它的重要性在于提醒我们：共享 backbone 只说明共享计算，并不自动保证共享特征适合两个目标。</p>
+<p>例如，检测希望同类别实例在语义上接近，ReID 却要区分这些实例；高维身份分支也可能反过来损伤检测。FairMOT 的结果支持有意识地设计接口与监督，而非仅在现成检测器后加一个分类头。</p>
+<h3 id="QDTrack：增加有用的身份监督覆盖"><a href="#QDTrack：增加有用的身份监督覆盖" class="headerlink" title="QDTrack：增加有用的身份监督覆盖"></a>QDTrack：增加有用的身份监督覆盖</h3><p><a href="/posts/2020/papers/2021_CVPR_QDTrack_Quasi_Dense_Similarity_Learning/">QDTrack 精读</a> 将同一对象的多个 proposals 纳入多正样本对比学习，让关联特征接触真实检测误差。推理的 bi-softmax 与 backdrops 又处理了双向一致性、无匹配对象和背景干扰。</p>
+<p>两篇工作分别改善“在哪里读取身份特征”和“哪些区域对参与训练”。它们不是互斥答案。QDTrack 在指定 BDD100K 设置中表明 appearance-only 可以很强，也不等于运动线索已经失去价值。</p>
+<h3 id="TransTrack：历史实例成为查询"><a href="#TransTrack：历史实例成为查询" class="headerlink" title="TransTrack：历史实例成为查询"></a>TransTrack：历史实例成为查询</h3><p><a href="/posts/2020/papers/2020_arXiv_TransTrack_Multiple_Object_Tracking_with_Transformer/">TransTrack 精读</a> 用两类查询分别承担新目标发现与旧目标传播。相比 <a href="/posts/2020/papers/2020_ECCV_CenterTrack_Tracking_Objects_as_Points/">CenterTrack</a> 的历史 heatmap&#x2F;位移接口，它把历史状态移到实例特征空间。</p>
+<p>但 TransTrack 仍输出两套框，并用 IoU + Hungarian 融合。把它直接写成“Transformer 消除了匹配”会掩盖关键机制。其价值在于让历史状态参与感知，而不只是拿两帧独立检测结果做后处理。</p>
+<h2 id="3-2022–2025：显式关联持续进步，候选和轨迹管理不可忽略"><a href="#3-2022–2025：显式关联持续进步，候选和轨迹管理不可忽略" class="headerlink" title="3. 2022–2025：显式关联持续进步，候选和轨迹管理不可忽略"></a>3. 2022–2025：显式关联持续进步，候选和轨迹管理不可忽略</h2><h3 id="ByteTrack：低分不是无用"><a href="#ByteTrack：低分不是无用" class="headerlink" title="ByteTrack：低分不是无用"></a>ByteTrack：低分不是无用</h3><p><a href="/posts/2021/papers/2022_ECCV_ByteTrack_Associating_Every_Detection_Box/">ByteTrack 精读</a> 让低分检测在高分关联之后参与旧轨迹恢复。它利用了单帧检测分数没有表达的时间证据：一个框虽然看不清，但若与已存在目标的运动位置一致，仍可能是可靠延续。</p>
+<p>这与简单降低检测阈值不同，因为低分框不直接创建新轨迹。BYTE 的可插拔性也表明，很多性能瓶颈来自信息被上游过早删除，而不只来自模型容量。</p>
+<h3 id="BoT-SORT-与-OC-SORT：重新审视运动和观测"><a href="#BoT-SORT-与-OC-SORT：重新审视运动和观测" class="headerlink" title="BoT-SORT 与 OC-SORT：重新审视运动和观测"></a>BoT-SORT 与 OC-SORT：重新审视运动和观测</h3><p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2206.14651">BoT-SORT</a> 将运动、外观、摄像机运动补偿和状态表示改进组合起来；<a target="_blank" rel="noopener" href="https://arxiv.org/abs/2203.14360">OC-SORT</a> 针对遮挡期间运动估计误差累积，使用检测观测构造虚拟轨迹以重新更新状态。二者说明：线性滤波器的误差往往还来自状态更新和观测使用方式，不能仅凭“运动非线性”就断言必须换成复杂网络。</p>
+<p>这里仅概述其与主线的联系，不将其历史榜单成绩当作当前排行。</p>
+<h3 id="TrackTrack：让更多候选竞争，但约束新生"><a href="#TrackTrack：让更多候选竞争，但约束新生" class="headerlink" title="TrackTrack：让更多候选竞争，但约束新生"></a>TrackTrack：让更多候选竞争，但约束新生</h3><p><a href="/posts/2025/papers/2025_CVPR_TrackTrack_Focusing_on_Tracks/">TrackTrack 精读</a> 将 BYTE 的低分恢复扩展到 NMS 删除的高分候选，并在联合候选池上执行双向最小代价的迭代分配。TAI 则利用已匹配轨迹压制重复新生。</p>
+<p>它揭示一个系统性关系：保留更多候选可以提高恢复机会，但也会增加重复框与假轨迹风险，所以关联策略与新生规则需要配套。论文的完整系统还包含外观、相机补偿和后处理，最终成绩不是单独换一个匹配算法的全部收益。</p>
+<h2 id="4-2024：非线性运动从手工模型走向数据驱动预测"><a href="#4-2024：非线性运动从手工模型走向数据驱动预测" class="headerlink" title="4. 2024：非线性运动从手工模型走向数据驱动预测"></a>4. 2024：非线性运动从手工模型走向数据驱动预测</h2><p><a href="/posts/2024/papers/2024_CVPR_DiffMOT_Non_Linear_Motion_Prediction/">DiffMOT 精读</a> 把下一帧四维框位移作为生成目标，以过去框和位移为条件，用解耦扩散实现单步预测。它保留检测与显式关联，因此贡献可以较清楚地定位到运动预测接口。</p>
+<p>与仅拿 Kalman 比较相比，论文中 Transformer 运动预测器到 D²MP 的消融更能检验扩散设计的附加价值。完整系统对照还需固定外观权重和候选策略。SportsMOT 的 76.2 HOTA 使用 train+val 训练检测器，train-only 对应 72.1；忽略星号协议会制造虚假的跨论文优势。</p>
+<p>从算法选择看，运动模型应首先服务于关联：预测均方误差降低不一定改善身份保持，尤其当两个目标彼此接近时。相反，一个不完全物理准确、但能把正确候选留在可匹配范围内的预测，也可能更有用。这是本文的工程分析，不是 DiffMOT 单篇实验已经证明的普遍定理。</p>
+<h2 id="5-2022–2025：从传播-query-到直接预测身份"><a href="#5-2022–2025：从传播-query-到直接预测身份" class="headerlink" title="5. 2022–2025：从传播 query 到直接预测身份"></a>5. 2022–2025：从传播 query 到直接预测身份</h2><p><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2105.03247">MOTR</a> 以跨帧递归更新的 track query 表示实例，通过轨迹感知标签分配训练；<a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content/ICCV2023/html/Gao_MeMOTR_Long-Term_Memory-Augmented_Transformer_for_Multi-Object_Tracking_ICCV_2023_paper.html">MeMOTR</a> 引入长期记忆以稳定轨迹嵌入。它们让“历史如何进入模型”从前后帧配对扩展到更长的状态维护。</p>
+<p><a href="/posts/2024/papers/2025_CVPR_MOTIP_Multiple_Object_Tracking_as_ID_Prediction/">MOTIP 精读</a> 则改变目标表述：ID 无需固定语义，只需在历史上下文中保持一致。给历史轨迹贴上可复用 token，当前检测根据上下文分类为其中一个 ID 或 newborn，就能直接监督身份决策。</p>
+<table>
+<thead>
+<tr>
+<th>表述</th>
+<th>学习的主要对象</th>
+<th>推理中身份如何得到</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>FairMOT &#x2F; QDTrack</td>
+<td>身份可区分的 embedding</td>
+<td>外观&#x2F;运动代价与关联策略</td>
+</tr>
+<tr>
+<td>TransTrack</td>
+<td>新目标检测与旧目标框传播</td>
+<td>两路框匹配后继承 ID</td>
+</tr>
+<tr>
+<td>MOTR &#x2F; MeMOTR</td>
+<td>跨帧实例状态与 query 更新</td>
+<td>递归轨迹状态延续</td>
+</tr>
+<tr>
+<td>MOTIP</td>
+<td>当前对象相对于历史标签的 ID 分布</td>
+<td>ID 分类、冲突处理与新生规则</td>
+</tr>
+</tbody></table>
+<p>MOTIP 的意义不是“终于不需要任何规则”，而是把最核心的身份判定变为可学习任务。字典容量、回收、阈值、历史污染仍然存在。训练中随机遮挡与 ID 交换正是为模拟这种不完美历史。</p>
+<h2 id="6-2026：适应、群体运动关系与空间先验"><a href="#6-2026：适应、群体运动关系与空间先验" class="headerlink" title="6. 2026：适应、群体运动关系与空间先验"></a>6. 2026：适应、群体运动关系与空间先验</h2><h3 id="TCEI：对已学会的-ID-预测做测试时校准"><a href="#TCEI：对已学会的-ID-预测做测试时校准" class="headerlink" title="TCEI：对已学会的 ID 预测做测试时校准"></a>TCEI：对已学会的 ID 预测做测试时校准</h3><p><a href="/posts/2026/papers/2026_CVPR_TCEI_Dual_Level_Test_Time_Calibration/">TCEI 精读</a> 在 MOTIP 上引入短期直觉记忆和历史经验缓存，分别利用可信与不确定样本。它把关注点从“如何在训练数据上学关联”移向“测试时面对新分布如何调整已有判断”。</p>
+<p>同一论文内，无适应到 TCEI 的 DanceTrack HOTA 为 69.5→70.6，AssA 为 60.2→62.3，FPS 为 14→12。收益主要体现为关联改善，代价是额外状态与计算。跨视频缓存使测试顺序、重置策略和 ID 对齐成为实验协议的一部分，不能再只记录一个模型 checkpoint。</p>
+<p>原文存在 AssA 63.3&#x2F;62.3 的正文—表格差异，本系列统一使用表格的 62.3；公式与公开代码的差异也已列在精读中。</p>
+<h3 id="HyperSSM：运动估计从单条轨迹走向对象间协同"><a href="#HyperSSM：运动估计从单条轨迹走向对象间协同" class="headerlink" title="HyperSSM：运动估计从单条轨迹走向对象间协同"></a>HyperSSM：运动估计从单条轨迹走向对象间协同</h3><p>CVPR 2026 的 <a target="_blank" rel="noopener" href="https://openaccess.thecvf.com/content/CVPR2026/html/Song_Hypergraph-State_Collaborative_Reasoning_for_Multi-Object_Tracking_CVPR_2026_paper.html">Hypergraph-State Collaborative Reasoning for Multi-Object Tracking</a> 用动态超图描述相关对象的运动关系，并结合状态空间模型处理时间连续性。与 DiffMOT 主要从单个对象历史条件预测相比，这一方向强调多个相关目标之间的互相约束。这里依据正式论文入口与方法描述归纳方向，不将其成绩纳入未经统一协议审计的排行。</p>
+<h3 id="MOTIP2：可学习关联也可以显式接收空间先验"><a href="#MOTIP2：可学习关联也可以显式接收空间先验" class="headerlink" title="MOTIP2：可学习关联也可以显式接收空间先验"></a>MOTIP2：可学习关联也可以显式接收空间先验</h3><p>2026-10-07 公开的 <a target="_blank" rel="noopener" href="https://arxiv.org/abs/2610.10391">MOTIP2: Spatial Priors for End-to-End Multi-Object Tracking</a> 在数据增强、损失与表示三个环节加入空间先验：让 ID 交换更接近空间混淆、按框距离调整身份错误代价，并给轨迹 token 显式位置。其模型基于 DEIM 检测 Transformer，因此不能把与原始 MOTIP 的所有差距都归因于某一个先验。这一条按当前 arXiv 版本介绍，未进行与八篇精读相同深度的全文&#x2F;代码审计。</p>
+<p>这三种方向共同说明，学习式跟踪与显式先验仍会结合；当前进展关注的是把什么约束放到哪个环节，而不是一味增加网络规模。</p>
+<h2 id="7-八篇论文应该怎样放在同一张图里"><a href="#7-八篇论文应该怎样放在同一张图里" class="headerlink" title="7. 八篇论文应该怎样放在同一张图里"></a>7. 八篇论文应该怎样放在同一张图里</h2><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>核心改变</th>
+<th>关键历史状态</th>
+<th>主要证据</th>
+<th>不应外推的结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TransTrack</td>
+<td>双查询检测&#x2F;传播</td>
+<td>上一帧实例特征</td>
+<td>查询类型消融</td>
+<td>推理没有匹配</td>
+</tr>
+<tr>
+<td>QDTrack</td>
+<td>准稠密多正样本监督</td>
+<td>外观候选与 backdrops</td>
+<td>同检测性能下监督&#x2F;推理消融</td>
+<td>所有场景都不需要运动</td>
+</tr>
+<tr>
+<td>FairMOT</td>
+<td>检测&#x2F;ReID 平衡</td>
+<td>轨迹外观与运动状态</td>
+<td>采样、维度、损失消融</td>
+<td>中心点在任何密集场景都无歧义</td>
+</tr>
+<tr>
+<td>ByteTrack</td>
+<td>低分框二次关联</td>
+<td>预测框与 lost tracks</td>
+<td>固定检测框下 BYTE 对照</td>
+<td>所有低分框均可新生</td>
+</tr>
+<tr>
+<td>DiffMOT</td>
+<td>单步扩散运动预测</td>
+<td>多帧框和位移</td>
+<td>固定 detector 的运动模型对照</td>
+<td>生成模型已替代关联</td>
+</tr>
+<tr>
+<td>MOTIP</td>
+<td>上下文 ID 分类</td>
+<td>对象特征 + ID token</td>
+<td>相同检测特征下表述对照</td>
+<td>学习器保证全局最优</td>
+</tr>
+<tr>
+<td>TrackTrack</td>
+<td>联合候选与轨迹感知新生</td>
+<td>确认&#x2F;未确认轨迹</td>
+<td>TPA&#x2F;TAI 与候选恢复消融</td>
+<td>关联 FPS 等于端到端 FPS</td>
+</tr>
+<tr>
+<td>TCEI</td>
+<td>无梯度测试时校准</td>
+<td>短期与经验缓存</td>
+<td>同 MOTIP 基线的适应对照</td>
+<td>已证明任意域上的泛化</td>
+</tr>
+</tbody></table>
+<h3 id="两组结果锚点，而非统一排行榜"><a href="#两组结果锚点，而非统一排行榜" class="headerlink" title="两组结果锚点，而非统一排行榜"></a>两组结果锚点，而非统一排行榜</h3><table>
+<thead>
+<tr>
+<th>结果组</th>
+<th>论文自报结果</th>
+<th>比较限制</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MOT17 test：早期检测&#x2F;表征</td>
+<td>TransTrack 74.5 MOTA &#x2F; 63.9 IDF1；QDTrack 68.7 &#x2F; 66.3；FairMOT 73.7 &#x2F; 72.3</td>
+<td>检测器、额外数据、论文版本不同</td>
+</tr>
+<tr>
+<td>MOT17 test：显式关联</td>
+<td>ByteTrack 63.1 HOTA；TrackTrack 67.1 HOTA</td>
+<td>额外 ReID、训练数据、后处理不同</td>
+</tr>
+<tr>
+<td>DanceTrack test：复杂关联</td>
+<td>DiffMOT 62.3 HOTA；TrackTrack 66.5；MOTIP 69.6（无额外数据行）</td>
+<td>不能视为固定检测器&#x2F;训练集的增量消融</td>
+</tr>
+<tr>
+<td>DanceTrack test：校准</td>
+<td>TCEI 自身基线 69.5→70.6 HOTA</td>
+<td>基线复现值与 MOTIP 原论文 69.6 不同</td>
+</tr>
+</tbody></table>
+<p>数值来源及表号均见各篇精读。跨论文差异适合提示研究方向，因果归因优先使用同论文的控制实验。</p>
+<h2 id="8-对阅读和工程选择的启发"><a href="#8-对阅读和工程选择的启发" class="headerlink" title="8. 对阅读和工程选择的启发"></a>8. 对阅读和工程选择的启发</h2><p>如果问题是遮挡造成分数下降，先检查候选是否被阈值或 NMS 过早删除；如果框都在但交叉时换 ID，重点查看表征、关联代价和历史状态；如果预测框偏离导致正确匹配没有机会，才需要针对运动模型诊断。新场景中持续退化，则进一步检查训练分布、置信度及缓存污染。</p>
+<table>
+<thead>
+<tr>
+<th>已观察到的失败</th>
+<th>值得优先研究的机制</th>
+<th>必须同时核对</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>遮挡时低分目标断轨</td>
+<td>BYTE、TrackTrack 候选利用</td>
+<td>假阳性和重复新生是否增加</td>
+</tr>
+<tr>
+<td>类内外观难区分</td>
+<td>QDTrack、FairMOT 表征学习</td>
+<td>检测性能是否被牺牲</td>
+</tr>
+<tr>
+<td>急转、快速运动、预测漂移</td>
+<td>OC-SORT、DiffMOT、协同运动建模</td>
+<td>摄像机运动与坐标尺度</td>
+</tr>
+<tr>
+<td>长历史身份决策不稳定</td>
+<td>记忆式 query、MOTIP</td>
+<td>历史错误、窗口、ID 容量</td>
+</tr>
+<tr>
+<td>域变化下关联退化</td>
+<td>TCEI 类测试时校准</td>
+<td>顺序、重置、无标签约束和延迟</td>
+</tr>
+</tbody></table>
+<p>这是一张基于论文机制的诊断地图，不是未经测试的部署性能承诺。可靠选型最终要回到目标视频、固定检测器、相同延迟预算和可复查的错误案例。特别是端侧系统，检测、ReID、缓存与关联的开销都要计入，而不是选取论文里最漂亮的单模块 FPS。</p>
+<h2 id="参考与精读入口"><a href="#参考与精读入口" class="headerlink" title="参考与精读入口"></a>参考与精读入口</h2><p>本系列八篇全文笔记：</p>
+<ol>
+<li><a href="/posts/2020/papers/2020_arXiv_TransTrack_Multiple_Object_Tracking_with_Transformer/">TransTrack：双查询检测与传播</a></li>
+<li><a href="/posts/2020/papers/2021_CVPR_QDTrack_Quasi_Dense_Similarity_Learning/">QDTrack：准稠密相似度学习</a></li>
+<li><a href="/posts/2020/papers/2021_IJCV_FairMOT_Fairness_Detection_Re_Identification/">FairMOT：检测与身份学习平衡</a></li>
+<li><a href="/posts/2021/papers/2022_ECCV_ByteTrack_Associating_Every_Detection_Box/">ByteTrack：低分检测恢复</a></li>
+<li><a href="/posts/2024/papers/2024_CVPR_DiffMOT_Non_Linear_Motion_Prediction/">DiffMOT：非线性运动预测</a></li>
+<li><a href="/posts/2024/papers/2025_CVPR_MOTIP_Multiple_Object_Tracking_as_ID_Prediction/">MOTIP：上下文身份预测</a></li>
+<li><a href="/posts/2025/papers/2025_CVPR_TrackTrack_Focusing_on_Tracks/">TrackTrack：轨迹视角的匹配与新生</a></li>
+<li><a href="/posts/2026/papers/2026_CVPR_TCEI_Dual_Level_Test_Time_Calibration/">TCEI：测试时身份校准</a></li>
+</ol>
+<p>补充来源已在相关段落链接到原始论文。本文是以八篇方法为核心的主题综述，不宣称穷尽截至 2026-10-24 的全部 MOT 文献；2026 年补充方向与成熟基线的证据深度分别注明。</p>
+
+            </div>
+
+            
+                
+                
+                    <aside class="post-toc-sidebar">
+                        <div class="toc-inner">
+                            <div class="toc-title">目录</div>
+                            <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E9%97%AE%E9%A2%98%EF%BC%9A%E6%80%8E%E6%A0%B7%E8%AE%A9%E4%B8%80%E4%B8%AA%E8%BA%AB%E4%BB%BD%E7%A9%BF%E8%BF%87%E4%B8%8D%E5%AE%8C%E6%95%B4%E7%9A%84%E8%A7%82%E6%B5%8B"><span class="toc-text">核心问题：怎样让一个身份穿过不完整的观测</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E5%85%88%E6%8A%8A%E4%BB%BB%E5%8A%A1%E3%80%81%E6%8C%87%E6%A0%87%E5%92%8C%E6%AF%94%E8%BE%83%E5%8D%8F%E8%AE%AE%E8%AF%B4%E6%B8%85%E6%A5%9A"><span class="toc-text">1. 先把任务、指标和比较协议说清楚</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E4%B8%80%E6%9D%A1%E5%AE%9E%E7%94%A8%E7%9A%84%E4%BF%A1%E6%81%AF%E9%93%BE"><span class="toc-text">1.1 一条实用的信息链</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AA%E7%9C%8B-MOTA-%E4%BC%9A%E8%AF%AF%E5%88%A4%E8%BF%9B%E6%AD%A5"><span class="toc-text">1.2 为什么只看 MOTA 会误判进步</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-%E6%AF%94%E8%BE%83%E5%89%8D%E5%BF%85%E9%A1%BB%E5%AF%B9%E9%BD%90%E7%9A%84%E5%85%AD%E4%B8%AA%E6%9D%A1%E4%BB%B6"><span class="toc-text">1.3 比较前必须对齐的六个条件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-2020%E2%80%932021%EF%BC%9A%E6%A3%80%E6%B5%8B%E4%B8%8E%E8%BA%AB%E4%BB%BD%E8%A1%A8%E5%BE%81%E5%BC%80%E5%A7%8B%E5%85%B1%E5%90%8C%E8%AE%BE%E8%AE%A1"><span class="toc-text">2. 2020–2021：检测与身份表征开始共同设计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#FairMOT%EF%BC%9A%E5%85%B1%E4%BA%AB%E7%BD%91%E7%BB%9C%E9%9C%80%E8%A6%81%E5%A4%84%E7%90%86%E4%BB%BB%E5%8A%A1%E5%86%B2%E7%AA%81"><span class="toc-text">FairMOT：共享网络需要处理任务冲突</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#QDTrack%EF%BC%9A%E5%A2%9E%E5%8A%A0%E6%9C%89%E7%94%A8%E7%9A%84%E8%BA%AB%E4%BB%BD%E7%9B%91%E7%9D%A3%E8%A6%86%E7%9B%96"><span class="toc-text">QDTrack：增加有用的身份监督覆盖</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#TransTrack%EF%BC%9A%E5%8E%86%E5%8F%B2%E5%AE%9E%E4%BE%8B%E6%88%90%E4%B8%BA%E6%9F%A5%E8%AF%A2"><span class="toc-text">TransTrack：历史实例成为查询</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-2022%E2%80%932025%EF%BC%9A%E6%98%BE%E5%BC%8F%E5%85%B3%E8%81%94%E6%8C%81%E7%BB%AD%E8%BF%9B%E6%AD%A5%EF%BC%8C%E5%80%99%E9%80%89%E5%92%8C%E8%BD%A8%E8%BF%B9%E7%AE%A1%E7%90%86%E4%B8%8D%E5%8F%AF%E5%BF%BD%E7%95%A5"><span class="toc-text">3. 2022–2025：显式关联持续进步，候选和轨迹管理不可忽略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#ByteTrack%EF%BC%9A%E4%BD%8E%E5%88%86%E4%B8%8D%E6%98%AF%E6%97%A0%E7%94%A8"><span class="toc-text">ByteTrack：低分不是无用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#BoT-SORT-%E4%B8%8E-OC-SORT%EF%BC%9A%E9%87%8D%E6%96%B0%E5%AE%A1%E8%A7%86%E8%BF%90%E5%8A%A8%E5%92%8C%E8%A7%82%E6%B5%8B"><span class="toc-text">BoT-SORT 与 OC-SORT：重新审视运动和观测</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#TrackTrack%EF%BC%9A%E8%AE%A9%E6%9B%B4%E5%A4%9A%E5%80%99%E9%80%89%E7%AB%9E%E4%BA%89%EF%BC%8C%E4%BD%86%E7%BA%A6%E6%9D%9F%E6%96%B0%E7%94%9F"><span class="toc-text">TrackTrack：让更多候选竞争，但约束新生</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-2024%EF%BC%9A%E9%9D%9E%E7%BA%BF%E6%80%A7%E8%BF%90%E5%8A%A8%E4%BB%8E%E6%89%8B%E5%B7%A5%E6%A8%A1%E5%9E%8B%E8%B5%B0%E5%90%91%E6%95%B0%E6%8D%AE%E9%A9%B1%E5%8A%A8%E9%A2%84%E6%B5%8B"><span class="toc-text">4. 2024：非线性运动从手工模型走向数据驱动预测</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-2022%E2%80%932025%EF%BC%9A%E4%BB%8E%E4%BC%A0%E6%92%AD-query-%E5%88%B0%E7%9B%B4%E6%8E%A5%E9%A2%84%E6%B5%8B%E8%BA%AB%E4%BB%BD"><span class="toc-text">5. 2022–2025：从传播 query 到直接预测身份</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-2026%EF%BC%9A%E9%80%82%E5%BA%94%E3%80%81%E7%BE%A4%E4%BD%93%E8%BF%90%E5%8A%A8%E5%85%B3%E7%B3%BB%E4%B8%8E%E7%A9%BA%E9%97%B4%E5%85%88%E9%AA%8C"><span class="toc-text">6. 2026：适应、群体运动关系与空间先验</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#TCEI%EF%BC%9A%E5%AF%B9%E5%B7%B2%E5%AD%A6%E4%BC%9A%E7%9A%84-ID-%E9%A2%84%E6%B5%8B%E5%81%9A%E6%B5%8B%E8%AF%95%E6%97%B6%E6%A0%A1%E5%87%86"><span class="toc-text">TCEI：对已学会的 ID 预测做测试时校准</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#HyperSSM%EF%BC%9A%E8%BF%90%E5%8A%A8%E4%BC%B0%E8%AE%A1%E4%BB%8E%E5%8D%95%E6%9D%A1%E8%BD%A8%E8%BF%B9%E8%B5%B0%E5%90%91%E5%AF%B9%E8%B1%A1%E9%97%B4%E5%8D%8F%E5%90%8C"><span class="toc-text">HyperSSM：运动估计从单条轨迹走向对象间协同</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#MOTIP2%EF%BC%9A%E5%8F%AF%E5%AD%A6%E4%B9%A0%E5%85%B3%E8%81%94%E4%B9%9F%E5%8F%AF%E4%BB%A5%E6%98%BE%E5%BC%8F%E6%8E%A5%E6%94%B6%E7%A9%BA%E9%97%B4%E5%85%88%E9%AA%8C"><span class="toc-text">MOTIP2：可学习关联也可以显式接收空间先验</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%85%AB%E7%AF%87%E8%AE%BA%E6%96%87%E5%BA%94%E8%AF%A5%E6%80%8E%E6%A0%B7%E6%94%BE%E5%9C%A8%E5%90%8C%E4%B8%80%E5%BC%A0%E5%9B%BE%E9%87%8C"><span class="toc-text">7. 八篇论文应该怎样放在同一张图里</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%A4%E7%BB%84%E7%BB%93%E6%9E%9C%E9%94%9A%E7%82%B9%EF%BC%8C%E8%80%8C%E9%9D%9E%E7%BB%9F%E4%B8%80%E6%8E%92%E8%A1%8C%E6%A6%9C"><span class="toc-text">两组结果锚点，而非统一排行榜</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E5%AF%B9%E9%98%85%E8%AF%BB%E5%92%8C%E5%B7%A5%E7%A8%8B%E9%80%89%E6%8B%A9%E7%9A%84%E5%90%AF%E5%8F%91"><span class="toc-text">8. 对阅读和工程选择的启发</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E4%B8%8E%E7%B2%BE%E8%AF%BB%E5%85%A5%E5%8F%A3"><span class="toc-text">参考与精读入口</span></a></li></ol>
+                        </div>
+                    </aside>
+                
+            
+        </div>
+
+            
+                <footer class="post-footer">
+                    <div class="post-tags">
+                        
+                            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E8%A7%86%E8%A7%89/" class="tag">#计算机视觉</a>
+                            
+                            <a href="/tags/%E5%A4%9A%E7%9B%AE%E6%A0%87%E8%B7%9F%E8%B8%AA/" class="tag">#多目标跟踪</a>
+                            
+                            <a href="/tags/%E6%8A%80%E6%9C%AF%E7%BB%BC%E8%BF%B0/" class="tag">#技术综述</a>
+                            
+                    </div>
+                </footer>
+                
+
+        
+        <section class="post-comments" style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+            <script src="https://giscus.app/client.js"
+                data-repo="phdsky/phdsky.github.io"
+                data-repo-id="R_kgDOQ3NmSQ"
+                data-category="Announcements"
+                data-category-id="DIC_kwDOQ3NmSc4C8HQj"
+                data-mapping="pathname"
+                data-strict="0"
+                data-reactions-enabled="1"
+                data-emit-metadata="0"
+                data-input-position="bottom"
+                data-theme="preferred_color_scheme"
+                data-lang="zh-CN"
+                data-loading="lazy"
+                crossorigin="anonymous"
+                async>
+            </script>
+        </section>
+        
+    </div>
+</article>
+            </div>
+        </main>
+
+        <footer class="footer">
+    <div class="container">
+        <p>© 2026 phdsky All Rights Reserved</p>
+        
+    </div>
+</footer>
+
+<!-- 搜索弹窗 -->
+<div class="search-modal" id="searchModal">
+    <div class="search-content">
+        <form method="get" action="/">
+            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <button type="submit" class="search-btn">搜索</button>
+        </form>
+        <span class="close-search">&times;</span>
+    </div>
+</div>
+
+            
+<script src="/js/script.js"></script>
+
+                
+<script src="/js/search.js"></script>
+
+
+                
+                
+                
+                <script defer src="/js/visitor-tracking.js?v=session-20261009" data-site-id="d6391af0-e04c-4b10-950f-8308bdabffe6"></script>
+                
+
+                    <!-- TOC 滚动高亮 -->
+                    <script>
+                        (function () {
+                            var toc = document.querySelector('.post-toc-sidebar');
+                            if (!toc) return;
+                            var headings = Array.from(document.querySelectorAll('.post-body h1, .post-body h2, .post-body h3'));
+                            var links = Array.from(toc.querySelectorAll('a'));
+                            function onScroll() {
+                                var scrollY = window.scrollY + 100;
+                                var current = headings.reduce(function (found, h) {
+                                    return h.offsetTop <= scrollY ? h : found;
+                                }, headings[0]);
+                                if (!current) return;
+                                links.forEach(function (a) { a.classList.remove('active'); });
+                                var id = current.id;
+                                var active = toc.querySelector('a[href="#' + id + '"]');
+                                if (active) active.classList.add('active');
+                            }
+                            window.addEventListener('scroll', onScroll, { passive: true });
+                            onScroll();
+                        })();
+                    </script>
+</body>
+
+</html>

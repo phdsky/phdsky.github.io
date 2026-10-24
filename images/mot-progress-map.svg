@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="850" viewBox="0 0 1200 850" role="img" aria-labelledby="title desc">
+<title id="title">MOT 算法的信息处理地图</title><desc id="desc">八篇论文按表征、候选、运动、身份四个环节组织。不是排行榜或严格继承关系。</desc>
+<rect width="1200" height="850" rx="24" fill="#f6f8fc"/>
+<g font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" fill="#15263c">
+<text x="48" y="64" font-size="32" font-weight="700">MOT：从观测到持续身份</text>
+<text x="48" y="101" font-size="18" fill="#52627a">按方法改变的信息接口阅读 · 2020–2026 · 不同路线并行演进</text>
+<rect x="40" y="134" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
+<rect x="40" y="134" width="8" height="144" rx="4" fill="#2563eb"/>
+<text x="68" y="177" font-size="23" font-weight="700" fill="#2563eb">01  表征与监督</text>
+<line x1="345" y1="158" x2="345" y2="254" stroke="#dfe5ee"/>
+<text x="375" y="183" font-size="24" font-weight="700">FairMOT · IJCV 2021</text>
+<text x="375" y="225" font-size="18" fill="#52627a">中心采样 / 检测与 ReID 平衡</text>
+<text x="775" y="183" font-size="24" font-weight="700">QDTrack · CVPR 2021</text>
+<text x="775" y="225" font-size="18" fill="#52627a">准稠密多正样本 / 双向相似度</text>
+<rect x="40" y="294" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
+<rect x="40" y="294" width="8" height="144" rx="4" fill="#087e8b"/>
+<text x="68" y="337" font-size="23" font-weight="700" fill="#087e8b">02  候选与轨迹管理</text>
+<line x1="345" y1="318" x2="345" y2="414" stroke="#dfe5ee"/>
+<text x="375" y="343" font-size="24" font-weight="700">ByteTrack · ECCV 2022</text>
+<text x="375" y="385" font-size="18" fill="#52627a">低分框恢复 / 延续与新生分开</text>
+<text x="775" y="343" font-size="24" font-weight="700">TrackTrack · CVPR 2025</text>
+<text x="775" y="385" font-size="18" fill="#52627a">NMS 候选恢复 / 轨迹感知初始化</text>
+<rect x="40" y="454" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
+<rect x="40" y="454" width="8" height="144" rx="4" fill="#9252b3"/>
+<text x="68" y="497" font-size="23" font-weight="700" fill="#9252b3">03  时序状态与运动</text>
+<line x1="345" y1="478" x2="345" y2="574" stroke="#dfe5ee"/>
+<text x="375" y="503" font-size="24" font-weight="700">TransTrack · arXiv 2020</text>
+<text x="375" y="545" font-size="18" fill="#52627a">双查询 / 当前帧两路框融合</text>
+<text x="775" y="503" font-size="24" font-weight="700">DiffMOT · CVPR 2024</text>
+<text x="775" y="545" font-size="18" fill="#52627a">历史条件 / 单步扩散运动预测</text>
+<rect x="40" y="614" width="1120" height="144" rx="16" fill="white" stroke="#dfe5ee"/>
+<rect x="40" y="614" width="8" height="144" rx="4" fill="#b65d25"/>
+<text x="68" y="657" font-size="23" font-weight="700" fill="#b65d25">04  身份决策与适应</text>
+<line x1="345" y1="638" x2="345" y2="734" stroke="#dfe5ee"/>
+<text x="375" y="663" font-size="24" font-weight="700">MOTIP · CVPR 2025</text>
+<text x="375" y="705" font-size="18" fill="#52627a">历史 ID token / 上下文分类</text>
+<text x="775" y="663" font-size="24" font-weight="700">TCEI · CVPR 2026</text>
+<text x="775" y="705" font-size="18" fill="#52627a">短期记忆 / 测试经验校准</text>
+<text x="48" y="812" font-size="18" fill="#52627a">比较前对齐：检测器 · 训练数据 · split · 后处理 · 速度口径 · 测试状态</text>
+</g></svg>
