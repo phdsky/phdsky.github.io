@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -12,21 +13,27 @@
     
 <link rel="stylesheet" href="/css/style.css">
 
+    
+<link rel="stylesheet" href="/css/editorial.css">
+
+    
+    
+    
 <meta name="generator" content="Hexo 7.3.0"></head>
 
-<body>
-    <nav class="navbar">
+<body class="is-editorial">
+    
+<nav class="navbar" aria-label="主导航">
     <div class="container">
         <div class="nav-brand">
             <a href="/">
-                phdsky
+                PHD
             </a>
         </div>
         <ul class="nav-menu">
             
-                <li><a href="/">首页</a></li>
             
-                <li><a href="/project/">项目</a></li>
+                <li><a href="/">首页</a></li>
             
                 <li><a href="/blog/">博客</a></li>
             
@@ -39,6 +46,12 @@
         <main class="main-content">
             <div class="container">
                 <div class="post-list">
+    <header class="collection-heading">
+    <p class="collection-eyebrow">TECHNICAL WRITING</p>
+    <div class="collection-title-row"><h1>标签 · 论文笔记</h1><span class="collection-count">6 篇</span></div>
+    <p class="collection-description">视觉算法、模型部署与研究专题。</p>
+</header>
+
     
         
         
@@ -187,6 +200,10 @@
                 
 </div>
 
+
+<nav class="pagination" aria-label="归档分页"><a class="extend prev" rel="prev" href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/page/6/">←</a><a class="page-number" href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/">1</a><span class="space">&hellip;</span><a class="page-number" href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/page/5/">5</a><a class="page-number" href="/tags/%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0/page/6/">6</a><span class="page-number current">7</span></nav>
+
+
 <style>
     .archive-title {
         font-size: 2rem;
@@ -290,24 +307,28 @@
         font-size: 1.1rem;
     }
 </style>
+
             </div>
         </main>
 
-        <footer class="footer">
+        
+<footer class="footer">
     <div class="container">
-        <p>© 2026 phdsky All Rights Reserved</p>
+        <p>© 2026 PHD</p>
+        <div class="footer-links"><a href="/blog/">博客</a><a href="https://github.com/phdsky" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
         
     </div>
 </footer>
 
 <!-- 搜索弹窗 -->
-<div class="search-modal" id="searchModal">
+<div class="search-modal" id="searchModal" role="dialog" aria-modal="true" aria-label="搜索文章">
     <div class="search-content">
         <form method="get" action="/">
-            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <label class="search-label" for="site-search">搜索文章</label>
+            <input id="site-search" type="search" name="s" class="search-input" placeholder="输入标题或关键词" autocomplete="off">
             <button type="submit" class="search-btn">搜索</button>
         </form>
-        <span class="close-search">&times;</span>
+        <button type="button" class="close-search" aria-label="关闭搜索">&times;</button>
     </div>
 </div>
 

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -13,21 +14,27 @@
     
 <link rel="stylesheet" href="/css/style.css">
 
+    
+<link rel="stylesheet" href="/css/editorial.css">
+
+    
+    
+    
 <meta name="generator" content="Hexo 7.3.0"></head>
 
-<body>
-    <nav class="navbar">
+<body class="is-editorial">
+    
+<nav class="navbar" aria-label="主导航">
     <div class="container">
         <div class="nav-brand">
             <a href="/">
-                phdsky
+                PHD
             </a>
         </div>
         <ul class="nav-menu">
             
-                <li><a href="/">首页</a></li>
             
-                <li><a href="/project/">项目</a></li>
+                <li><a href="/">首页</a></li>
             
                 <li><a href="/blog/">博客</a></li>
             
@@ -42,10 +49,13 @@
                 <article class="post-detail">
     <div class="container">
         <header class="post-header">
+            
+            <a class="article-back" href="/papers/">← 论文精读</a>
+            <p class="collection-eyebrow">PAPER NOTES</p>
             <h1 class="post-title">UniWorld: Autonomous Driving Pre-training via World Models</h1>
             <div class="post-meta">
                 <span class="post-date">
-                    2023年08月14日
+                    2023-08-14
                 </span>
                 
             </div>
@@ -328,24 +338,28 @@ spatial-temporal world representation
         
     </div>
 </article>
+
             </div>
         </main>
 
-        <footer class="footer">
+        
+<footer class="footer">
     <div class="container">
-        <p>© 2026 phdsky All Rights Reserved</p>
+        <p>© 2026 PHD</p>
+        <div class="footer-links"><a href="/blog/">博客</a><a href="https://github.com/phdsky" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
         
     </div>
 </footer>
 
 <!-- 搜索弹窗 -->
-<div class="search-modal" id="searchModal">
+<div class="search-modal" id="searchModal" role="dialog" aria-modal="true" aria-label="搜索文章">
     <div class="search-content">
         <form method="get" action="/">
-            <input type="text" name="s" class="search-input" placeholder="搜索文章..." autocomplete="off">
+            <label class="search-label" for="site-search">搜索文章</label>
+            <input id="site-search" type="search" name="s" class="search-input" placeholder="输入标题或关键词" autocomplete="off">
             <button type="submit" class="search-btn">搜索</button>
         </form>
-        <span class="close-search">&times;</span>
+        <button type="button" class="close-search" aria-label="关闭搜索">&times;</button>
     </div>
 </div>
 
