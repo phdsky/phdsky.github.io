@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="980" viewBox="0 0 1200 980" role="img" aria-labelledby="title desc">
+<title id="title">三种增加计算的路径：独立层、共享循环、序列展开</title>
+<desc id="desc">第一行四个不同参数的层依次加工状态；第二行同一参数核心处理四个不断更新的状态；第三行把中间推导写成新token，序列随生成增长。图为概念示意，不表示具体商用模型结构。</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#72849a"/></marker></defs>
+<rect width="1200" height="980" rx="28" fill="#f4f7fb"/>
+<g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif">
+<text x="48" y="62" font-size="34" font-weight="700" fill="#192b45">计算可以增加，参数不必同步增加</text>
+<text x="48" y="103" font-size="22" fill="#51657e">先区分：不同的层、重复的核心、增长的文字序列</text>
+<rect x="32" y="140" width="1136" height="234" rx="18" fill="white" stroke="#dde5ef"/><text x="58" y="180" font-size="27" font-weight="700" fill="#192b45">① 堆叠独立层</text><text x="58" y="216" font-size="21" fill="#51657e">每层有不同参数；状态逐层更新</text>
+<rect x="32" y="398" width="1136" height="234" rx="18" fill="white" stroke="#dde5ef"/><text x="58" y="438" font-size="27" font-weight="700" fill="#192b45">② 共享核心循环</text><text x="58" y="474" font-size="21" fill="#51657e">每轮使用相同参数；输入状态持续变化</text>
+<rect x="32" y="656" width="1136" height="234" rx="18" fill="white" stroke="#dde5ef"/><text x="58" y="696" font-size="27" font-weight="700" fill="#192b45">③ 显式思维链</text><text x="58" y="732" font-size="21" fill="#51657e">将中间结果写成 token；后续计算读取扩展的上下文</text>
+<rect x="145" y="246" width="186" height="78" rx="13" fill="#496b9e"/><text x="238" y="279" text-anchor="middle" font-size="25" font-weight="600" fill="white">Layer 1</text><text x="238" y="306" text-anchor="middle" font-size="20" fill="white">独立参数 θ1</text>
+<path d="M335 285H398" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="405" y="246" width="186" height="78" rx="13" fill="#6d609b"/><text x="498" y="279" text-anchor="middle" font-size="25" font-weight="600" fill="white">Layer 2</text><text x="498" y="306" text-anchor="middle" font-size="20" fill="white">独立参数 θ2</text>
+<path d="M595 285H658" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="665" y="246" width="186" height="78" rx="13" fill="#a16578"/><text x="758" y="279" text-anchor="middle" font-size="25" font-weight="600" fill="white">Layer 3</text><text x="758" y="306" text-anchor="middle" font-size="20" fill="white">独立参数 θ3</text>
+<path d="M855 285H918" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="925" y="246" width="186" height="78" rx="13" fill="#a57a42"/><text x="1018" y="279" text-anchor="middle" font-size="25" font-weight="600" fill="white">Layer 4</text><text x="1018" y="306" text-anchor="middle" font-size="20" fill="white">独立参数 θ4</text>
+<rect x="145" y="504" width="186" height="78" rx="13" fill="#237d85"/><text x="238" y="537" text-anchor="middle" font-size="25" font-weight="600" fill="white">Round 1</text><text x="238" y="564" text-anchor="middle" font-size="20" fill="white">共享参数 θ</text>
+<path d="M335 543H398" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="368" y="581" text-anchor="middle" font-size="19" fill="#51657e">H1</text>
+<rect x="405" y="504" width="186" height="78" rx="13" fill="#237d85"/><text x="498" y="537" text-anchor="middle" font-size="25" font-weight="600" fill="white">Round 2</text><text x="498" y="564" text-anchor="middle" font-size="20" fill="white">共享参数 θ</text>
+<path d="M595 543H658" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="628" y="581" text-anchor="middle" font-size="19" fill="#51657e">H2</text>
+<rect x="665" y="504" width="186" height="78" rx="13" fill="#237d85"/><text x="758" y="537" text-anchor="middle" font-size="25" font-weight="600" fill="white">Round 3</text><text x="758" y="564" text-anchor="middle" font-size="20" fill="white">共享参数 θ</text>
+<path d="M855 543H918" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="888" y="581" text-anchor="middle" font-size="19" fill="#51657e">H3</text>
+<rect x="925" y="504" width="186" height="78" rx="13" fill="#237d85"/><text x="1018" y="537" text-anchor="middle" font-size="25" font-weight="600" fill="white">Round 4</text><text x="1018" y="564" text-anchor="middle" font-size="20" fill="white">共享参数 θ</text>
+<path d="M1020 596H238" stroke="#237d85" stroke-width="2" stroke-dasharray="7 6"/><text x="624" y="626" text-anchor="middle" font-size="20" fill="#237d85">图中展开为多格，实际复用同一核心</text>
+<rect x="60" y="772" width="195" height="64" rx="11" fill="#e8edf6"/><text x="157.5" y="811" text-anchor="middle" font-size="23" fill="#263b55">输入问题</text>
+<path d="M258 804H278" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="282" y="772" width="248" height="64" rx="11" fill="#e6f1ef"/><text x="406.0" y="811" text-anchor="middle" font-size="23" fill="#263b55">中间步骤 1</text>
+<path d="M533 804H553" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="557" y="772" width="276" height="64" rx="11" fill="#e6f1ef"/><text x="695.0" y="811" text-anchor="middle" font-size="23" fill="#263b55">中间步骤 2</text>
+<path d="M836 804H856" stroke="#72849a" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="860" y="772" width="250" height="64" rx="11" fill="#e9e6f3"/><text x="985.0" y="811" text-anchor="middle" font-size="23" fill="#263b55">最终回答</text>
+<path d="M65 857H1105" stroke="#72849a" stroke-width="2" marker-end="url(#arrow)"/><text x="580" y="881" text-anchor="middle" font-size="20" fill="#51657e">序列位置与可读取的中间结果增长</text>
+<text x="48" y="941" font-size="21" fill="#51657e">概念图：独立参数量、有效计算深度与序列长度，是不同的设计变量。</text>
+</g></svg>
